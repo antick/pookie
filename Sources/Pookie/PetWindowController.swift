@@ -18,6 +18,9 @@ final class PetWindowController {
     private var lastTimestamp: CFTimeInterval = 0
     private var observers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
     private var heartbeatElapsed: Double = 0
+    /// The worst frame interval since the last heartbeat, as a multiple of the
+    /// interval the pump was aiming for.
+    private var worstSlip: Double = 1
     private var framesSinceHeartbeat = 0
     private var metrics = ProcessMetrics()
     private var frameAccumulator: Double = 0
@@ -389,6 +392,15 @@ final class PetWindowController {
 
         updateFrameTier(elapsed)
 
+        // How late the pump actually ran, as a multiple of the interval it was
+        // aiming for. The average frame rate hides a hitch and the draw cost
+        // (1-2 ms, measured) does not include the window server's work, so this
+        // is the number that says whether a stutter is real — and it is the
+        // regression metric for the layer-backed renderer in M1.
+        if elapsed > 0, targetInterval > 0 {
+            worstSlip = max(worstSlip, elapsed / targetInterval)
+        }
+
         // Decimate the display link rather than redrawing on every vsync.
         // Software Core Graphics vector rendering is the dominant cost, so the
         // frame budget is the only lever that matters here.
@@ -574,6 +586,9 @@ final class PetWindowController {
         Log.info(
             "[\(pookie.species.rawValue):\(pookie.coat.rawValue)] "
             + "drawn=\(String(format: "%.1f", fps))fps "
+            + "worst=\(String(format: "%.0f", view.takeWorstDrawMilliseconds()))ms "
+            + "slip=\(String(format: "%.1f", worstSlip))x "
+            + "masks=\(view.maskRefreshCount) "
             + "tier=\(String(format: "%.0f", (1.0 / targetInterval).rounded()))fps "
             + "cpu=\(String(format: "%.1f", cpu))% "
             + "rss=\(String(format: "%.0f", ProcessMetrics.residentMegabytes()))MB "
@@ -594,6 +609,7 @@ final class PetWindowController {
         )
         heartbeatElapsed = 0
         framesSinceHeartbeat = 0
+        worstSlip = 1
     }
 
     // MARK: - Environment

@@ -192,6 +192,23 @@ When they are further apart, one **chases** the other instead — a 2.5–5 seco
 the happy face — and a chase that closes the distance turns into a brawl. No animal perches on another
 animal.
 
+### Is it smooth?
+
+Measured rather than assumed, because "it stutters when they jump" deserves a number. With five
+pookies on a 3840x1620 display, over 90 seconds:
+
+| What | Cost |
+|---|---|
+| Drawing one pookie | **1–2 ms** per frame (worst single frame in 90 s) |
+| Silhouette rasterisation | ~2 per second (1 per second mid-jump) |
+| Frame pump lateness | worst **1.2x** its target interval |
+
+So the renderer is not what a stutter would be made of — it is 1–2 ms of a 33 ms budget at 30 fps.
+What remains is the window server's: a transparent always-on-top window that **moves every frame**,
+twice as often while airborne. That is what M1's layer-backed renderer removes — one surface moved by
+the compositor instead of a window frame per frame. The metrics are in `Pookie --verbose` (`worst=`,
+`slip=`, `masks=`) so the improvement can be checked rather than felt.
+
 Five pookies are real work. They share one frame budget — 120 drawn frames per second between them, so
 one pet is unaffected and five get 24 fps each — and an occluded pet stops entirely. The honest numbers
 on this renderer (software Core Graphics, a 3840x1620 display):

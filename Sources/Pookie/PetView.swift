@@ -45,8 +45,29 @@ final class PetView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
+        let started = CACurrentMediaTime()
         context.clear(bounds)
         renderer.draw(in: context, size: bounds.size, pose: motion.pose)
+        // The average frame rate hides a hitch; the worst frame is what the eye
+        // notices, so it is measured and reported separately. Drawing is timed
+        // rather than the frame interval, because an idle pet is *supposed* to
+        // have long intervals between frames.
+        let cost = (CACurrentMediaTime() - started) * 1000
+        lastDrawMilliseconds = cost
+        worstDrawMilliseconds = max(worstDrawMilliseconds, cost)
+    }
+
+    /// The slowest single draw since the last heartbeat, in milliseconds.
+    private(set) var worstDrawMilliseconds: Double = 0
+    /// The most recent draw, in milliseconds.
+    private(set) var lastDrawMilliseconds: Double = 0
+    /// How many silhouette rasterisations have happened, for the heartbeat: they
+    /// are the one expensive thing that is not the drawing itself.
+    private(set) var maskRefreshCount = 0
+
+    func takeWorstDrawMilliseconds() -> Double {
+        defer { worstDrawMilliseconds = 0 }
+        return worstDrawMilliseconds
     }
 
     /// Called once per display refresh by `PetWindowController`.
@@ -184,7 +205,12 @@ final class PetView: NSView {
         // often as a dragged one at 60.
         maskRefreshCountdown -= dt
         guard maskRefreshCountdown <= 0 else { return }
-        maskRefreshCountdown = 0.5
+        // Half as often in the air. A jumping pet is the busiest thing on the
+        // desk — 30 fps and a window move on every one of those frames — and the
+        // silhouette only decides whether a click lands on her, which a 50 ms
+        // stale mask answers just as well.
+        maskRefreshCountdown = motion.isAirborne ? 1.0 : 0.5
+        maskRefreshCount += 1
         mask = MaskRaster.make(renderer: renderer, size: bounds.size, pose: motion.pose)
     }
 

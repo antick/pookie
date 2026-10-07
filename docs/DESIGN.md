@@ -353,6 +353,14 @@ while idle and visible**, effectively 0% while occluded.
 Tier transitions are hysteresis-based. A pet at the boundary between "idle" and "active" must not
 oscillate between 12 and 30 fps every frame.
 
+**A stutter is measured, not felt.** `PetView` times each draw (`worst=`) and counts silhouette
+rasterisations (`masks=`), and the controller reports how late the frame pump ran as a multiple of its
+target interval (`slip=`). With five pookies that is 1–2 ms of drawing, ~2 rasterisations a second and a
+worst lateness of 1.2x — so the renderer is not the cost. What remains is window-server work: a
+transparent always-on-top window moving every frame, twice as often while airborne, which is exactly
+what M1's layer-backed renderer replaces with one compositor-moved surface. Those three numbers are the
+regression metric for that work.
+
 **Many pets share one budget.** The population is capped at five (`PetCohort`) — one of each species,
 which is the number that reads as a little gang rather than as a crowd — and the frame rates are
 divided rather than multiplied: `totalFrameBudget` is 120 drawn frames per second for the whole
