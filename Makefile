@@ -38,6 +38,7 @@ poses: build
 	@$(BIN) --render-png shots/poses.png
 	@$(BIN) --render-species shots/species.png
 	@$(BIN) --render-patterns shots/patterns.png
+	@$(BIN) --render-brawl shots/brawl.png
 
 bundle:
 	@./scripts/bundle.sh $(CONFIG)

@@ -108,6 +108,11 @@ if let index = arguments.firstIndex(of: "--at") {
     }
 }
 
+if let index = arguments.firstIndex(of: "--render-brawl") {
+    let path = index + 1 < arguments.count ? arguments[index + 1] : "pookie-brawl.png"
+    exit(Diagnostics.renderBrawlPNG(to: path))
+}
+
 if let index = arguments.firstIndex(of: "--render-patterns") {
     let path = index + 1 < arguments.count ? arguments[index + 1] : "pookie-patterns.png"
     exit(Diagnostics.renderPatternsPNG(to: path))

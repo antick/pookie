@@ -590,7 +590,7 @@ struct CatRenderer: PetRenderer {
 
         let shoulder = CGPoint(
             x: anatomy.bodyCenter.x + near * anatomy.bodyRadii.width * 0.55,
-            y: anatomy.bodyCenter.y + anatomy.bodyRadii.height * 0.35
+            y: anatomy.bodyCenter.y + anatomy.bodyRadii.height * 0.5
         )
         // Short enough to leave the art envelope some margin: at the first
         // length the swing ended exactly on the stage edge, which the transient
@@ -598,11 +598,13 @@ struct CatRenderer: PetRenderer {
         // Capped, because a punch is an *arm*: a bear's belly is wider than a
         // hamster's, and letting the swing grow with it put a bear's paw on the
         // edge of the stage.
+        // Long enough to reach a face at the distance a brawl holds them, and
+        // aimed *up*: a punch at chest height is a shove.
         let armLength = min(anatomy.bodyRadii.width * 0.42, 12)
-        let reach = (armLength + anatomy.pawRadii.width * 1.15) * amount
+        let reach = (armLength + anatomy.pawRadii.width * 1.5) * amount
         let paw = CGPoint(
-            x: shoulder.x + near * reach * 0.8,
-            y: shoulder.y + reach * 0.55
+            x: shoulder.x + near * reach * 0.85,
+            y: shoulder.y + reach * 0.85
         )
 
         // The arm, then the paw on the end of it.
@@ -627,28 +629,6 @@ struct CatRenderer: PetRenderer {
             width: outlineWidth * 0.8
         )
 
-        // The hit: five short lines and a star, drawn past the paw. Cheap, and it
-        // is what makes the swing read as a *punch* rather than a wave.
-        let impact = CGFloat(max(0, min(1, pose.impact)))
-        guard impact > 0.05 else { return }
-        let centre = CGPoint(x: paw.x + near * anatomy.pawRadii.width * 1.5, y: paw.y + anatomy.pawRadii.width * 0.6)
-        let radius = anatomy.pawRadii.width * (0.75 + 0.7 * impact)
-        for index in 0..<5 {
-            let angle = Double(index) / 5 * 2 * .pi + 0.4
-            let inner = CGPoint(x: centre.x + cos(angle) * radius * 0.35, y: centre.y + sin(angle) * radius * 0.35)
-            let outer = CGPoint(x: centre.x + cos(angle) * radius, y: centre.y + sin(angle) * radius)
-            let spike = CGMutablePath()
-            spike.move(to: inner)
-            spike.addLine(to: outer)
-            stroke(context, path: spike, color: palette.furDark, width: outlineWidth * 0.8)
-        }
-        context.setFillColor(palette.belly)
-        context.fillEllipse(in: CGRect(
-            x: centre.x - radius * 0.28,
-            y: centre.y - radius * 0.28,
-            width: radius * 0.56,
-            height: radius * 0.56
-        ))
     }
 
     /// The colour a marking is drawn in, chosen for contrast against the fur.
@@ -733,10 +713,10 @@ struct CatRenderer: PetRenderer {
             // A whole leg, not a spot on the foot: at this size a pale dot on a
             // paw is indistinguishable from the paw.
             let rect = CGRect(
-                x: centre.x - anatomy.pawRadii.width * 1.15,
+                x: centre.x - anatomy.pawRadii.width * 1.3,
                 y: centre.y - anatomy.pawRadii.height,
-                width: anatomy.pawRadii.width * 2.3,
-                height: anatomy.pawRadii.height * 3.4
+                width: anatomy.pawRadii.width * 2.6,
+                height: anatomy.pawRadii.height * 5.2
             )
             fillStroke(
                 context,
@@ -749,8 +729,8 @@ struct CatRenderer: PetRenderer {
         case .heart:
             // Two lobes and a point, low on the flank so the muzzle does not sit
             // on top of it.
-            let size = radii.width * 0.34
-            let centre = CGPoint(x: body.x + radii.width * 0.1, y: body.y - radii.height * 0.3)
+            let size = radii.width * 0.5
+            let centre = CGPoint(x: body.x + radii.width * 0.1, y: body.y - radii.height * 0.28)
             let heart = CGMutablePath()
             heart.move(to: CGPoint(x: centre.x, y: centre.y - size * 0.9))
             heart.addQuadCurve(
@@ -781,9 +761,9 @@ struct CatRenderer: PetRenderer {
             context.addPath(bodyClip())
             context.clip()
             for (dx, dy, size) in [
-                (CGFloat(-0.45), CGFloat(0.15), CGFloat(0.26)),
-                (CGFloat(0.3), CGFloat(-0.2), CGFloat(0.3)),
-                (CGFloat(-0.05), CGFloat(-0.6), CGFloat(0.22)),
+                (CGFloat(-0.5), CGFloat(0.2), CGFloat(0.36)),
+                (CGFloat(0.35), CGFloat(-0.15), CGFloat(0.4)),
+                (CGFloat(-0.05), CGFloat(-0.62), CGFloat(0.3)),
             ] {
                 let radius = radii.width * size
                 let centre = CGPoint(x: body.x + radii.width * dx, y: body.y + radii.height * dy)
@@ -805,10 +785,11 @@ struct CatRenderer: PetRenderer {
             context.addPath(bodyClip())
             context.clip()
             for (dx, dy, size) in [
-                (CGFloat(-0.5), CGFloat(0.25), CGFloat(3.2)),
-                (CGFloat(0.1), CGFloat(-0.3), CGFloat(2.6)),
-                (CGFloat(0.5), CGFloat(0.3), CGFloat(2.2)),
-                (CGFloat(-0.2), CGFloat(-0.6), CGFloat(2.0)),
+                (CGFloat(-0.55), CGFloat(0.3), CGFloat(5.4)),
+                (CGFloat(0.15), CGFloat(-0.35), CGFloat(4.4)),
+                (CGFloat(0.5), CGFloat(0.35), CGFloat(3.8)),
+                (CGFloat(-0.2), CGFloat(-0.65), CGFloat(3.4)),
+                (CGFloat(0.45), CGFloat(-0.7), CGFloat(3.0)),
             ] {
                 let centre = CGPoint(x: body.x + radii.width * dx, y: body.y + radii.height * dy)
                 let reach = size * headScale
@@ -839,10 +820,10 @@ struct CatRenderer: PetRenderer {
             // A winter coat: pale muzzle, chest and paws, outlined like everything
             // else so it shows on a pale pookie too.
             let chest = CGRect(
-                x: body.x - radii.width * 0.42,
-                y: body.y - radii.height * 0.5,
-                width: radii.width * 0.84,
-                height: radii.height * 1.0
+                x: body.x - radii.width * 0.62,
+                y: body.y - radii.height * 0.72,
+                width: radii.width * 1.24,
+                height: radii.height * 1.45
             )
             fillStroke(
                 context,
@@ -902,10 +883,10 @@ struct CatRenderer: PetRenderer {
             context.translateBy(x: centre.x, y: centre.y)
             context.rotate(by: -0.4)
             let patch = CGRect(
-                x: -anatomy.eyeRadius * 1.9,
-                y: -anatomy.eyeRadius * 1.6,
-                width: anatomy.eyeRadius * 3.8,
-                height: anatomy.eyeRadius * 3.2
+                x: -anatomy.eyeRadius * 2.6,
+                y: -anatomy.eyeRadius * 2.4,
+                width: anatomy.eyeRadius * 5.2,
+                height: anatomy.eyeRadius * 4.8
             )
             fillStroke(
                 context,
@@ -919,8 +900,8 @@ struct CatRenderer: PetRenderer {
         case .mask:
             // A band across both eyes, wide enough to reach the sides of the head
             // and outlined so it shows on a dark coat too.
-            let width = anatomy.headRadius * 1.9
-            let height = anatomy.eyeRadius * 2.1
+            let width = anatomy.headRadius * 2.3
+            let height = anatomy.eyeRadius * 3.1
             let band = CGRect(
                 x: anatomy.headCenter.x - width / 2,
                 y: anatomy.eyeY - height / 2,

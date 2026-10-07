@@ -83,6 +83,43 @@ final class PetMotion {
     /// every cat does at eleven at night.
     private(set) var zoomiesSeconds: Double = 0
     private var zoomiesCountdown: Double = Rand.double(45...150)
+    /// Seconds left of a flinch: the face and the stagger after being hit.
+    private(set) var hurtSeconds: Double = 0
+    /// Which way the blow pushed her, so the head snaps away from it.
+    private var hurtDirection: CGFloat = 1
+    /// Set when this pookie's swing has landed, for the cohort to hand to the
+    /// other one. A punch that nobody feels is a dance, which is exactly what
+    /// this looked like.
+    private var pendingHit = false
+    /// Counts, for the heartbeat.
+    private(set) var hitsLanded = 0
+    private(set) var hitsTaken = 0
+    /// Set when she wants to yelp about it.
+    private var pendingYelp = false
+
+    /// Consume "my swing landed".
+    func takePendingHit() -> Bool {
+        defer { pendingHit = false }
+        return pendingHit
+    }
+
+    /// Consume "she was hit, say something".
+    func takeYelp() -> Bool {
+        defer { pendingYelp = false }
+        return pendingYelp
+    }
+
+    /// Take a punch: a squint, a yelp, and a stagger away from whoever threw it.
+    @discardableResult
+    func reactToHit(fromX: CGFloat) -> Bool {
+        guard !isDragging else { return false }
+        hurtSeconds = 0.42
+        hurtDirection = origin.x >= fromX ? 1 : -1
+        hitsTaken += 1
+        pendingYelp = true
+        return true
+    }
+
     /// Seconds left of a sneeze, and the little hop and head-shake that go with
     /// it.
     private(set) var sneezeSeconds: Double = 0
@@ -100,6 +137,11 @@ final class PetMotion {
     /// How long company has to stay close before somebody throws a paw.
     var brawlAfterSeconds: Double = 3
     var isBrawlReady: Bool { nearSeconds >= brawlAfterSeconds }
+    /// Close enough to be touching. Contact starts a scrap on the spot: three
+    /// seconds of *nearness* is for pookies sitting near each other, not for two
+    /// who have just walked into each other.
+    var isInContact: Bool { nearSeconds > 0 && nearDistance < personalSpace * 0.85 }
+    private var nearDistance: CGFloat = .greatestFiniteMagnitude
 
     /// A scrap is allowed in more situations than a chase: the whole point is
     /// that it happens between neighbours, including two who were already
@@ -129,6 +171,12 @@ final class PetMotion {
         return true
     }
 
+    /// The flinch, ticked down with everything else.
+    private func updateHurt(_ dt: Double) {
+        guard hurtSeconds > 0 else { return }
+        hurtSeconds -= dt
+    }
+
     /// The brawl, and the clock that decides when one starts.
     ///
     /// Close company used to trigger a scrap on the frame it was detected, which
@@ -147,11 +195,20 @@ final class PetMotion {
         let theirs = rival.x + size.width / 2
         facing = theirs >= mine ? 1 : -1
 
-        // Close the gap: a brawl happens at arm's length, and the separation
-        // below is what usually keeps them a body apart.
+        // Close in until they are actually touching. A brawl at arm's length is
+        // two animals dancing near each other, which is what the human saw.
         let gap = theirs - mine
-        if abs(gap) > size.width * 0.62 {
-            origin.x += (gap > 0 ? 1 : -1) * min(abs(gap) * CGFloat(dt) * 1.4, 1.2)
+        let touching = personalSpace * 0.55
+        if abs(gap) > touching {
+            origin.x += (gap > 0 ? 1 : -1) * min(abs(gap) * CGFloat(dt) * 2.2, 2.4)
+        }
+        // The swing lands at the top of the arc, and the *other* one feels it.
+        // The same phase the pose uses for the punch, read here so the blow and
+        // the flinch cannot drift apart.
+        let swing = sin(scuffleSeconds * 6.5)
+        if abs(swing) > 0.9, abs(gap) < personalSpace * 0.95 {
+            pendingHit = true
+            hitsLanded += 1
         }
     }
 
@@ -209,11 +266,12 @@ final class PetMotion {
             return
         }
         let mine = origin.x + size.width / 2
-        let close = companions.contains { companion in
-            abs(origin.y - companion.y) < size.height * 0.6
-                && abs(companion.x + size.width / 2 - mine) < brawlRange
+        var nearest = CGFloat.greatestFiniteMagnitude
+        for companion in companions where abs(origin.y - companion.y) < size.height * 0.6 {
+            nearest = min(nearest, abs(companion.x + size.width / 2 - mine))
         }
-        nearSeconds = close ? nearSeconds + dt : 0
+        nearDistance = nearest
+        nearSeconds = nearest < brawlRange ? nearSeconds + dt : 0
     }
 
     /// Every pet who is in a state to notice another one. The cohort picks its
@@ -542,6 +600,7 @@ final class PetMotion {
             applyDragDeformation()
         }
 
+        updateHurt(dt)
         updateSmallBehaviours(dt)
         updatePlay(dt)
         updateScuffle(dt)
@@ -607,7 +666,7 @@ final class PetMotion {
             // on each other, which is the whole charm of a pile of cats.
             let piling = isResting && abs(velocity.dx) < 4
             let space = isScuffling
-                ? personalSpace * 0.62
+                ? personalSpace * 0.5
                 : (piling ? personalSpace * 0.72 : personalSpace)
             guard abs(gap) < space else { continue }
             let ease = (space - abs(gap)) * CGFloat(dt) * 1.6
@@ -1347,6 +1406,16 @@ final class PetMotion {
         // The scrap is applied last, on purpose: it is the one thing she does
         // that has to override the walk cycle and the mouth decay rather than be
         // composed with them.
+        // Being hit: a squint, an open mouth, the head snapping away from the
+        // blow, and a stagger. Without this a punch is a gesture at nobody.
+        if hurtSeconds > 0 {
+            let fade = CGFloat(max(0, min(1, hurtSeconds / 0.42)))
+            pose.blink = max(pose.blink, 0.8 * fade)
+            pose.mouthOpen = max(pose.mouthOpen, 0.95 * fade)
+            pose.tilt = pose.tilt + Double(hurtDirection) * 0.14 * Double(fade)
+            pose.hopOffset = max(pose.hopOffset, 1.3 * fade)
+        }
+
         // A sneeze is a hop, a shake and a squint, over in half a second.
         if sneezeSeconds > 0 {
             let peak = sin((1 - sneezeSeconds / 0.45) * .pi)
@@ -1490,6 +1559,7 @@ final class PetMotion {
         // up, the tail faster and the blush — which is the whole expression.
         // A scrap is not a happy face: flattened ears, wide eyes and a hiss is
         // what a small fight looks like on this cat.
+        if hurtSeconds > 0 { return .alarmed }
         if isScuffling { return .alarmed }
         if isPlaying { return .happy }
         if sleepy { return .sleepy }

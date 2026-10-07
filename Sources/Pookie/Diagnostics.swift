@@ -1154,6 +1154,44 @@ enum Diagnostics {
         check(sides.count == 2, "and alternates paws, like a one-two")
         check(sawImpact, "with a comic hit at the end of the swing")
 
+        // Contact starts one on the spot: two pookies who walk into each other do
+        // not wait three seconds.
+        let bumped = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        bumped.followCursor = false
+        bumped.wanderEnabled = false
+        bumped.companions = [CGPoint(x: bumped.origin.x + bumped.personalSpace * 0.5, y: 0)]
+        run(bumped, 0.2)
+        check(bumped.isInContact, "walking into somebody counts as contact")
+        check(!bumped.isBrawlReady, "before the three-second rule would fire")
+
+        // A blow lands, and the other one feels it.
+        let puncher = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        puncher.followCursor = false
+        puncher.wanderEnabled = false
+        puncher.companions = [CGPoint(x: puncher.origin.x + puncher.personalSpace * 0.5, y: 0)]
+        check(puncher.startScuffle(2), "a scrap can start on contact")
+        var landed = false
+        for _ in 0..<120 {
+            puncher.companions = [CGPoint(x: puncher.origin.x + puncher.personalSpace * 0.5, y: 0)]
+            puncher.advance(dt: 1.0 / 60.0)
+            if puncher.takePendingHit() { landed = true }
+        }
+        check(landed, "and the swing actually lands on somebody")
+
+        let victim = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        victim.followCursor = false
+        check(victim.reactToHit(fromX: 200), "the one who is hit reacts")
+        var flinched = false
+        var yelped = false
+        for _ in 0..<30 {
+            victim.advance(dt: 1.0 / 60.0)
+            if victim.pose.mouthOpen > 0.3 { flinched = true }
+            if victim.pose.mood == .alarmed { yelped = true }
+        }
+        check(flinched, "with a yelp and a squint")
+        check(yelped, "and the flattened-ear face")
+        check(victim.hitsTaken == 1, "and it is counted")
+
         // And a brawl holds them closer than the rule that keeps them apart.
         let brawler = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
         brawler.followCursor = false
@@ -1990,6 +2028,103 @@ enum Diagnostics {
         print("wrote \(width)x\(height) markings sheet to \(path)")
         print("row 1: " + patterns.map(\.name).joined(separator: " | ") + "  (on a Midnight cat)")
         print("row 2: the same nine on a Snow bunny")
+        return 0
+    }
+
+    /// A review sheet for a brawl.
+    ///
+    /// Two pookies at the distance the brawl actually holds them, across one
+    /// swing: the wind-up, the blow landing, the flinch, and the recovery. A
+    /// fight is the one thing in here that cannot be judged from a single pose —
+    /// the first version looked like dancing because the two of them were never
+    /// close enough to touch.
+    static func renderBrawlPNG(to path: String) -> Int32 {
+        let phases: CGFloat = 4
+        let cell = 260
+        let width = Int(phases) * cell
+        let height = Int(cell)
+
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            Log.info("could not create render context")
+            return 1
+        }
+        context.setFillColor(CGColor.hex(0xFDF6EC))
+        context.fill(CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
+        context.setStrokeColor(CGColor.hex(0xE8DCCB))
+        context.setLineWidth(1)
+        for column in 1..<Int(phases) {
+            context.move(to: CGPoint(x: CGFloat(column * cell), y: 0))
+            context.addLine(to: CGPoint(x: CGFloat(column * cell), y: CGFloat(height)))
+        }
+        context.strokePath()
+
+        // Two pookies a body apart, which is what `personalSpace * 0.5` works out
+        // to at this size: close enough for a paw to land.
+        let left = CatPose()
+        var right = CatPose()
+        right.facing = -1
+
+        let fight: [(left: CatPose, right: CatPose)] = [
+            // Wind-up: both up on the back foot.
+            (left, right),
+            // The blow lands: the near paw out, the other one taking it.
+            (
+                { var pose = left; pose.punch = 1; pose.mood = .alarmed; pose.hopOffset = 2.4; return pose }(),
+                { var pose = right; pose.blink = 0.8; pose.mouthOpen = 0.95; pose.tilt = -0.14; pose.mood = .alarmed; return pose }()
+            ),
+            // The flinch, full face.
+            (
+                { var pose = left; pose.punch = 0.2; pose.mood = .alarmed; return pose }(),
+                { var pose = right; pose.blink = 0.8; pose.mouthOpen = 0.95; pose.tilt = -0.14; pose.mood = .alarmed; pose.hopOffset = 1.3; return pose }()
+            ),
+            // Recovery: the other paw comes back.
+            (
+                { var pose = left; pose.punch = -1; pose.mood = .alarmed; pose.hopOffset = 2.0; return pose }(),
+                { var pose = right; pose.blink = 0.5; pose.mouthOpen = 0.6; pose.mood = .alarmed; return pose }()
+            ),
+        ]
+
+        for (index, phase) in fight.enumerated() {
+            context.saveGState()
+            context.translateBy(x: CGFloat(index * cell), y: 0)
+            context.clip(to: CGRect(x: 0, y: 0, width: CGFloat(cell), height: CGFloat(cell)))
+            let one = CGSize(width: CGFloat(cell) * 0.58, height: CGFloat(cell))
+            CatRenderer(palette: CatSkin.tabby.palette)
+                .draw(in: context, size: one, pose: phase.left)
+            context.saveGState()
+            // At the distance the brawl actually holds them: `personalSpace * 0.5`
+            // is 0.45 of a window width, which is why the two bodies overlap.
+            context.translateBy(x: CGFloat(cell) * 0.32, y: 0)
+            CatRenderer(palette: CatSkin.midnight.palette)
+                .draw(in: context, size: one, pose: phase.right)
+            context.restoreGState()
+            context.restoreGState()
+        }
+
+        guard let image = context.makeImage() else {
+            Log.info("could not snapshot the brawl sheet")
+            return 1
+        }
+        let url = URL(fileURLWithPath: path) as CFURL
+        guard let destination = CGImageDestinationCreateWithURL(url, UTType.png.identifier as CFString, 1, nil) else {
+            Log.info("could not create PNG destination at \(path)")
+            return 1
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            Log.info("could not finalise PNG at \(path)")
+            return 1
+        }
+        print("wrote \(width)x\(height) brawl sheet to \(path)")
+        print("one swing: wind-up | the blow lands | the flinch | the other paw")
         return 0
     }
 

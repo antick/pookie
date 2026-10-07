@@ -191,6 +191,11 @@ enum PetChatter {
         ].randomElement() ?? "mrrp!"
     }
 
+    /// Taking a punch. Short, undignified, and never the same twice.
+    static func hit() -> String {
+        ["ow!", "!!", "eep!", "oof!", "mraow!", "*thud*"].randomElement() ?? "ow!"
+    }
+
     /// A sneeze. Small, involuntary, and the only line she never means.
     static func sneeze() -> String {
         ["achoo!", "ha-choo!", "*achoo*"].randomElement() ?? "achoo!"

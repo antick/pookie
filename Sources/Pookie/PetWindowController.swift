@@ -400,6 +400,9 @@ final class PetWindowController {
         if motion.takeSneezeLine() {
             say(PetChatter.sneeze(), duration: 1.0)
         }
+        if motion.takeYelp() {
+            say(PetChatter.hit(), duration: 0.9)
+        }
 
         // How late the pump actually ran, as a multiple of the interval it was
         // aiming for. The average frame rate hides a hitch and the draw cost
@@ -614,6 +617,7 @@ final class PetWindowController {
             + "scraps=\(motion.scuffleCount) "
             + "zoomies=\(motion.zoomiesCount) "
             + "sneezes=\(motion.sneezeCount) "
+            + "hits=\(motion.hitsLanded)/\(motion.hitsTaken) "
             + "bubble=\(speech.bubble == nil ? "no" : "yes") "
             + "paused=\(motion.isPaused) "
             + "overCat=\(view.isPointerOverPet)"

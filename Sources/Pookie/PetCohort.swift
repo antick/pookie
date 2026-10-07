@@ -7,13 +7,13 @@ import AppKit
 /// plays with whom, and the frame budget they share. A single pet is unaffected —
 /// the cohort does nothing to her that the settings did not ask for.
 final class PetCohort {
-    /// The population the settings offer. Five is one of each species, which is
-    /// the number that reads as a little gang rather than as a crowd — and five
-    /// at the idle tier is a quarter of the cost of ten.
-    static let maximumPets = 5
+    /// The population the settings offer. Ten, because the roster can hold every
+    /// animal and the desk is the thing that has a limit; the frame budget below
+    /// is what keeps it honest.
+    static let maximumPets = 10
     /// Total drawn frames per second, shared evenly across the pets. One pet's
     /// own tiers sit below this, so the budget only starts to bite at three or
-    /// four; five get 24 fps each, which is the tier a walking cat already uses.
+    /// four; ten get 12 fps each, which is the tier a sleeping cat already uses.
     /// Five pets on this renderer are still five pets' worth of software
     /// rasterisation — that is the M1 SpriteKit work, not a tuning problem.
     static let totalFrameBudget: Double = 120
@@ -194,6 +194,17 @@ final class PetCohort {
             pet.motion.companions = others
         }
 
+        // Blows land. Whoever threw one, the one nearest them feels it — which is
+        // the difference between a fight and two animals waving at each other.
+        for attacker in pets where attacker.motion.isScuffling {
+            guard attacker.motion.takePendingHit() else { continue }
+            let victim = pets
+                .filter { $0 !== attacker }
+                .min { abs($0.motion.origin.x - attacker.motion.origin.x)
+                    < abs($1.motion.origin.x - attacker.motion.origin.x) }
+            victim?.motion.reactToHit(fromX: attacker.motion.origin.x)
+        }
+
         // Company close enough to touch is its own trigger: whether they arrived
         // by chasing each other or by sitting down side by side, two animals this
         // close will have a go at each other.
@@ -220,10 +231,10 @@ final class PetCohort {
                 let b = ready[j].motion
                 guard abs(a.origin.y - b.origin.y) < a.size.height * 0.6 else { continue }
                 guard abs(a.origin.x - b.origin.x) < a.brawlRange else { continue }
-                // Close is not enough: they have to have *been* close for a
-                // while, which is what makes a brawl look provoked rather than
-                // random.
-                guard a.isBrawlReady && b.isBrawlReady else { continue }
+                // Contact starts one on the spot. Three seconds of *nearness* is
+                // for pookies who sit down near each other; two who walk into
+                // each other do not wait.
+                guard (a.isBrawlReady && b.isBrawlReady) || a.isInContact || b.isInContact else { continue }
 
                 let bout = Rand.double(1.6...3.0)
                 guard a.startScuffle(bout) else { continue }
