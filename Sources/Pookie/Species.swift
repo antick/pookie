@@ -17,6 +17,20 @@ enum PetSpecies: String, CaseIterable {
     case duckling
     case bear
     case hamster
+    case penguin
+    case raccoon
+    case corgi
+    case squirrel
+    case redPanda
+    case koala
+    case otter
+    case capybara
+    case chick
+    case robin
+    case owl
+    case hedgehog
+    case axolotl
+    case frog
 
     var name: String {
         switch self {
@@ -28,6 +42,20 @@ enum PetSpecies: String, CaseIterable {
         case .duckling: return "Duckling"
         case .bear: return "Bear"
         case .hamster: return "Hamster"
+        case .penguin: return "Penguin"
+        case .raccoon: return "Raccoon"
+        case .corgi: return "Corgi"
+        case .squirrel: return "Squirrel"
+        case .redPanda: return "Red panda"
+        case .koala: return "Koala"
+        case .otter: return "Otter"
+        case .capybara: return "Capybara"
+        case .chick: return "Chick"
+        case .robin: return "Robin"
+        case .owl: return "Owl"
+        case .hedgehog: return "Hedgehog"
+        case .axolotl: return "Axolotl"
+        case .frog: return "Frog"
         }
     }
 
@@ -42,6 +70,20 @@ enum PetSpecies: String, CaseIterable {
         case .duckling: return "Puddle"
         case .bear: return "Barnaby"
         case .hamster: return "Peanut"
+        case .penguin: return "Waddles"
+        case .raccoon: return "Bandit"
+        case .corgi: return "Shortbread"
+        case .squirrel: return "Hazel"
+        case .redPanda: return "Rusty"
+        case .koala: return "Gumleaf"
+        case .otter: return "Pebble"
+        case .capybara: return "Biscuit"
+        case .chick: return "Pip"
+        case .robin: return "Berry"
+        case .owl: return "Sage"
+        case .hedgehog: return "Bramble"
+        case .axolotl: return "Bloom"
+        case .frog: return "Pond"
         }
     }
 
@@ -57,6 +99,21 @@ enum PetSpecies: String, CaseIterable {
         case .duckling: return .duckling
         case .bear: return .cocoa
         case .hamster: return .hazel
+        // A penguin is the panda's palette: white fur with black points.
+        case .penguin: return .panda
+        case .raccoon: return .grey
+        case .corgi: return .ginger
+        case .squirrel: return .chocolate
+        case .redPanda: return .ginger
+        case .koala: return .grey
+        case .otter: return .chocolate
+        case .capybara: return .chocolate
+        case .chick: return .duckling
+        case .robin: return .robin
+        case .owl: return .cocoa
+        case .hedgehog: return .chocolate
+        case .axolotl: return .blossom
+        case .frog: return .moss
         }
     }
 
@@ -189,6 +246,246 @@ enum PetSpecies: String, CaseIterable {
                 stripes: false,
                 cheeks: true
             )
+        case .penguin:
+            // A bird built like a bottle: no ears, a small bill, flippers, and
+            // the panda's palette doing the black-and-white for free.
+            return SpeciesTraits(
+                scale: 0.82,
+                bodyWidth: 1.1,
+                bodyHeight: 1.18,
+                headScale: 0.95,
+                muzzle: 0.55,
+                ears: .none,
+                tail: .puff,
+                tailScale: 0.3,
+                whiskers: false,
+                stripes: false,
+                bill: true,
+                wings: true,
+                legs: .webbed,
+                slides: true
+            )
+        case .raccoon:
+            // Round ears, a ringed brush of a tail, and the mask that names it.
+            return SpeciesTraits(
+                scale: 0.9,
+                bodyWidth: 1.05,
+                bodyHeight: 1.0,
+                headScale: 1.0,
+                muzzle: 1.15,
+                ears: .round,
+                earLift: 0.9,
+                tail: .brush,
+                tailScale: 0.95,
+                tailWidth: 1.05,
+                tailLift: 5,
+                whiskers: true,
+                stripes: false,
+                ringedTail: true
+            )
+        case .corgi:
+            // Big ears, no tail worth the name, and the shortest legs in the
+            // catalogue — which is the whole joke of a corgi.
+            return SpeciesTraits(
+                scale: 0.72,
+                bodyWidth: 1.2,
+                bodyHeight: 0.95,
+                headScale: 1.1,
+                muzzle: 1.3,
+                ears: .pointed,
+                earLift: 0.9,
+                tail: .puff,
+                tailScale: 0.35,
+                whiskers: false,
+                stripes: false,
+                legs: .short
+            )
+        case .squirrel:
+            // Tufted ears, a small body, and a brush tail bigger than the animal.
+            return SpeciesTraits(
+                scale: 0.62,
+                bodyWidth: 0.95,
+                bodyHeight: 1.0,
+                headScale: 1.05,
+                muzzle: 1.0,
+                ears: .pointed,
+                earLift: 0.8,
+                tail: .brush,
+                tailScale: 1.1,
+                tailWidth: 1.1,
+                tailLift: 8,
+                whiskers: true,
+                stripes: false
+            )
+        case .redPanda:
+            // A raccoon in rust: ringed brush, round ears, and a face mask.
+            return SpeciesTraits(
+                scale: 0.82,
+                bodyWidth: 1.1,
+                bodyHeight: 1.0,
+                headScale: 1.0,
+                muzzle: 1.05,
+                ears: .round,
+                earLift: 0.95,
+                tail: .brush,
+                tailScale: 1.0,
+                tailWidth: 1.1,
+                tailLift: 6,
+                whiskers: true,
+                stripes: false,
+                ringedTail: true
+            )
+        case .koala:
+            // All ears and nose: the fluffiest ears here, on a small round head.
+            return SpeciesTraits(
+                scale: 0.85,
+                bodyWidth: 1.1,
+                bodyHeight: 1.0,
+                headScale: 1.05,
+                muzzle: 1.5,
+                ears: .round,
+                earLift: 1.7,
+                tail: .puff,
+                tailScale: 0.3,
+                whiskers: false,
+                stripes: false
+            )
+        case .otter:
+            // Long and low, with a thick tail and a pale muzzle.
+            return SpeciesTraits(
+                scale: 0.78,
+                bodyWidth: 1.3,
+                bodyHeight: 0.85,
+                headScale: 1.0,
+                muzzle: 1.3,
+                ears: .round,
+                earLift: 0.5,
+                tail: .brush,
+                tailScale: 0.9,
+                tailWidth: 1.2,
+                tailLift: 3,
+                whiskers: true,
+                stripes: false
+            )
+        case .capybara:
+            // A loaf with legs: the biggest body and the smallest ears here.
+            return SpeciesTraits(
+                scale: 0.95,
+                bodyWidth: 1.45,
+                bodyHeight: 1.15,
+                headScale: 0.9,
+                muzzle: 1.35,
+                ears: .round,
+                earLift: 0.45,
+                tail: .puff,
+                tailScale: 0.2,
+                whiskers: true,
+                stripes: false
+            )
+        case .chick:
+            // The smallest bird: round, yellow, and all fluff.
+            return SpeciesTraits(
+                scale: 0.5,
+                bodyWidth: 1.1,
+                bodyHeight: 1.1,
+                headScale: 1.1,
+                muzzle: 0.5,
+                ears: .none,
+                tail: .puff,
+                tailScale: 0.3,
+                whiskers: false,
+                stripes: false,
+                bill: true,
+                wings: true,
+                legs: .short
+            )
+        case .robin:
+            // A round bird with a red breast and a neat bill.
+            return SpeciesTraits(
+                scale: 0.62,
+                bodyWidth: 1.15,
+                bodyHeight: 1.05,
+                headScale: 1.05,
+                muzzle: 0.6,
+                ears: .none,
+                tail: .puff,
+                tailScale: 0.45,
+                whiskers: false,
+                stripes: false,
+                bill: true,
+                wings: true,
+                legs: .short
+            )
+        case .owl:
+            // Enormous eyes, tufts, and a hooked bill: the only bird here that
+            // does not look like it would fit in a teacup.
+            return SpeciesTraits(
+                scale: 0.85,
+                bodyWidth: 1.2,
+                bodyHeight: 1.05,
+                headScale: 1.25,
+                muzzle: 0.7,
+                ears: .pointed,
+                earLift: 0.5,
+                tail: .puff,
+                tailScale: 0.4,
+                whiskers: false,
+                stripes: false,
+                bill: true,
+                wings: true,
+                eyeScale: 1.7
+            )
+        case .hedgehog:
+            // A small round animal wearing a whole back of spikes.
+            return SpeciesTraits(
+                scale: 0.66,
+                bodyWidth: 1.25,
+                bodyHeight: 1.05,
+                headScale: 0.95,
+                muzzle: 1.1,
+                ears: .round,
+                earLift: 0.5,
+                tail: .puff,
+                tailScale: 0.2,
+                whiskers: true,
+                stripes: false,
+                spikes: true
+            )
+        case .axolotl:
+            // A salamander: smooth, no ears, three frills a side, and a fin for a
+            // tail.
+            return SpeciesTraits(
+                scale: 0.72,
+                bodyWidth: 1.1,
+                bodyHeight: 0.95,
+                headScale: 1.15,
+                muzzle: 1.05,
+                ears: .none,
+                tail: .brush,
+                tailScale: 0.9,
+                tailWidth: 0.8,
+                tailLift: 4,
+                whiskers: false,
+                stripes: false,
+                gills: true
+            )
+        case .frog:
+            // Eyes on top of the head and a mouth as wide as the head is: a frog
+            // is read entirely from those two things.
+            return SpeciesTraits(
+                scale: 0.62,
+                bodyWidth: 1.3,
+                bodyHeight: 0.95,
+                headScale: 1.2,
+                muzzle: 1.5,
+                ears: .none,
+                tail: .puff,
+                tailScale: 0.2,
+                whiskers: false,
+                stripes: false,
+                legs: .short,
+                eyeLift: 0.5
+            )
         }
     }
 }
@@ -273,6 +570,21 @@ struct SpeciesTraits {
     var cheeks: Bool = false
     /// How the feet are drawn.
     var legs: LegStyle = .paws
+    /// Rings down the tail, without the user choosing the marking: a raccoon's
+    /// tail is not a coat option.
+    var ringedTail: Bool = false
+    /// A back of spikes — a hedgehog.
+    var spikes: Bool = false
+    /// Three frills a side — an axolotl.
+    var gills: Bool = false
+    /// Eyes lifted above the skull line, as a fraction of the head radius: a
+    /// frog's eyes are on top of its head.
+    var eyeLift: CGFloat = 0
+    /// Eye size, on top of the head scale: an owl is mostly eyes.
+    var eyeScale: CGFloat = 1
+    /// Belly-slides along the floor when it wants to move fast, rather than
+    /// waddling: a penguin's other gait.
+    var slides: Bool = false
 }
 
 /// How an animal's feet are drawn.
@@ -281,4 +593,6 @@ enum LegStyle {
     case paws
     /// Flat webbed feet with a splay — a duckling.
     case webbed
+    /// Very short legs: a corgi, a chick, a frog.
+    case short
 }

@@ -370,6 +370,12 @@ enum CatSkin: String, CaseIterable {
     case cocoa
     /// Sandy gold, for a hamster.
     case hazel
+    /// Brown with a red-orange breast: a robin.
+    case robin
+    /// Pale pink with darker frills: an axolotl.
+    case blossom
+    /// Green, for a frog.
+    case moss
 
     var name: String {
         switch self {
@@ -387,6 +393,9 @@ enum CatSkin: String, CaseIterable {
         case .duckling: return "Duckling"
         case .cocoa: return "Cocoa"
         case .hazel: return "Hazel"
+        case .robin: return "Robin"
+        case .blossom: return "Blossom"
+        case .moss: return "Moss"
         }
     }
 
@@ -480,6 +489,25 @@ enum CatSkin: String, CaseIterable {
                 fur: 0xD9A96A, furDark: 0xC08F4E, belly: 0xFFF2DC, earInner: 0xF0B8B0,
                 outline: 0x8A6A3E, eye: 0x3A2A20, nose: 0xE39A9A, mouth: 0xA9705A,
                 tongue: 0xF0A0A8, blush: 0xEFA8A0
+            )
+        case .robin:
+            // The red breast is the belly, which is the one thing a robin is.
+            return .coat(
+                fur: 0x8A6242, furDark: 0x6E4C33, belly: 0xE2603C, earInner: 0xD9A08A,
+                outline: 0x4E3624, eye: 0x2A2118, nose: 0xE8A23C, mouth: 0xA9705A,
+                tongue: 0xE89090, blush: 0xE8A090
+            )
+        case .blossom:
+            return .coat(
+                fur: 0xF6C6D0, furDark: 0xE3A2B4, belly: 0xFFF0F4, earInner: 0xE88CA8,
+                outline: 0xB57C8E, eye: 0x2A2530, nose: 0xD98AA0, mouth: 0xB07080,
+                tongue: 0xF0A0B0, blush: 0xF0A0B0
+            )
+        case .moss:
+            return .coat(
+                fur: 0x7FB05C, furDark: 0x639144, belly: 0xE8F0C8, earInner: 0xC8D890,
+                outline: 0x3F5E2C, eye: 0x2A2A1E, nose: 0x5E8A44, mouth: 0x4E7038,
+                tongue: 0xE89090, blush: 0xE0A090
             )
         }
     }

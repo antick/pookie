@@ -108,9 +108,11 @@ struct CatAnatomy {
             width: muzzleRadii.width * traits.scale * traits.headScale * traits.muzzle,
             height: muzzleRadii.height * traits.scale * traits.headScale * traits.muzzle
         )
-        anatomy.eyeY = rise(eyeY, traits.headScale)
+        // A frog's eyes are on top of its head and an owl's are enormous, so the
+        // eye anchor moves and scales on its own, not only with the skull.
+        anatomy.eyeY = rise(eyeY, traits.headScale) + traits.eyeLift * anatomy.headRadius
         anatomy.eyeOffsetX *= traits.scale * traits.headScale
-        anatomy.eyeRadius *= traits.scale * traits.headScale
+        anatomy.eyeRadius *= traits.scale * traits.headScale * traits.eyeScale
         anatomy.pawCenterY = rise(pawCenterY, 1)
         anatomy.pawOffsetX *= traits.scale
         anatomy.pawRadii = CGSize(

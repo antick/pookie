@@ -757,6 +757,12 @@ final class PetMotion {
     /// rather than a state, so she gets up again on her own.
     private func desiredRestingShape() -> CatShape {
         if isDragging || isAirborne || isCrouching || isTalking { return .stand }
+        // A penguin does not trot: past a walk it goes down on its belly and
+        // slides, which is the second gait the bird species asked for and costs
+        // no new art — it is the lying shape, moving.
+        if species.traits.slides, wanderTargetX != nil, abs(velocity.dx) > trotThreshold {
+            return .lie
+        }
         if wanderTargetX != nil || isPlaying || isTeleporting || isScuffling { return .stand }
         if isAsleep { return .lie }
         if idleSeconds >= sitAfterSeconds { return .sit }

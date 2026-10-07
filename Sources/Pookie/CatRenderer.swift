@@ -212,12 +212,14 @@ struct CatRenderer: PetRenderer {
         drawBody(in: context, pose: pose, anatomy: anatomy)
         // Wings sit on the flank, so they go over the body and under the head.
         drawWings(in: context, pose: pose, anatomy: anatomy)
+        if pose.species.traits.spikes { drawSpikes(in: context, anatomy: anatomy) }
         drawPaws(in: context, pose: pose, anatomy: anatomy)
         drawPattern(in: context, pose: pose, anatomy: anatomy)
         // Over the paws: a thrown foreleg is in front of the body, not behind it.
         if pose.punch != 0 { drawPunch(in: context, pose: pose, anatomy: anatomy) }
         drawEars(in: context, pose: pose, anatomy: anatomy)
         drawHead(in: context, pose: pose, anatomy: anatomy)
+        if pose.species.traits.gills { drawGills(in: context, pose: pose, anatomy: anatomy) }
         drawFacePattern(in: context, pose: pose, anatomy: anatomy)
         if pose.species.traits.cheekRuff { drawCheekRuff(in: context, anatomy: anatomy) }
         if pose.species.traits.cheeks { drawCheeks(in: context, anatomy: anatomy) }
@@ -530,6 +532,22 @@ struct CatRenderer: PetRenderer {
                     stroke: palette.outline,
                     width: outlineWidth * 0.85
                 )
+            case .short:
+                // Very short legs: the paw sits closer to the body, so a corgi or
+                // a frog reads as low to the ground rather than as a small cat.
+                let rect = CGRect(
+                    x: center.x - anatomy.pawRadii.width * 1.05,
+                    y: center.y - anatomy.pawRadii.height * 0.7,
+                    width: anatomy.pawRadii.width * 2.1,
+                    height: anatomy.pawRadii.height * 1.4
+                )
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: rect, transform: nil),
+                    fill: fill,
+                    stroke: palette.outline,
+                    width: outlineWidth * 0.8
+                )
             case .webbed:
                 // Flat and splayed, in the bill's colour: the whole reason a
                 // duckling reads as a duckling from the feet up.
@@ -662,6 +680,17 @@ struct CatRenderer: PetRenderer {
     /// rest of this art follows, and the only thing that keeps a pale marking
     /// visible on a pale pookie.
     private func drawPattern(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        // A species can own a marking: a raccoon's tail is ringed whether or not
+        // the human picked anything.
+        if pose.species.traits.ringedTail {
+            drawTailRings(
+                in: context,
+                anatomy: anatomy,
+                colour: markingColour(light: false),
+                width: outlineWidth * 1.1
+            )
+        }
+
         let pattern = pose.pattern
         guard pattern != .plain else { return }
         // The two markings that live on the head are drawn separately, between the
@@ -744,30 +773,7 @@ struct CatRenderer: PetRenderer {
             fillStroke(context, path: heart, fill: dark, stroke: palette.outline, width: hairline)
 
         case .ringTail:
-            // Bands across the tail, following whatever shape it is: thin, or a
-            // thick dashed stroke on a small tail merges into one dark tail.
-            // Bars *across* the tail, not dashes along it: a dashed stroke on a
-            // tail this size merges into one dark tail. Three points off the same
-            // cubic the tail is drawn with, so the rings follow any species.
-            let p0 = anatomy.tailBase
-            let p1 = anatomy.tailControl1
-            let p2 = anatomy.tailControl2
-            let p3 = anatomy.tailTip
-            func along(_ t: CGFloat) -> CGPoint {
-                let u = 1 - t
-                return CGPoint(
-                    x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
-                    y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y
-                )
-            }
-            for t in [CGFloat(0.3), 0.5, 0.7] {
-                let point = along(t)
-                let half = anatomy.tailWidth * 0.42
-                let bar = CGMutablePath()
-                bar.move(to: CGPoint(x: point.x - half * 0.5, y: point.y - half))
-                bar.addLine(to: CGPoint(x: point.x + half * 0.5, y: point.y + half))
-                stroke(context, path: bar, color: dark, width: hairline * 1.6)
-            }
+            drawTailRings(in: context, anatomy: anatomy, colour: dark, width: hairline * 1.6)
 
         case .rosettes:
             // Three rings on the flank, low, clipped to the body.
@@ -974,6 +980,97 @@ struct CatRenderer: PetRenderer {
             feather.addLine(to: CGPoint(x: reach * 0.75, y: 0))
             stroke(context, path: feather, color: palette.outline, width: outlineWidth * 0.5)
             context.restoreGState()
+        }
+    }
+
+    /// Bars *across* the tail, not dashes along it: a dashed stroke on a tail this
+    /// size merges into one dark tail. Three points off the same cubic the tail is
+    /// drawn with, so the rings follow whatever shape the tail has.
+    private func drawTailRings(
+        in context: CGContext,
+        anatomy: CatAnatomy,
+        colour: CGColor,
+        width: CGFloat
+    ) {
+        let p0 = anatomy.tailBase
+        let p1 = anatomy.tailControl1
+        let p2 = anatomy.tailControl2
+        let p3 = anatomy.tailTip
+        func along(_ t: CGFloat) -> CGPoint {
+            let u = 1 - t
+            return CGPoint(
+                x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+                y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y
+            )
+        }
+        for t in [CGFloat(0.3), 0.5, 0.7] {
+            let point = along(t)
+            let half = anatomy.tailWidth * 0.42
+            let bar = CGMutablePath()
+            bar.move(to: CGPoint(x: point.x - half * 0.5, y: point.y - half))
+            bar.addLine(to: CGPoint(x: point.x + half * 0.5, y: point.y + half))
+            stroke(context, path: bar, color: colour, width: width)
+        }
+    }
+
+    /// A hedgehog's back: one row of triangles along the spine, in the dark half
+    /// of the coat. Cheap, and it is the entire animal.
+    private func drawSpikes(in context: CGContext, anatomy: CatAnatomy) {
+        let count = 9
+        let reach = anatomy.bodyRadii.height * 0.55
+        for index in 0..<count {
+            let t = (CGFloat(index) + 0.5) / CGFloat(count)
+            let angle = CGFloat.pi * (0.15 + 0.7 * t)
+            let base = CGPoint(
+                x: anatomy.bodyCenter.x - cos(angle) * anatomy.bodyRadii.width * 0.95,
+                y: anatomy.bodyCenter.y + sin(angle) * anatomy.bodyRadii.height * 0.95
+            )
+            let spike = CGMutablePath()
+            spike.move(to: CGPoint(x: base.x - reach * 0.22, y: base.y - reach * 0.12))
+            spike.addLine(to: CGPoint(
+                x: base.x - cos(angle) * reach,
+                y: base.y + sin(angle) * reach
+            ))
+            spike.addLine(to: CGPoint(x: base.x + reach * 0.22, y: base.y + reach * 0.12))
+            spike.closeSubpath()
+            fillStroke(
+                context,
+                path: spike,
+                fill: palette.furDark,
+                stroke: palette.outline,
+                width: outlineWidth * 0.6
+            )
+        }
+    }
+
+    /// An axolotl's gills: three frills a side, off the back of the head.
+    private func drawGills(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let frill = palette.earInner
+        for direction in [CGFloat(-1), CGFloat(1)] {
+            for index in 0..<3 {
+                let step = CGFloat(index) - 1
+                let base = CGPoint(
+                    x: anatomy.headCenter.x + direction * anatomy.headRadius * 0.9,
+                    y: anatomy.headCenter.y + anatomy.headRadius * (0.42 + step * 0.42)
+                )
+                context.saveGState()
+                context.translateBy(x: base.x, y: base.y)
+                context.rotate(by: direction * (0.5 + step * 0.32))
+                let frond = CGRect(
+                    x: 0,
+                    y: -anatomy.headRadius * 0.12,
+                    width: anatomy.headRadius * 0.85,
+                    height: anatomy.headRadius * 0.24
+                )
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: frond, transform: nil),
+                    fill: frill,
+                    stroke: palette.outline,
+                    width: outlineWidth * 0.55
+                )
+                context.restoreGState()
+            }
         }
     }
 

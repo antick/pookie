@@ -1257,10 +1257,18 @@ enum Diagnostics {
             )
         }
         check(Set(silhouettes).count == PetSpecies.allCases.count, "every species has its own proportions")
-        check(
-            Set(PetSpecies.allCases.map(\.defaultCoat)).count == PetSpecies.allCases.count,
-            "and a coat of its own to be recognised by"
-        )
+        // Not "a coat each": a penguin and a panda share the black-and-white
+        // palette on purpose. What matters is that no two animals *look* alike,
+        // proportions and coat together.
+        let looks = PetSpecies.allCases.map { species -> String in
+            let anatomy = CatAnatomy.stand.wearing(species.traits)
+            return String(
+                format: "%.1f/%.1f/%.1f/%@",
+                anatomy.headRadius, anatomy.bodyRadii.width, anatomy.pawOffsetX,
+                species.defaultCoat.rawValue
+            )
+        }
+        check(Set(looks).count == PetSpecies.allCases.count, "and no two of them look alike")
         for species in PetSpecies.allCases {
             let anatomy = CatAnatomy.stand.wearing(species.traits)
             check(
@@ -1770,6 +1778,10 @@ enum Diagnostics {
             context.move(to: CGPoint(x: CGFloat(column * cell), y: 0))
             context.addLine(to: CGPoint(x: CGFloat(column * cell), y: CGFloat(height)))
         }
+        for row in 0..<rows where row % 4 == 0 {
+            context.move(to: CGPoint(x: 0, y: CGFloat(row * cell)))
+            context.addLine(to: CGPoint(x: CGFloat(width), y: CGFloat(row * cell)))
+        }
         for row in 1..<rows {
             context.move(to: CGPoint(x: 0, y: CGFloat(row * cell)))
             context.addLine(to: CGPoint(x: CGFloat(width), y: CGFloat(row * cell)))
@@ -1952,9 +1964,10 @@ enum Diagnostics {
     /// species table is that adding one is a data change, and the only honest way
     /// to check it is to look at all of them together.
     static func renderSpeciesPNG(to path: String) -> Int32 {
-        let columns = PetSpecies.allCases.count
-        let rows = 4
-        let cell = 190
+        let columns = 9
+        let blocks = Int(ceil(Double(PetSpecies.allCases.count) / Double(columns)))
+        let rows = 4 * blocks
+        let cell = 130
         let width = columns * cell
         let height = rows * cell
 
@@ -1978,6 +1991,10 @@ enum Diagnostics {
         for column in 1..<columns {
             context.move(to: CGPoint(x: CGFloat(column * cell), y: 0))
             context.addLine(to: CGPoint(x: CGFloat(column * cell), y: CGFloat(height)))
+        }
+        for row in 0..<rows where row % 4 == 0 {
+            context.move(to: CGPoint(x: 0, y: CGFloat(row * cell)))
+            context.addLine(to: CGPoint(x: CGFloat(width), y: CGFloat(row * cell)))
         }
         for row in 1..<rows {
             context.move(to: CGPoint(x: 0, y: CGFloat(row * cell)))
@@ -2014,10 +2031,14 @@ enum Diagnostics {
 
         for (rowIndex, row) in grid.enumerated() {
             for (columnIndex, item) in row.enumerated() {
+                // Wrapped: seventeen animals do not fit across one page.
+                let block = columnIndex / columns
+                let column = columnIndex % columns
+                let visualRow = rowIndex * blocks + block
                 context.saveGState()
                 context.translateBy(
-                    x: CGFloat(columnIndex * cell),
-                    y: CGFloat(rows - 1 - rowIndex) * CGFloat(cell)
+                    x: CGFloat(column * cell),
+                    y: CGFloat(rows - 1 - visualRow) * CGFloat(cell)
                 )
                 context.clip(to: CGRect(x: 0, y: 0, width: CGFloat(cell), height: CGFloat(cell)))
                 if case .cat(let pose) = item {

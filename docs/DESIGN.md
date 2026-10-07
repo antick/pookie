@@ -282,7 +282,7 @@ to keep in sync with the body. This is also the piece of M1's "explicit animatio
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
 
-**A species is a table as well** (`PetSpecies`, `SpeciesTraits`). Eight animals share one skeleton:
+**A species is a table as well** (`PetSpecies`, `SpeciesTraits`). Seventeen animals share one skeleton:
 each species supplies proportions (scaled about the ground line, so nobody floats) and appendages —
 four ear shapes, three tail shapes, and flags for whiskers, markings, eye patches and dark limbs. The
 whole behaviour layer, and every animation in this section, belongs to all five without a line of new

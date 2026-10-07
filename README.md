@@ -154,6 +154,20 @@ starts with five. Five is the cap — one of each animal — and there are five 
 | **Duckling** | no ears, an orange bill, webbed orange feet, and wings that **flutter as it walks and flap in the air** | Duckling |
 | **Bear** | a big round body, button ears and a broad muzzle | Cocoa |
 | **Hamster** | the smallest of them, with fat cheeks either side of the muzzle | Hazel |
+| **Penguin** | a bottle-shaped bird with flippers and webbed feet — and it **belly-slides** instead of trotting | Panda |
+| **Raccoon** | round ears, a bandit mask and a **ringed** brush tail | Grey |
+| **Corgi** | enormous ears, the shortest legs here, and almost no tail | Ginger |
+| **Squirrel** | small, with a brush tail bigger than the animal | Chocolate |
+| **Red panda** | a raccoon in rust, with rings and a mask | Ginger |
+| **Koala** | all ears and nose, on a small round head | Grey |
+| **Otter** | long and low, with a thick tail and a pale muzzle | Chocolate |
+| **Capybara** | a loaf with legs: the biggest body and the smallest ears | Chocolate |
+| **Chick** | the smallest bird of all, and all fluff | Duckling |
+| **Robin** | round, with a red breast | Robin |
+| **Owl** | enormous eyes and tufts | Cocoa |
+| **Hedgehog** | a whole back of spikes | Chocolate |
+| **Axolotl** | smooth, with three frills a side | Blossom |
+| **Frog** | eyes on top of its head and a mouth as wide as the head | Moss |
 
 She **climbs onto other apps' windows** rather than only the biggest one: the ledge she picks is
 varied on purpose — a small preference for the app you are working in, a large penalty for the window
@@ -163,6 +177,10 @@ spread along the ledge too, so jumping from the same place twice does not end in
 With two displays, the edge of a screen is a **seam, not a wall**: if a monitor is attached on that
 side she walks, jumps or gets thrown onto it; she only bounces off an edge when there is nothing on
 the other side of it.
+
+**Seventeen animals** share that skeleton and every one of its animations, and a bird's two gaits are
+one animation at two amplitudes: a flutter as it waddles, a full flap in the air, and — for the penguin
+— a **belly slide** past a walk, which is the lying shape moving rather than new art.
 
 **Markings go over any coat.** Nine of them — none, an eye patch, one white sock, a heart, a raccoon
 mask, a ringed tail, rosettes, tiny stars, and a pale winter coat — chosen per pookie from **Markings**
@@ -343,7 +361,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 297 headless checks, including:
+runs 306 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,
