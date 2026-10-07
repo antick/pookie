@@ -214,6 +214,10 @@ runs 171 headless checks, including:
 - **the floor line**: at every size setting, the lowest ink in the window is measured and compared
   with the offset the window is drawn at. This is the "she hovers a few points above every window she
   perches on" bug, and it fails if the two ever drift apart;
+- **the gaze**: with her walking away from the cursor, her pupils still point at it — the aim is
+  smoothed in screen space and converted into the design space the flip mirrors. The renderer half is
+  pinned too: the same offset has to land on opposite sides of her head depending on which way she
+  faces;
 - **the resting shapes**: every shape keeps a paw or a belly on the ground line, a half-settled loaf
   is the exact average of the two keyframes it blends, and a settle never moves an anchor more than
   half a design unit in a frame — so a posture change is a morph, not a hard cut. The awkward case
@@ -264,6 +268,13 @@ hangs below the floor line by exactly that margin, and the selftest measures the
 every size.
 
 ![Pookie's feet on the window ledge, before and after the floor fix](shots/feet-on-the-floor.png)
+
+Her eyes no longer look the wrong way. The gaze was aimed in screen space and stored in the design
+space that the facing flip mirrors, so a cat facing left — walking away from the pointer, being
+carried, or with the cursor close enough that she had not turned — tracked it backwards. The aim is
+now smoothed in screen space and converted once on the way into the pose, which also keeps her pupils
+on the pointer *through* a turn instead of sweeping across it. The selftest drives both halves: the
+behaviour, and the renderer's mirror.
 
 Next is **M1**: SpriteKit renderer, cached geometry, and the remaining animation states. Then
 the rest of M2 (preemption stack, attention budget, streaming from the wire), M3 (the CLI control

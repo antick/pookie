@@ -209,6 +209,53 @@ enum Diagnostics {
         check(maxX - minX > 300, "wandering actually travels (range=\(String(format: "%.0f", maxX - minX))pt)")
 
         print("")
+        print("looking at the cursor")
+        // The bug: the aim was computed in screen space and stored in design
+        // space, which the facing flip mirrors, so a cat facing left looked
+        // right. It only shows while she is facing away from the cursor — while
+        // walking the other way, being carried, or with the pointer close enough
+        // that she has not turned — which is why it read as "sometimes wrong".
+        let leftward = PetMotion(origin: CGPoint(x: 700, y: 0), size: size, desktop: desktop)
+        leftward.move(to: CGPoint(x: 200, y: 0))       // walking left, so she faces left
+        leftward.cursor = CGPoint(x: 1400, y: 40)      // ...with the cursor to her right
+        for _ in 0..<90 { leftward.advance(dt: 1.0 / 60.0) }
+        check(leftward.facingDirection < 0, "she is walking left while the cursor is to her right")
+        check(
+            leftward.gazeDirectionOnScreen > 0.3,
+            "and her pupils look right, at the cursor (screen gaze \(String(format: "%.2f", leftward.gazeDirectionOnScreen)))"
+        )
+
+        let rightward = PetMotion(origin: CGPoint(x: 700, y: 0), size: size, desktop: desktop)
+        rightward.move(to: CGPoint(x: 1200, y: 0))     // walking right
+        rightward.cursor = CGPoint(x: 40, y: 40)       // cursor to her left
+        for _ in 0..<90 { rightward.advance(dt: 1.0 / 60.0) }
+        check(rightward.facingDirection > 0, "she is walking right while the cursor is to her left")
+        check(
+            rightward.gazeDirectionOnScreen < -0.3,
+            "and her pupils look left (screen gaze \(String(format: "%.2f", rightward.gazeDirectionOnScreen)))"
+        )
+
+        // And the renderer really does mirror it, which is why the conversion
+        // belongs in the behaviour layer: the same design-space offset has to
+        // land on opposite sides of her head depending on which way she faces.
+        func pupilPosition(facing: Double) -> CGFloat? {
+            var pose = CatPose()
+            pose.facing = facing
+            pose.gazeX = 1
+            return pupilCentroidX(renderer: renderer, size: size, pose: pose)
+        }
+        let facingRight = pupilPosition(facing: 1)
+        let facingLeft = pupilPosition(facing: -1)
+        if let facingRight, let facingLeft {
+            check(
+                facingRight > 50 && facingLeft < 50,
+                "the facing flip mirrors the pupils (\(String(format: "%.1f", facingRight)) vs \(String(format: "%.1f", facingLeft)) design units)"
+            )
+        } else {
+            check(false, "the pupils can be found in a rendered cat")
+        }
+
+        print("")
         print("perching on other apps' windows")
         let perchDesktop = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
         let perched = PetMotion(origin: CGPoint(x: 300, y: 700), size: size, desktop: perchDesktop)
@@ -937,6 +984,64 @@ enum Diagnostics {
             }
         }
         return .greatestFiniteMagnitude
+    }
+
+    /// Every pixel the pupils cover, as a mean position in design space.
+    ///
+    /// Colour rather than geometry: the test this exists for is whether the
+    /// renderer mirrors a gaze offset when the cat faces the other way, and the
+    /// only honest way to ask is to look at where the dark pixels landed.
+    private static func pupilCentroidX(renderer: CatRenderer, size: CGSize, pose: CatPose) -> CGFloat? {
+        let width = max(1, Int(size.width.rounded()))
+        let height = max(1, Int(size.height.rounded()))
+        let fit = CatGeometry.fit(in: size)
+        let pixels = rasteriseColour(renderer: renderer, size: size, pose: pose.clampedForRender())
+        let eye = CatPalette.tabby.eye.components ?? [0, 0, 0, 1]
+        let target = (
+            r: Int((eye[0] * 255).rounded()),
+            g: Int((eye[1] * 255).rounded()),
+            b: Int((eye[2] * 255).rounded())
+        )
+
+        var sum: CGFloat = 0
+        var count = 0
+        for y in 0..<height {
+            for x in 0..<width {
+                let row = MaskRaster.rowZeroIsBottom ? y : (height - 1 - y)
+                let index = (row * width + x) * 4
+                guard pixels[index + 3] > 200 else { continue }
+                let difference = abs(Int(pixels[index]) - target.r)
+                    + abs(Int(pixels[index + 1]) - target.g)
+                    + abs(Int(pixels[index + 2]) - target.b)
+                guard difference <= 12 else { continue }
+                sum += CGFloat(x)
+                count += 1
+            }
+        }
+        guard count > 20 else { return nil }
+        return (sum / CGFloat(count) - fit.origin.x) / fit.scale
+    }
+
+    /// The cat in colour, for the tests that need to find a part of her rather
+    /// than just her silhouette.
+    private static func rasteriseColour(renderer: CatRenderer, size: CGSize, pose: CatPose) -> [UInt8] {
+        let width = max(1, Int(size.width.rounded()))
+        let height = max(1, Int(size.height.rounded()))
+        var buffer = [UInt8](repeating: 0, count: width * height * 4)
+        buffer.withUnsafeMutableBytes { raw -> Void in
+            guard let context = CGContext(
+                data: raw.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return }
+            context.setShouldAntialias(true)
+            renderer.draw(in: context, size: CGSize(width: width, height: height), pose: pose)
+        }
+        return buffer
     }
 
     /// Distance in pixels from the nearest ink to the closest window edge. Zero

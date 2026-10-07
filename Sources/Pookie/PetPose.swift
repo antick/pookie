@@ -135,8 +135,11 @@ struct CatPose {
 
     // Orientation and attention
     var facing: Double = 1           // +1 right, -1 left
-    var gazeX: Double = 0            // -1...1, pupil offset
-    var gazeY: Double = 0
+    /// Pupil offset in *design* space, so the facing flip mirrors it: `PetMotion`
+    /// converts the screen-space aim before storing it here, and the renderer
+    /// draws exactly what it is given.
+    var gazeX: Double = 0            // -1...1
+    var gazeY: Double = 0            // -1...1, no flip in y
 
     // Face details
     var mouthOpen: Double = 0        // 0...1, reserved for M2 speech

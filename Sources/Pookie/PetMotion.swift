@@ -954,10 +954,30 @@ final class PetMotion {
         return CGPoint(x: frame.x + local.x, y: frame.y + local.y)
     }
 
+    /// The gaze is smooth in *screen* space and stored in design space.
+    ///
+    /// That split is the whole fix for "her eyes look the wrong way": the
+    /// renderer mirrors design space for a left-facing cat, so an offset aimed
+    /// without the facing travels the wrong way along the screen — and it is
+    /// wrong exactly while she is facing away (walking left, being carried, or
+    /// with the cursor close enough that she has not turned). Smoothing in
+    /// screen space also keeps the pupils on the cursor *through* a turn, since
+    /// the flip is a mirror about her centre and the aim does not change with it.
+    private var gazeScreenX: Double = 0
+    private var gazeScreenY: Double = 0
+
+    /// Where the pupils point on screen: `+1` right, `-1` left, whatever way she
+    /// happens to be facing. The pose carries the design-space offset, which the
+    /// facing flip mirrors; this is the honest answer to "is she looking at it?".
+    var gazeDirectionOnScreen: Double { pose.gazeX * facingDirection }
+
     private func updateGaze(_ dt: Double) {
         guard followCursor, let cursor else {
-            pose.gazeX += (0 - pose.gazeX) * min(1, dt * 4)
-            pose.gazeY += (0 - pose.gazeY) * min(1, dt * 4)
+            let relax = min(1, dt * 4)
+            gazeScreenX += (0 - gazeScreenX) * relax
+            gazeScreenY += (0 - gazeScreenY) * relax
+            pose.gazeX = gazeScreenX * facing
+            pose.gazeY = gazeScreenY
             return
         }
 
@@ -974,14 +994,18 @@ final class PetMotion {
         let targetX = Double(dx / distance) * reach
         let targetY = Double(dy / distance) * reach
 
-        let follow = min(1, dt * 9)
-        pose.gazeX += (targetX - pose.gazeX) * follow
-        pose.gazeY += (targetY - pose.gazeY) * follow
-
-        // Turn to face the cursor once it is clearly off to one side.
+        // Turn to face the cursor once it is clearly off to one side, before the
+        // gaze is written, so the aim is taken through the facing she is about
+        // to have rather than the one she is leaving.
         if !isDragging, wanderTargetX == nil, abs(dx) > 110 {
             facing = dx > 0 ? 1 : -1
         }
+
+        let follow = min(1, dt * 9)
+        gazeScreenX += (targetX - gazeScreenX) * follow
+        gazeScreenY += (targetY - gazeScreenY) * follow
+        pose.gazeX = gazeScreenX * facing
+        pose.gazeY = gazeScreenY
     }
 
     private func resolveMood(sleepy: Bool, airborne: Bool, walking: Bool) -> CatMood {

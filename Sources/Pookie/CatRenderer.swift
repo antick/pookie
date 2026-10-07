@@ -398,6 +398,14 @@ struct CatRenderer: PetRenderer {
             let eyePath = CGPath(ellipseIn: eyeRect, transform: nil)
             fillStroke(context, path: eyePath, fill: palette.belly, stroke: palette.outline, width: 1.8 * headScale)
 
+            // Everything inside the eye is clipped to it: a real pupil slides to
+            // the edge and is cut by the lid, and the cartoon pupil is wide
+            // enough that without this it pokes through the outline at the far
+            // end of the gaze.
+            context.saveGState()
+            context.addPath(eyePath)
+            context.clip()
+
             // Pupil tracks the cursor, clamped inside the eye.
             let maxShift = eyeRadius - 2.2 * headScale
             let pupilRadius = eyeRadius * (mood == .alarmed ? 0.95 : 0.72)
@@ -428,6 +436,7 @@ struct CatRenderer: PetRenderer {
                 width: 3 * headScale,
                 height: 3 * headScale * eyeOpen
             ))
+            context.restoreGState()
         }
 
         // Muzzle, nose and mouth all hang off the muzzle anchor, so a smaller
