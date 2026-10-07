@@ -141,6 +141,23 @@ final class PetView: NSView {
         }
     }
 
+    /// Builds this pet's right-click menu, on demand.
+    ///
+    /// The menu belongs to the app shell, which is the only thing that knows the
+    /// colony, so the view carries a hook rather than a reference. That keeps the
+    /// drawing layer free of the menu and lets the shell assemble the same items
+    /// the menu bar uses.
+    var makeContextMenu: (() -> NSMenu?)?
+
+    /// Right-clicking a pet deals with *that* pet.
+    ///
+    /// Until this existed, the only way to take an animal off the desk was the
+    /// menu bar's remove, which always took the newest one — so hiding the middle
+    /// of a colony meant removing everything above it.
+    override func menu(for event: NSEvent) -> NSMenu? {
+        makeContextMenu?()
+    }
+
     /// Forget the cached silhouette. Changing what an animal *is* — its species
     /// or its coat — changes the shape the mouse pass-through tests against, and
     /// the cache would otherwise be a half second stale.

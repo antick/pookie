@@ -304,8 +304,9 @@ pets coexist, one of each species (cat, bunny, puppy, fox, panda), each with its
 behaviour engine, spawned and removed from the menu-bar item or `Pookie --pets N`, under one shared
 frame budget, with a persisted roster. The menu-bar item already carries show/hide, **pet size**,
 **add / remove a critter**, per-pet kind and coat, the spokespet, mouse mode, wander, cursor tracking,
-perching, jumping, speech, **teleport between displays and its cadence**, screen-sharing privacy and
-quit — so criterion 2 is largely there ahead of its milestone. Outstanding: opacity, quiet mode,
+perching, jumping, speech, **teleport between displays and its cadence**, per-pet visibility and
+removal from a right-click on the pet itself, screen-sharing privacy and quit — so criterion 2 is
+largely there ahead of its milestone. Outstanding: opacity, quiet mode,
 per-producer rate limits, skill toggles, launch at login, and the per-pet CPU budget is still a shared
 frame-rate ceiling rather than an accounting of who spent what.
 

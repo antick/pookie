@@ -116,6 +116,7 @@ final class PetWindowController {
         speech.enabled = config.chatty
 
         view.onTap = { [weak self] in self?.handleTap() }
+        view.makeContextMenu = { [weak self] in self?.contextMenu() }
 
         configureWindow()
         configureBubbleWindow()
@@ -282,6 +283,11 @@ final class PetWindowController {
         syncWindowFrame()
 
         Log.info("pet size -> \(Int(size.width))x\(Int(size.height)) (\(AppConfig.shared.petScale.label))")
+    }
+
+    /// This pet's right-click menu, asked of the shell when it is needed.
+    func contextMenu() -> NSMenu? {
+        cohort?.contextMenuBuilder?(self)
     }
 
     /// Change what this pet is, without rebuilding her: the species is written

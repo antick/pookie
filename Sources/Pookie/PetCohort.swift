@@ -30,7 +30,19 @@ final class PetCohort {
 
     private(set) var pets: [PetWindowController] = []
     var count: Int { pets.count }
-    var isHiddenByUser: Bool { pets.first?.isHiddenByUser ?? false }
+    /// Builds one pet's right-click menu. Set by the app shell: the menu items
+    /// live with the app's other menus, and this type is not the menu.
+    var contextMenuBuilder: ((PetWindowController) -> NSMenu?)?
+
+    /// Everyone is off the desk. The colony-wide toggle uses this rather than
+    /// asking the first pet, because pets are hidden one at a time now.
+    var allHidden: Bool { !pets.isEmpty && pets.allSatisfy(\.isHiddenByUser) }
+    /// At least one is off the desk, so the colony-wide item offers to bring them
+    /// all back rather than hiding the rest.
+    var someHidden: Bool { pets.contains { $0.isHiddenByUser } }
+    /// How many are actually being drawn. A hidden pet costs nothing, so it should
+    /// not be holding a share of the frame budget either.
+    var visibleCount: Int { pets.filter { !$0.isHiddenByUser }.count }
     var isRaisedAboveEverything: Bool { pets.first?.isRaisedAboveEverything ?? false }
     /// The pet a producer talks through when it does not name one: the one the
     /// menu marks as the default.
@@ -86,21 +98,15 @@ final class PetCohort {
         return pet
     }
 
-    /// Send the newest pet home. The last one stays: quitting is how you get rid
-    /// of the cat you cannot quit.
+    /// Send the newest pet home.
+    ///
+    /// Kept as the M8 `despawn` verb, but it is no longer what the menu calls:
+    /// the colony is addressed by position now, so you can take out the one you
+    /// are pointing at rather than peeling them off the top. The last one stays
+    /// either way — quitting is how you get rid of the pet you cannot quit.
     @discardableResult
     func despawn() -> Bool {
-        guard pets.count > 1 else { return false }
-        let pet = pets.removeLast()
-        pet.close()
-        if AppConfig.shared.roster.count > 1 { AppConfig.shared.roster.removeLast() }
-        AppConfig.shared.defaultCritter = min(
-            AppConfig.shared.defaultCritter,
-            max(0, AppConfig.shared.roster.count - 1)
-        )
-        applyColonySettings()
-        Log.info("pet removed, \(pets.count)/\(Self.maximumPets) left")
-        return true
+        removePet(at: pets.count - 1)
     }
 
     /// The first animal nobody is, in the coat that makes it look like itself —
@@ -158,7 +164,7 @@ final class PetCohort {
     private func applyColonySettings() {
         var excluded: Set<Int> = []
         for pet in pets { excluded.formUnion(pet.ownWindowNumbers) }
-        let fps = Self.perPetFPS(petCount: pets.count)
+        let fps = Self.perPetFPS(petCount: max(1, visibleCount))
         for pet in pets {
             pet.setExcludedPerchWindows(excluded)
             pet.frameRateCap = fps
@@ -298,8 +304,43 @@ final class PetCohort {
         for pet in pets { pet.setHidden(hidden) }
     }
 
+    /// Hide or show one pet, by its place in the colony.
+    func setHidden(_ hidden: Bool, at index: Int) {
+        guard pets.indices.contains(index) else { return }
+        pets[index].setHidden(hidden)
+        applyColonySettings()
+    }
+
+    /// Take one pet off the desk, whichever one it is — not just the newest.
+    @discardableResult
+    func removePet(at index: Int) -> Bool {
+        guard pets.count > 1, pets.indices.contains(index) else { return false }
+        let pet = pets.remove(at: index)
+        pet.close()
+        if AppConfig.shared.roster.indices.contains(index) {
+            AppConfig.shared.roster.remove(at: index)
+        }
+        AppConfig.shared.defaultCritter = min(
+            AppConfig.shared.defaultCritter,
+            max(0, AppConfig.shared.roster.count - 1)
+        )
+        applyColonySettings()
+        Log.info("pet removed from the middle, \(pets.count)/\(Self.maximumPets) left")
+        return true
+    }
+
+    /// The frame rate each pet gets, given how many are on screen. Pure, because
+    /// "hiding two of five gives the rest the three-pet rate" is a claim worth
+    /// checking without a window server.
+    static func frameShare(total: Int, hidden: Int) -> Double {
+        perPetFPS(petCount: max(1, total - hidden))
+    }
+
+    /// True when the whole colony is off the desk.
+    var isHiddenByUser: Bool { allHidden }
+
     func toggleHidden() {
-        setHidden(!isHiddenByUser)
+        setHidden(!allHidden)
     }
 
     func applyClickThroughMode() {

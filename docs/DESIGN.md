@@ -446,6 +446,13 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   because "small" and "chatty" are properties of the desk rather than of one cat out of five.
   Everything that maps a design point to the screen is per-pet (`PetMotion.windowOrigin`), which is
   why ten windows can share one renderer without any of them disagreeing about where their cat is.
+- **Per-pet control, including visibility** (`PetView.menu(for:)`, `PetCohort.setHidden(_:at:)`). Right
+  clicking a pet offers a menu about *that* pet, built from a `PetMenuState` value so its shape is
+  checkable without a window server. Hiding is per pet, not newest-first: a hidden pet's window is
+  ordered out, its motion is paused, and it stops holding a share of the shared frame budget, which is
+  what makes "hide the one I am pointing at" a better deal than removing it. The same items appear in
+  the menu bar's **Critters ▸**, because a pet you can only reach with the mouse is a pet you cannot
+  reach when it is hidden.
 - **Five species, and a roster you own** (`PetSpecies`, `CritterConfig`, `AppConfig.roster`). The desk
   can hold one of each animal — cat, bunny, puppy, fox, panda — and the menu decides which, in which
   coat, and which one answers producers. The roster, the size, the switches and the teleport cadence

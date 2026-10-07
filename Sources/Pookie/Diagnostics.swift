@@ -914,6 +914,92 @@ enum Diagnostics {
         check(!nowhere.beginTeleport(), "with one display there is nowhere to blink to")
 
         print("")
+        print("what a pet offers when you right-click it")
+        // The menu is built from a value, so its shape is checkable without a
+        // colony or a window server — and its shape is the whole point: before
+        // this, the only way to take a pet off the desk was the menu bar's
+        // remove, which always took the newest.
+        let petMenu = AppDelegate.petMenu(
+            for: AppDelegate.PetMenuState(
+                index: 1,
+                species: .bunny,
+                coat: .snow,
+                count: 3,
+                isHidden: false,
+                isDefault: false,
+                someHidden: true
+            ),
+            target: nil
+        )
+        print("  info menu: " + petMenu.items.map(\.title).joined(separator: " | "))
+        check(petMenu.items.contains { $0.title == "Hide this critter" }, "it offers to hide *this* pet")
+        check(
+            petMenu.items.first { $0.title == "Hide this critter" }?.tag == 1,
+            "and the item names the pet you clicked, not the newest one"
+        )
+        check(
+            petMenu.items.first { $0.title == "Remove this critter" }?.tag == 1,
+            "removal names the clicked pet too"
+        )
+        check(petMenu.items.contains { $0.title == "Show all critters" }, "and the hidden ones can come back")
+        check(petMenu.items.contains { $0.title == "Bunny · Snow" }, "the menu says which animal it is")
+        check(petMenu.items.contains { $0.title == "Bring this one home" }, "and can put it back on the floor")
+
+        let hiddenMenu = AppDelegate.petMenu(
+            for: AppDelegate.PetMenuState(
+                index: 0,
+                species: .cat,
+                coat: .tabby,
+                count: 1,
+                isHidden: true,
+                isDefault: true,
+                someHidden: false
+            ),
+            target: nil
+        )
+        check(
+            hiddenMenu.items.contains { $0.title == "Show this critter" },
+            "a hidden pet's own menu offers to show it again"
+        )
+        check(
+            hiddenMenu.items.first { $0.title == "Remove this critter" }?.isEnabled == false,
+            "and the last pet cannot be removed"
+        )
+        check(
+            hiddenMenu.items.contains { $0.title.hasPrefix("Cat · Tabby") && $0.title.contains("(default)") },
+            "the pet that answers producers is marked as the default"
+        )
+        check(
+            !hiddenMenu.items.contains { $0.title == "Show all critters" },
+            "with nobody else hidden there is nothing to bring back"
+        )
+
+        // Hiding a pet has to be free, or "hide the one I am pointing at" is a
+        // worse deal than removing it.
+        let dormantDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
+        let dormant = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: dormantDesk)
+        dormant.followCursor = false
+        dormant.wanderEnabled = true
+        dormant.sitAfterSeconds = 10_000
+        dormant.isPaused = true
+        let restedAt = dormant.origin
+        run(dormant, 8)
+        check(dormant.origin == restedAt, "a hidden pet does not move while it is hidden")
+        dormant.isPaused = false
+        run(dormant, 8)
+        check(dormant.origin != restedAt, "and picks up where it left off when it comes back")
+
+        // A hidden pet is not drawn, so it should not hold a share of the budget.
+        check(
+            PetCohort.frameShare(total: 5, hidden: 2) == PetCohort.perPetFPS(petCount: 3),
+            "hiding two of five gives the rest the three-pet frame rate"
+        )
+        check(
+            PetCohort.frameShare(total: 5, hidden: 5) == PetCohort.perPetFPS(petCount: 1),
+            "and hiding all of them does not divide by zero"
+        )
+
+        print("")
         print("scuffles")
         let scuffleDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
         // The close-quarters version of playing: two animals who are already next

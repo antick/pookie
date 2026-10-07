@@ -99,9 +99,16 @@ Global hotkeys, **no Accessibility or Input Monitoring permission required**:
 | `control-option-T` | Say hello (test the speech bubble) |
 | `control-option-M` | Mute / unmute her reactions |
 
+**Right-click any pet** for a menu about *that* pet: bring it home, make it the one that answers for
+Pookie, **hide it** (or show it again), or remove it from the desk. Hiding is per pet — the animal you
+clicked, not the newest one — and a hidden pet costs nothing: its window is ordered out, its behaviour
+stops, and the frame budget it was holding goes to the ones still on screen. Hidden pets stay in the
+roster, so they come back with their species and coat when you show them.
+
 The pawprint in the menu bar has the rest: **size** (small to extra large), **teleport between
-displays** and **teleport every** (1–30 minutes), **add a critter** / **remove a critter**,
-**Critters** (each pet's kind, coat and who answers for Pookie), mouse mode, wander, cursor tracking,
+displays** and **teleport every** (1–30 minutes), **add a critter**, **Critters** (each pet's kind,
+coat, visibility, removal and who answers for Pookie), **hide all critters** / **show all critters**,
+mouse mode, wander, cursor tracking,
 sit-on-windows, jump-onto-windows, speech, hide-from-screen-sharing, float above fullscreen apps, and
 quit. A pet you cannot easily quit is a pet you will resent.
 
@@ -273,7 +280,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 252 headless checks, including:
+runs 266 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,
@@ -284,6 +291,9 @@ runs 252 headless checks, including:
 - **the settings**: the teleport cadence offers minutes and lands where it says, and the roster
   survives being written to the settings store and read back — including dropping a corrupt entry
   rather than guessing at it;
+- **the right-click menu**: that it offers to hide *the pet you clicked* rather than the newest one,
+  that a hidden pet's menu offers to show it again, that the last pet cannot be removed, and that
+  hiding is free — a hidden pet stops moving and stops holding a share of the frame budget;
 
 - the `CGBitmapContext` row order, probed at runtime rather than assumed;
 - **the teleport blink**: it leaves before it moves — half way out she is part way gone and has not

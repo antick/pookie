@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.verbose = AppConfig.shared.verboseLogging
         let colony = PetCohort()
+        colony.contextMenuBuilder = { [weak self] pet in self?.petMenu(for: pet) }
         cohort = colony
         // The saved roster is what loads; `--pets N` overrides the headcount for
         // one run without touching it.
@@ -79,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         let visibility = NSMenuItem(
-            title: cohort?.isHiddenByUser == true ? "Show Pookie" : "Hide Pookie",
+            title: cohort?.someHidden == true ? "Show all critters" : "Hide all critters",
             action: #selector(toggleVisibility),
             keyEquivalent: "h"
         )
@@ -149,9 +150,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         addItem.submenu = addMenu
         menu.addItem(addItem)
 
-        let removePet = NSMenuItem(title: "Remove a critter", action: #selector(removePet), keyEquivalent: "")
-        removePet.target = self
-        menu.addItem(removePet)
 
         // Who is on the desk, and what each of them is. This is the answer to
         // "which pookie do I want loaded, and how should it look".
@@ -161,6 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for (index, pet) in (cohort?.pets ?? []).enumerated() {
             let title = "\(index + 1). \(pet.critter.species.name) · \(pet.critter.coat.name)"
                 + (index == defaultIndex ? "  (default)" : "")
+                + (pet.isHiddenByUser ? "  (hidden)" : "")
             let entry = NSMenuItem(title: title, action: nil, keyEquivalent: "")
             let submenu = NSMenu()
 
@@ -202,6 +201,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             makeDefault.state = index == defaultIndex ? .on : .off
             makeDefault.toolTip = "The one that speaks when a producer sends her a line"
             submenu.addItem(makeDefault)
+
+            submenu.addItem(.separator())
+            let home = NSMenuItem(
+                title: "Bring this one home",
+                action: #selector(bringHomePet(_:)),
+                keyEquivalent: ""
+            )
+            home.target = self
+            home.tag = index
+            submenu.addItem(home)
+
+            let hide = NSMenuItem(
+                title: pet.isHiddenByUser ? "Show this critter" : "Hide this critter",
+                action: #selector(togglePetHidden(_:)),
+                keyEquivalent: ""
+            )
+            hide.target = self
+            hide.tag = index
+            submenu.addItem(hide)
+
+            let remove = NSMenuItem(
+                title: "Remove this critter",
+                action: #selector(removeCritter(_:)),
+                keyEquivalent: ""
+            )
+            remove.target = self
+            remove.tag = index
+            remove.isEnabled = pets > 1
+            submenu.addItem(remove)
 
             entry.submenu = submenu
             crittersMenu.addItem(entry)
@@ -351,6 +379,137 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildMenu()
     }
 
+    /// Everything one pet's right-click menu needs to know.
+    ///
+    /// A value rather than the live controller, so the menu can be built — and
+    /// checked — without a colony or a window server. The menu is a claim about
+    /// what the user can do to *this* pet, and that claim is worth a test.
+    struct PetMenuState {
+        var index: Int
+        var species: PetSpecies
+        var coat: CatSkin
+        var count: Int
+        var isHidden: Bool
+        var isDefault: Bool
+        var someHidden: Bool
+    }
+
+    /// The items a pet offers when you right-click it.
+    static func petMenu(for state: PetMenuState, target: AnyObject?) -> NSMenu {
+        let menu = NSMenu()
+
+        let header = NSMenuItem(
+            title: "\(state.species.name) · \(state.coat.name)\(state.isDefault ? " (default)" : "")",
+            action: nil,
+            keyEquivalent: ""
+        )
+        header.isEnabled = false
+        menu.addItem(header)
+        let position = NSMenuItem(
+            title: "\(state.index + 1) of \(state.count) on the desk",
+            action: nil,
+            keyEquivalent: ""
+        )
+        position.isEnabled = false
+        menu.addItem(position)
+
+        menu.addItem(.separator())
+        let home = NSMenuItem(
+            title: "Bring this one home",
+            action: #selector(AppDelegate.bringHomePet(_:)),
+            keyEquivalent: ""
+        )
+        home.target = target
+        home.tag = state.index
+        menu.addItem(home)
+
+        let spokespet = NSMenuItem(
+            title: "Answer for Pookie",
+            action: #selector(AppDelegate.makeDefaultCritter(_:)),
+            keyEquivalent: ""
+        )
+        spokespet.target = target
+        spokespet.tag = state.index
+        spokespet.state = state.isDefault ? .on : .off
+        spokespet.toolTip = "The one that speaks when a producer sends her a line"
+        menu.addItem(spokespet)
+
+        menu.addItem(.separator())
+        // The point of the whole menu: this pet, not the newest one.
+        let hide = NSMenuItem(
+            title: state.isHidden ? "Show this critter" : "Hide this critter",
+            action: #selector(AppDelegate.togglePetHidden(_:)),
+            keyEquivalent: ""
+        )
+        hide.target = target
+        hide.tag = state.index
+        menu.addItem(hide)
+
+        if state.someHidden {
+            let showAll = NSMenuItem(
+                title: "Show all critters",
+                action: #selector(AppDelegate.toggleVisibility),
+                keyEquivalent: ""
+            )
+            showAll.target = target
+            menu.addItem(showAll)
+        }
+
+        let remove = NSMenuItem(
+            title: "Remove this critter",
+            action: #selector(AppDelegate.removeCritter(_:)),
+            keyEquivalent: ""
+        )
+        remove.target = target
+        remove.tag = state.index
+        remove.isEnabled = state.count > 1
+        remove.toolTip = state.count > 1
+            ? "Takes this one off the desk and out of the roster"
+            : "The last critter stays: quit Pookie instead"
+        menu.addItem(remove)
+
+        return menu
+    }
+
+    /// The same menu, for a live pet.
+    func petMenu(for pet: PetWindowController) -> NSMenu? {
+        guard let index = cohort?.pets.firstIndex(where: { $0 === pet }) else { return nil }
+        return Self.petMenu(
+            for: PetMenuState(
+                index: index,
+                species: pet.critter.species,
+                coat: pet.critter.coat,
+                count: cohort?.pets.count ?? 1,
+                isHidden: pet.isHiddenByUser,
+                isDefault: index == AppConfig.shared.defaultCritter,
+                someHidden: cohort?.someHidden ?? false
+            ),
+            target: self
+        )
+    }
+
+    @objc private func togglePetHidden(_ sender: NSMenuItem) {
+        guard let pet = cohort?.pets[safe: sender.tag] else { return }
+        cohort?.setHidden(!pet.isHiddenByUser, at: sender.tag)
+        rebuildMenu()
+    }
+
+    @objc private func removeCritter(_ sender: NSMenuItem) {
+        cohort?.removePet(at: sender.tag)
+        rebuildMenu()
+    }
+
+    @objc private func bringHomePet(_ sender: NSMenuItem) {
+        guard let pet = cohort?.pets[safe: sender.tag] else { return }
+        pet.resetPosition()
+        // Bringing one home also shows it: asking for a pet you cannot see would
+        // otherwise look like nothing happened.
+        if pet.isHiddenByUser {
+            cohort?.setHidden(false, at: sender.tag)
+            rebuildMenu()
+        }
+    }
+
     @objc private func addCritter(_ sender: NSMenuItem) {
         let raw = sender.representedObject as? String ?? ""
         cohort?.spawn(species: PetSpecies(rawValue: raw))
@@ -386,10 +545,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildMenu()
     }
 
-    @objc private func removePet() {
-        cohort?.despawn()
-        rebuildMenu()
-    }
+
 
     @objc private func selectClickThrough(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String,
@@ -502,7 +658,7 @@ extension AppDelegate: NSMenuItemValidation {
         if menuItem.action == #selector(selectCadence(_:)), let raw = menuItem.representedObject as? String {
             menuItem.state = AppConfig.shared.teleportCadence.rawValue == raw ? .on : .off
         }
-        if menuItem.action == #selector(removePet) {
+        if menuItem.action == #selector(removeCritter(_:)) {
             return (cohort?.count ?? 0) > 1
         }
         return true
