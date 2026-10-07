@@ -85,6 +85,11 @@ enum Diagnostics {
                     ))
                 }
             }
+            let transientInk = bounds(of: transientInkPoints(renderer: renderer, species: species))
+            check(
+                stage.contains(transientInk),
+                "\(species.name): thrown paws and markings draw inside the stage too (x[\(String(format: "%.1f", transientInk.minX)), \(String(format: "%.1f", transientInk.maxX))])"
+            )
             check(stage.contains(envelope), "\(species.name): the stage contains the worst-case pose envelope")
             check(stage.contains(blink), "\(species.name): the stage contains the blink at every step")
         }
@@ -1216,6 +1221,21 @@ enum Diagnostics {
             "and a pet's next blink lands inside the cadence it was given"
         )
 
+        // Markings are independent of both the species and the coat, which is
+        // what makes every combination available.
+        let patterned = PookieConfig(species: .panda, coat: .midnight, name: "Ink", pattern: .stars)
+        check(
+            PookieConfig(encoded: patterned.encoded) == patterned,
+            "a marking survives the settings store (\(patterned.encoded))"
+        )
+        check(
+            // Explicit, because `PookiePattern.none` and `Optional.none` are the
+            // same token to the type checker and the comparison silently becomes
+            // "is this nil".
+            (PookieConfig(encoded: "cat:tabby")?.pattern ?? .plain) == .plain,
+            "and a roster saved before markings existed still loads"
+        )
+
         // The roster is what "load these pookies" means, so it survives a round
         // trip through the settings store.
         let roster: [PookieConfig] = [
@@ -1320,6 +1340,46 @@ enum Diagnostics {
     ///
     /// Boundary pixels rather than a bounding box: the cat is not a rectangle,
     /// and the difference is about ten design units of stage width.
+    /// Ink from the transient channels only: what a thrown paw and a marking
+    /// reach, at the deformation they actually happen with.
+    ///
+    /// Same rasterise-and-trace as `inkPoints`, without the quarter-unit dedupe —
+    /// there are only a handful of these poses, and their extremes are exactly
+    /// what is being measured.
+    private static func transientInkPoints(renderer: CatRenderer, species: PetSpecies) -> [CGPoint] {
+        let size = CatGeometry.preferredWindowSize
+        let width = Int(size.width)
+        let height = Int(size.height)
+        let fit = CatGeometry.fit(in: size)
+
+        var points: [CGPoint] = []
+        for shape in CatShape.allCases {
+            for var pose in ArtSweep.transientPoses() {
+                pose.shape = .only(shape)
+                pose.species = species
+                let coverage = rasterise(renderer: renderer, size: size, pose: pose)
+                for y in 0..<height {
+                    for x in 0..<width {
+                        let alpha = coverage[MaskRaster.index(x: x, y: y, width: width, height: height)]
+                        guard alpha > 8 else { continue }
+                        let isBoundary =
+                            x == 0 || y == 0 || x == width - 1 || y == height - 1
+                            || coverage[MaskRaster.index(x: x - 1, y: y, width: width, height: height)] <= 8
+                            || coverage[MaskRaster.index(x: x + 1, y: y, width: width, height: height)] <= 8
+                            || coverage[MaskRaster.index(x: x, y: y - 1, width: width, height: height)] <= 8
+                            || coverage[MaskRaster.index(x: x, y: y + 1, width: width, height: height)] <= 8
+                        guard isBoundary else { continue }
+                        points.append(CGPoint(
+                            x: (CGFloat(x) - fit.origin.x) / fit.scale,
+                            y: (CGFloat(y) - fit.origin.y) / fit.scale
+                        ))
+                    }
+                }
+            }
+        }
+        return points
+    }
+
     private static func inkPoints(renderer: CatRenderer, shape: CatShape, species: PetSpecies) -> [CGPoint] {
         let size = CatGeometry.preferredWindowSize
         let width = Int(size.width)
@@ -1392,6 +1452,14 @@ enum Diagnostics {
                             var pose = CatPose()
                             pose.shape = .only(shape)
                             pose.species = species
+                            // A thrown paw and a comic burst belong to a brawl,
+                            // which happens standing, grounded, with no stretch
+                            // and almost no lean — so multiplying them by the
+                            // deformation corners would be testing a pose that
+                            // cannot happen. Their own ink is checked against the
+                            // stage directly instead.
+                            pose.punch = 0
+                            pose.impact = 0
                             pose.tilt = tilt
                             pose.stretch = stretch
                             pose.squash = squash
@@ -1450,6 +1518,11 @@ enum Diagnostics {
             var pose = CatPose()
             pose.shape = .only(shape)
             pose.species = species
+            // Same exclusion as the corner sweep: she cannot be mid-blink and
+            // mid-brawl at once, and the twist would spin a thrown paw through
+            // the floor.
+            pose.punch = 0
+            pose.impact = 0
             pose.vanish = Double(step) / 24
             let transform = CatGeometry.vanishTransform(pose)
             for point in points {
@@ -1795,6 +1868,84 @@ enum Diagnostics {
         return 0
     }
 
+    /// A review sheet for the markings.
+    ///
+    /// Two rows, two coats and two species, because the point of a marking is
+    /// that it works over *anything*: a dark marking has to read on a black panda
+    /// and a pale one on a white bunny, and the only way to know is to look.
+    static func renderPatternsPNG(to path: String) -> Int32 {
+        let patterns = PookiePattern.allCases
+        let rows = 2
+        let cell = 190
+        let width = patterns.count * cell
+        let height = rows * cell
+
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            Log.info("could not create render context")
+            return 1
+        }
+
+        context.setFillColor(CGColor.hex(0xFDF6EC))
+        context.fill(CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
+        context.setStrokeColor(CGColor.hex(0xE8DCCB))
+        context.setLineWidth(1)
+        for column in 1..<patterns.count {
+            context.move(to: CGPoint(x: CGFloat(column * cell), y: 0))
+            context.addLine(to: CGPoint(x: CGFloat(column * cell), y: CGFloat(height)))
+        }
+        context.move(to: CGPoint(x: 0, y: CGFloat(cell)))
+        context.addLine(to: CGPoint(x: CGFloat(width), y: CGFloat(cell)))
+        context.strokePath()
+
+        let coats: [CatSkin] = [.midnight, .snow]
+        let species: [PetSpecies] = [.cat, .bunny]
+
+        for (rowIndex, _) in coats.enumerated() {
+            for (columnIndex, pattern) in patterns.enumerated() {
+                context.saveGState()
+                context.translateBy(
+                    x: CGFloat(columnIndex * cell),
+                    y: CGFloat(rows - 1 - rowIndex) * CGFloat(cell)
+                )
+                context.clip(to: CGRect(x: 0, y: 0, width: CGFloat(cell), height: CGFloat(cell)))
+                var pose = CatPose()
+                pose.species = species[rowIndex]
+                pose.pattern = pattern
+                CatRenderer(palette: coats[rowIndex].palette)
+                    .draw(in: context, size: CGSize(width: cell, height: cell), pose: pose)
+                context.restoreGState()
+            }
+        }
+
+        guard let image = context.makeImage() else {
+            Log.info("could not snapshot the markings sheet")
+            return 1
+        }
+        let url = URL(fileURLWithPath: path) as CFURL
+        guard let destination = CGImageDestinationCreateWithURL(url, UTType.png.identifier as CFString, 1, nil) else {
+            Log.info("could not create PNG destination at \(path)")
+            return 1
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            Log.info("could not finalise PNG at \(path)")
+            return 1
+        }
+
+        print("wrote \(width)x\(height) markings sheet to \(path)")
+        print("row 1: " + patterns.map(\.name).joined(separator: " | ") + "  (on a Midnight cat)")
+        print("row 2: the same nine on a Snow bunny")
+        return 0
+    }
+
     /// A review sheet for the species.
     ///
     /// One page, every animal, standing, loafing and pleased: the point of a
@@ -1932,6 +2083,29 @@ enum Diagnostics {
 /// `CatPose.RenderLimits` so the test proves the renderer's clamping works
 /// rather than only proving the limits are the limits.
 enum ArtSweep {
+    /// Poses from the channels that do *not* co-occur with the deformation
+    /// corners: a thrown paw, a comic burst, and every marking.
+    ///
+    /// They are swept against the stage on their own instead, because a brawl
+    /// happens standing and grounded — multiplying a punch by a full stretch and
+    /// lean would be testing a pose that cannot happen, and the answer would be to
+    /// make the punch too short to see.
+    static func transientPoses() -> [CatPose] {
+        var poses: [CatPose] = []
+        for side in [CGFloat(1), CGFloat(-1)] {
+            var pose = CatPose()
+            pose.punch = Double(side)
+            pose.impact = 1
+            poses.append(pose)
+        }
+        for pattern in PookiePattern.allCases where pattern != .plain {
+            var pose = CatPose()
+            pose.pattern = pattern
+            poses.append(pose)
+        }
+        return poses
+    }
+
     static func oneFactorPoses() -> [CatPose] {
         var poses: [CatPose] = []
 

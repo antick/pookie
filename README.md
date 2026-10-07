@@ -164,6 +164,16 @@ With two displays, the edge of a screen is a **seam, not a wall**: if a monitor 
 side she walks, jumps or gets thrown onto it; she only bounces off an edge when there is nothing on
 the other side of it.
 
+**Markings go over any coat.** Nine of them — none, an eye patch, one white sock, a heart, a raccoon
+mask, a ringed tail, rosettes, tiny stars, and a pale winter coat — chosen per pookie from **Markings**
+in its submenu, and free of both the species and the colour, so every combination of animal, coat and
+marking is available. Two rules make that work: a marking is drawn in whichever fur tone *contrasts*
+with the coat (a fixed palette slot would make a dark patch invisible on a midnight pookie and a white
+sock invisible on a snow bunny — the first version drew eight invisible markings), and every marking is
+**outlined**, like the rest of this art.
+
+![Pookie markings](shots/patterns.png)
+
 **One of each animal at a time**, which is what makes the desk read as a gang rather than a
 duplicate: adding a second bunny is not offered, and a saved roster with a duplicate is repaired on
 load (the second bunny becomes the next animal nobody is, keeping its coat and name). A *coat* is
@@ -333,7 +343,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 294 headless checks, including:
+runs 297 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,

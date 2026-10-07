@@ -208,6 +208,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             submenu.addItem(.separator())
+            let markingsHeader = NSMenuItem(title: "Markings", action: nil, keyEquivalent: "")
+            markingsHeader.isEnabled = false
+            submenu.addItem(markingsHeader)
+            for pattern in PookiePattern.allCases {
+                let item = NSMenuItem(title: pattern.name, action: #selector(selectPattern(_:)), keyEquivalent: "")
+                item.target = self
+                item.tag = index
+                item.representedObject = pattern.rawValue
+                item.state = pet.pookie.pattern == pattern ? .on : .off
+                item.indentationLevel = 1
+                submenu.addItem(item)
+            }
+
+            submenu.addItem(.separator())
             let rename = NSMenuItem(title: "Rename…", action: #selector(renamePookie(_:)), keyEquivalent: "")
             rename.target = self
             rename.tag = index
@@ -565,6 +579,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildMenu()
     }
 
+    @objc private func selectPattern(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let pattern = PookiePattern(rawValue: raw) else { return }
+        cohort?.setPattern(pattern, at: sender.tag)
+        rebuildMenu()
+    }
+
     @objc private func renamePookie(_ sender: NSMenuItem) {
         guard let pet = cohort?.pets[safe: sender.tag] else { return }
         let alert = NSAlert()
@@ -703,6 +724,11 @@ extension AppDelegate: NSMenuItemValidation {
            let pet = cohort?.pets[safe: menuItem.tag],
            let raw = menuItem.representedObject as? String {
             menuItem.state = pet.pookie.species.rawValue == raw ? .on : .off
+        }
+        if menuItem.action == #selector(selectPattern(_:)),
+           let pet = cohort?.pets[safe: menuItem.tag],
+           let raw = menuItem.representedObject as? String {
+            menuItem.state = pet.pookie.pattern.rawValue == raw ? .on : .off
         }
         if menuItem.action == #selector(selectCoat(_:)),
            let pet = cohort?.pets[safe: menuItem.tag],

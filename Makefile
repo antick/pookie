@@ -37,6 +37,7 @@ poses: build
 	@mkdir -p shots
 	@$(BIN) --render-png shots/poses.png
 	@$(BIN) --render-species shots/species.png
+	@$(BIN) --render-patterns shots/patterns.png
 
 bundle:
 	@./scripts/bundle.sh $(CONFIG)

@@ -100,11 +100,15 @@ struct PookieConfig: Equatable {
     /// What the human calls this one. Names are theirs, so nothing else keys off
     /// them; two pookies may share a name.
     var name: String
+    /// Markings over the coat. Free of both the species and the coat, so every
+    /// combination of animal, colour and pattern is available.
+    var pattern: PookiePattern
 
-    init(species: PetSpecies, coat: CatSkin, name: String? = nil) {
+    init(species: PetSpecies, coat: CatSkin, name: String? = nil, pattern: PookiePattern = .plain) {
         self.species = species
         self.coat = coat
         self.name = PookieConfig.clean(name ?? species.defaultName)
+        self.pattern = pattern
     }
 
     /// A new animal wearing the coat that makes it look like itself.
@@ -152,15 +156,22 @@ struct PookieConfig: Equatable {
     ///
     /// The name is optional on the way in, because the first version of this
     /// wrote `species:coat` and a saved roster is not something to invalidate.
-    var encoded: String { "\(species.rawValue):\(coat.rawValue):\(name)" }
+    var encoded: String {
+        "\(species.rawValue):\(coat.rawValue):\(name):\(pattern.rawValue)"
+    }
 
     init?(encoded: String) {
-        let parts = encoded.split(separator: ":", maxSplits: 2, omittingEmptySubsequences: false)
+        let parts = encoded.split(separator: ":", maxSplits: 3, omittingEmptySubsequences: false)
         guard parts.count >= 2,
               let species = PetSpecies(rawValue: String(parts[0])),
               let coat = CatSkin(rawValue: String(parts[1]))
         else { return nil }
-        self.init(species: species, coat: coat, name: parts.count > 2 ? String(parts[2]) : nil)
+        self.init(
+            species: species,
+            coat: coat,
+            name: parts.count > 2 ? String(parts[2]) : nil,
+            pattern: parts.count > 3 ? (PookiePattern(rawValue: String(parts[3])) ?? .plain) : .plain
+        )
     }
 }
 

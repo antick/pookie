@@ -12,6 +12,7 @@ if arguments.contains("--help") || arguments.contains("-h") {
       Pookie --say "text"          make a running Pookie say something, then exit
       Pookie --render-png <path>   write a pose sheet to a PNG and exit
       Pookie --render-species <p>  write a species sheet to a PNG and exit
+      Pookie --render-patterns <p> write a markings sheet to a PNG and exit
       Pookie --selftest            run headless checks and exit
       Pookie --windows             list the windows she can perch on, then exit
       Pookie --verbose             log window and interaction details to stderr
@@ -105,6 +106,11 @@ if let index = arguments.firstIndex(of: "--at") {
         FileHandle.standardError.write(Data("--at expects x,y\n".utf8))
         exit(2)
     }
+}
+
+if let index = arguments.firstIndex(of: "--render-patterns") {
+    let path = index + 1 < arguments.count ? arguments[index + 1] : "pookie-patterns.png"
+    exit(Diagnostics.renderPatternsPNG(to: path))
 }
 
 if let index = arguments.firstIndex(of: "--render-species") {

@@ -213,10 +213,12 @@ struct CatRenderer: PetRenderer {
         // Wings sit on the flank, so they go over the body and under the head.
         drawWings(in: context, pose: pose, anatomy: anatomy)
         drawPaws(in: context, pose: pose, anatomy: anatomy)
+        drawPattern(in: context, pose: pose, anatomy: anatomy)
         // Over the paws: a thrown foreleg is in front of the body, not behind it.
         if pose.punch != 0 { drawPunch(in: context, pose: pose, anatomy: anatomy) }
         drawEars(in: context, pose: pose, anatomy: anatomy)
         drawHead(in: context, pose: pose, anatomy: anatomy)
+        drawFacePattern(in: context, pose: pose, anatomy: anatomy)
         if pose.species.traits.cheekRuff { drawCheekRuff(in: context, anatomy: anatomy) }
         if pose.species.traits.cheeks { drawCheeks(in: context, anatomy: anatomy) }
         drawFace(in: context, pose: pose, anatomy: anatomy)
@@ -572,7 +574,14 @@ struct CatRenderer: PetRenderer {
             x: anatomy.bodyCenter.x + near * anatomy.bodyRadii.width * 0.55,
             y: anatomy.bodyCenter.y + anatomy.bodyRadii.height * 0.35
         )
-        let reach = (anatomy.bodyRadii.width * 0.5 + anatomy.pawRadii.width * 1.6) * amount
+        // Short enough to leave the art envelope some margin: at the first
+        // length the swing ended exactly on the stage edge, which the transient
+        // sweep failed on and which any wider animal would have overflowed.
+        // Capped, because a punch is an *arm*: a bear's belly is wider than a
+        // hamster's, and letting the swing grow with it put a bear's paw on the
+        // edge of the stage.
+        let armLength = min(anatomy.bodyRadii.width * 0.42, 12)
+        let reach = (armLength + anatomy.pawRadii.width * 1.15) * amount
         let paw = CGPoint(
             x: shoulder.x + near * reach * 0.8,
             y: shoulder.y + reach * 0.55
@@ -605,7 +614,7 @@ struct CatRenderer: PetRenderer {
         let impact = CGFloat(max(0, min(1, pose.impact)))
         guard impact > 0.05 else { return }
         let centre = CGPoint(x: paw.x + near * anatomy.pawRadii.width * 1.5, y: paw.y + anatomy.pawRadii.width * 0.6)
-        let radius = anatomy.pawRadii.width * (0.9 + 0.9 * impact)
+        let radius = anatomy.pawRadii.width * (0.75 + 0.7 * impact)
         for index in 0..<5 {
             let angle = Double(index) / 5 * 2 * .pi + 0.4
             let inner = CGPoint(x: centre.x + cos(angle) * radius * 0.35, y: centre.y + sin(angle) * radius * 0.35)
@@ -622,6 +631,307 @@ struct CatRenderer: PetRenderer {
             width: radius * 0.56,
             height: radius * 0.56
         ))
+    }
+
+    /// The colour a marking is drawn in, chosen for contrast against the fur.
+    ///
+    /// Both ends are fur tones rather than accents: `furDark` or the outline for a
+    /// dark marking, `belly` or `furDark` for a pale one. Picking the *most*
+    /// contrasting palette colour instead produced a blue heart on a white bunny
+    /// and a pink sock on a black cat — high contrast, and nothing like fur.
+    private func markingColour(light: Bool) -> CGColor {
+        let candidates: [CGColor] = light
+            ? [palette.belly, palette.furDark]
+            : [palette.furDark, palette.outline]
+        let fur = luminance(palette.fur)
+        return candidates.max { abs(luminance($0) - fur) < abs(luminance($1) - fur) } ?? palette.furDark
+    }
+
+    private func luminance(_ colour: CGColor) -> Double {
+        guard let components = colour.components, components.count >= 3 else { return 0 }
+        return 0.2126 * Double(components[0])
+            + 0.7152 * Double(components[1])
+            + 0.0722 * Double(components[2])
+    }
+
+    /// Markings, drawn over whatever the coat and species already put down.
+    ///
+    /// Two rules make eight markings work on fourteen coats and eight species.
+    /// Every one is drawn from fur tones chosen for contrast (see
+    /// `markingColour`), and every one is *outlined* — which is the same rule the
+    /// rest of this art follows, and the only thing that keeps a pale marking
+    /// visible on a pale pookie.
+    private func drawPattern(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let pattern = pose.pattern
+        guard pattern != .plain else { return }
+        // The two markings that live on the head are drawn separately, between the
+        // head and the face: drawn with the body they end up *under* the skull,
+        // which is how the first version of the eye patch and the mask were
+        // invisible on every pookie.
+        guard pattern != .eyePatch, pattern != .mask else { return }
+
+        let dark = markingColour(light: false)
+        let pale = markingColour(light: true)
+        let headScale = anatomy.headScale
+        let body = anatomy.bodyCenter
+        let radii = anatomy.bodyRadii
+        let hairline = outlineWidth * 0.7
+
+        func bodyClip() -> CGPath {
+            CGPath(ellipseIn: CGRect(
+                x: body.x - radii.width,
+                y: body.y - radii.height,
+                width: radii.width * 2,
+                height: radii.height * 2
+            ), transform: nil)
+        }
+
+        switch pattern {
+        case .plain:
+            break
+
+        case .eyePatch, .mask:
+            // On the head: drawn by `drawFacePattern`, between the skull and the
+            // face.
+            break
+
+        case .sock:
+            // One paw, on the side she is facing, so it is the one you see.
+            let centre = CGPoint(
+                x: body.x + CGFloat(pose.facing) * anatomy.pawOffsetX,
+                y: anatomy.pawCenterY
+            )
+            // A whole leg, not a spot on the foot: at this size a pale dot on a
+            // paw is indistinguishable from the paw.
+            let rect = CGRect(
+                x: centre.x - anatomy.pawRadii.width * 1.15,
+                y: centre.y - anatomy.pawRadii.height,
+                width: anatomy.pawRadii.width * 2.3,
+                height: anatomy.pawRadii.height * 3.4
+            )
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: rect, transform: nil),
+                fill: pale,
+                stroke: palette.outline,
+                width: hairline
+            )
+
+        case .heart:
+            // Two lobes and a point, low on the flank so the muzzle does not sit
+            // on top of it.
+            let size = radii.width * 0.34
+            let centre = CGPoint(x: body.x + radii.width * 0.1, y: body.y - radii.height * 0.3)
+            let heart = CGMutablePath()
+            heart.move(to: CGPoint(x: centre.x, y: centre.y - size * 0.9))
+            heart.addQuadCurve(
+                to: CGPoint(x: centre.x - size, y: centre.y + size * 0.4),
+                control: CGPoint(x: centre.x - size * 1.4, y: centre.y - size * 0.7)
+            )
+            heart.addQuadCurve(
+                to: CGPoint(x: centre.x, y: centre.y + size * 0.95),
+                control: CGPoint(x: centre.x - size * 0.5, y: centre.y + size * 0.95)
+            )
+            heart.addQuadCurve(
+                to: CGPoint(x: centre.x + size, y: centre.y + size * 0.4),
+                control: CGPoint(x: centre.x + size * 0.5, y: centre.y + size * 0.95)
+            )
+            heart.addQuadCurve(
+                to: CGPoint(x: centre.x, y: centre.y - size * 0.9),
+                control: CGPoint(x: centre.x + size * 1.4, y: centre.y - size * 0.7)
+            )
+            heart.closeSubpath()
+            fillStroke(context, path: heart, fill: dark, stroke: palette.outline, width: hairline)
+
+        case .ringTail:
+            // Bands across the tail, following whatever shape it is: thin, or a
+            // thick dashed stroke on a small tail merges into one dark tail.
+            // Bars *across* the tail, not dashes along it: a dashed stroke on a
+            // tail this size merges into one dark tail. Three points off the same
+            // cubic the tail is drawn with, so the rings follow any species.
+            let p0 = anatomy.tailBase
+            let p1 = anatomy.tailControl1
+            let p2 = anatomy.tailControl2
+            let p3 = anatomy.tailTip
+            func along(_ t: CGFloat) -> CGPoint {
+                let u = 1 - t
+                return CGPoint(
+                    x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+                    y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y
+                )
+            }
+            for t in [CGFloat(0.3), 0.5, 0.7] {
+                let point = along(t)
+                let half = anatomy.tailWidth * 0.42
+                let bar = CGMutablePath()
+                bar.move(to: CGPoint(x: point.x - half * 0.5, y: point.y - half))
+                bar.addLine(to: CGPoint(x: point.x + half * 0.5, y: point.y + half))
+                stroke(context, path: bar, color: dark, width: hairline * 1.6)
+            }
+
+        case .rosettes:
+            // Three rings on the flank, low, clipped to the body.
+            context.saveGState()
+            context.addPath(bodyClip())
+            context.clip()
+            for (dx, dy, size) in [
+                (CGFloat(-0.45), CGFloat(0.15), CGFloat(0.26)),
+                (CGFloat(0.3), CGFloat(-0.2), CGFloat(0.3)),
+                (CGFloat(-0.05), CGFloat(-0.6), CGFloat(0.22)),
+            ] {
+                let radius = radii.width * size
+                let centre = CGPoint(x: body.x + radii.width * dx, y: body.y + radii.height * dy)
+                let ring = CGMutablePath()
+                ring.addEllipse(in: CGRect(
+                    x: centre.x - radius,
+                    y: centre.y - radius * 0.8,
+                    width: radius * 2,
+                    height: radius * 1.6
+                ))
+                stroke(context, path: ring, color: dark, width: hairline * 1.5)
+            }
+            context.restoreGState()
+
+        case .stars:
+            // Four-pointed, because a five-pointed star six points across is a
+            // smudge.
+            context.saveGState()
+            context.addPath(bodyClip())
+            context.clip()
+            for (dx, dy, size) in [
+                (CGFloat(-0.5), CGFloat(0.25), CGFloat(3.2)),
+                (CGFloat(0.1), CGFloat(-0.3), CGFloat(2.6)),
+                (CGFloat(0.5), CGFloat(0.3), CGFloat(2.2)),
+                (CGFloat(-0.2), CGFloat(-0.6), CGFloat(2.0)),
+            ] {
+                let centre = CGPoint(x: body.x + radii.width * dx, y: body.y + radii.height * dy)
+                let reach = size * headScale
+                let star = CGMutablePath()
+                star.move(to: CGPoint(x: centre.x, y: centre.y + reach))
+                star.addQuadCurve(
+                    to: CGPoint(x: centre.x + reach, y: centre.y),
+                    control: CGPoint(x: centre.x + reach * 0.16, y: centre.y + reach * 0.16)
+                )
+                star.addQuadCurve(
+                    to: CGPoint(x: centre.x, y: centre.y - reach),
+                    control: CGPoint(x: centre.x + reach * 0.16, y: centre.y - reach * 0.16)
+                )
+                star.addQuadCurve(
+                    to: CGPoint(x: centre.x - reach, y: centre.y),
+                    control: CGPoint(x: centre.x - reach * 0.16, y: centre.y - reach * 0.16)
+                )
+                star.addQuadCurve(
+                    to: CGPoint(x: centre.x, y: centre.y + reach),
+                    control: CGPoint(x: centre.x - reach * 0.16, y: centre.y + reach * 0.16)
+                )
+                star.closeSubpath()
+                fillStroke(context, path: star, fill: pale, stroke: palette.outline, width: hairline * 0.7)
+            }
+            context.restoreGState()
+
+        case .frost:
+            // A winter coat: pale muzzle, chest and paws, outlined like everything
+            // else so it shows on a pale pookie too.
+            let chest = CGRect(
+                x: body.x - radii.width * 0.42,
+                y: body.y - radii.height * 0.5,
+                width: radii.width * 0.84,
+                height: radii.height * 1.0
+            )
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: chest, transform: nil),
+                fill: pale,
+                stroke: palette.outline,
+                width: hairline
+            )
+            let muzzle = CGRect(
+                x: anatomy.muzzleCenter.x - anatomy.muzzleRadii.width * 1.15,
+                y: anatomy.muzzleCenter.y - anatomy.muzzleRadii.height * 1.05,
+                width: anatomy.muzzleRadii.width * 2.3,
+                height: anatomy.muzzleRadii.height * 2.1
+            )
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: muzzle, transform: nil),
+                fill: pale,
+                stroke: palette.outline,
+                width: hairline
+            )
+            for direction in [CGFloat(-1), CGFloat(1)] {
+                let centre = CGPoint(
+                    x: body.x + direction * anatomy.pawOffsetX,
+                    y: anatomy.pawCenterY
+                )
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: CGRect(
+                        x: centre.x - anatomy.pawRadii.width,
+                        y: centre.y - anatomy.pawRadii.height,
+                        width: anatomy.pawRadii.width * 2,
+                        height: anatomy.pawRadii.height * 2
+                    ), transform: nil),
+                    fill: pale,
+                    stroke: palette.outline,
+                    width: hairline
+                )
+            }
+        }
+    }
+
+    /// The markings that sit on the head, drawn after the skull and before the
+    /// face, so a patch is over the fur and under the eye.
+    private func drawFacePattern(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let pattern = pose.pattern
+        guard pattern == .eyePatch || pattern == .mask else { return }
+        let dark = markingColour(light: false)
+        let hairline = outlineWidth * 0.7
+
+        switch pattern {
+        case .eyePatch:
+            // One eye, not two: an eye patch is a marking, the panda's face is a
+            // species.
+            let centre = CGPoint(x: anatomy.headCenter.x - anatomy.eyeOffsetX, y: anatomy.eyeY)
+            context.saveGState()
+            context.translateBy(x: centre.x, y: centre.y)
+            context.rotate(by: -0.4)
+            let patch = CGRect(
+                x: -anatomy.eyeRadius * 1.9,
+                y: -anatomy.eyeRadius * 1.6,
+                width: anatomy.eyeRadius * 3.8,
+                height: anatomy.eyeRadius * 3.2
+            )
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: patch, transform: nil),
+                fill: dark,
+                stroke: palette.outline,
+                width: hairline
+            )
+            context.restoreGState()
+
+        case .mask:
+            // A band across both eyes, wide enough to reach the sides of the head
+            // and outlined so it shows on a dark coat too.
+            let width = anatomy.headRadius * 1.9
+            let height = anatomy.eyeRadius * 2.1
+            let band = CGRect(
+                x: anatomy.headCenter.x - width / 2,
+                y: anatomy.eyeY - height / 2,
+                width: width,
+                height: height
+            )
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: band, transform: nil),
+                fill: dark,
+                stroke: palette.outline,
+                width: hairline
+            )
+
+        case .plain, .sock, .heart, .ringTail, .rosettes, .stars, .frost:
+            break
+        }
     }
 
     /// A duckling's wing, folded at rest and lifted as `flap` rises.

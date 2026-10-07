@@ -456,6 +456,15 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   because "small" and "chatty" are properties of the desk rather than of one cat out of five.
   Everything that maps a design point to the screen is per-pet (`PetMotion.windowOrigin`), which is
   why ten windows can share one renderer without any of them disagreeing about where their cat is.
+- **Markings over coats** (`PookiePattern`, `CatRenderer.drawPattern`). Nine patterns, independent of
+  both the species and the coat, so the combinations multiply instead of the code: 8 animals x 17 coats x
+  9 markings. Two rules make one drawing routine work across all of them — the marking colour is chosen
+  for *contrast* against the fur rather than from a fixed palette slot, and every marking is outlined,
+  which is what keeps a pale marking visible on a pale pookie. The two head markings are drawn in their
+  own pass between the skull and the face, because drawn with the body they end up under the head.
+  A punch and a marking are *transient* channels: they are swept against the stage on their own rather
+  than through the deformation corners, because a brawl happens standing and grounded and multiplying a
+  thrown paw by a full stretch would be testing a pose that cannot happen.
 - **Names, a boss, and one of each animal** (`PookieConfig`, `PetSpecies`). Every pookie carries a
   name the human chose; the *pookie boss* is the one that answers producers, and any pookie can be
   promoted. The desk keeps one of each kind — a duplicate in a saved roster is repaired on load by

@@ -118,6 +118,47 @@ struct CatShapeWeights: Equatable {
     }
 }
 
+/// Markings that go over a coat.
+///
+/// Separate from `CatSkin` on purpose: a coat is a colour scheme and a marking is
+/// a pattern, so keeping them apart makes every combination available without a
+/// coat per pattern. A marking is drawn with the palette it is given — `furDark`
+/// for dark ones, `belly` for pale ones — so the same marking works on a black
+/// panda and a white bunny.
+enum PookiePattern: String, CaseIterable {
+    case plain
+    /// A patch over one eye.
+    case eyePatch
+    /// One pale paw.
+    case sock
+    /// A heart on the flank.
+    case heart
+    /// A band across both eyes, like a raccoon's.
+    case mask
+    /// Rings down the tail.
+    case ringTail
+    /// Rosettes, like a wild cat's.
+    case rosettes
+    /// A scatter of tiny stars.
+    case stars
+    /// A pale winter coat: frost on the muzzle, chest and paws.
+    case frost
+
+    var name: String {
+        switch self {
+        case .plain: return "None"
+        case .eyePatch: return "Eye patch"
+        case .sock: return "White sock"
+        case .heart: return "Heart"
+        case .mask: return "Raccoon mask"
+        case .ringTail: return "Ringed tail"
+        case .rosettes: return "Rosettes"
+        case .stars: return "Stars"
+        case .frost: return "Winter coat"
+        }
+    }
+}
+
 /// Every field here is intentionally cheap to compute and cheap to animate.
 /// `CatRenderer` reads only this; nothing else.
 struct CatPose {
@@ -171,6 +212,11 @@ struct CatPose {
     var punch: Double = 0
     /// A comic hit, 0 to 1: the burst of lines drawn where a paw lands.
     var impact: Double = 0
+
+    /// Markings that go *over* the coat: a patch, a sock, a mask. Free of both
+    /// the species and the coat, so any of the fourteen colours can wear any of
+    /// them.
+    var pattern: PookiePattern = .plain
 
     /// Wing flap, 0 (folded) to 1 (up). A bird walks with a little flutter and
     /// flies with a full flap; for everyone else this stays at zero and nothing

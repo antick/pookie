@@ -58,6 +58,9 @@ final class PetMotion {
     /// renderer, the envelope test and the gaze anchor all read one value.
     var species: PetSpecies = .cat
 
+    /// Markings over the coat, written into the pose like the species.
+    var pattern: PookiePattern = .plain
+
     /// Where the other pets are, pushed in by the cohort. Used for two things:
     /// not standing inside each other, and chasing each other around.
     var companions: [CGPoint] = []
@@ -1222,6 +1225,7 @@ final class PetMotion {
         pose.facing = facing
 
         pose.species = species
+        pose.pattern = pattern
 
 
         // The blink, as the one number the renderer needs: out is her going, in

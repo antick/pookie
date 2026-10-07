@@ -339,6 +339,18 @@ final class PetCohort {
         PetSpecies.allCases.filter { canAdd(species: $0) }
     }
 
+    /// Change one pookie's markings. Free of everything else: any pattern on any
+    /// animal in any coat.
+    func setPattern(_ pattern: PookiePattern, at index: Int) {
+        guard pets.indices.contains(index) else { return }
+        var config = pets[index].pookie
+        config.pattern = pattern
+        pets[index].apply(pookie: config)
+        if AppConfig.shared.roster.indices.contains(index) {
+            AppConfig.shared.roster[index] = config
+        }
+    }
+
     /// Rename one pookie. The name is the human's, so nothing else keys off it.
     func renamePookie(at index: Int, to name: String) {
         guard pets.indices.contains(index) else { return }

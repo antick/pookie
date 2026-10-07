@@ -86,6 +86,7 @@ final class PetWindowController {
         motion.teleportEnabled = config.teleportEnabled
         motion.teleportCadence = config.teleportCadence
         motion.species = pookie.species
+        motion.pattern = pookie.pattern
         motion.rescheduleTeleport()
 
         view = PetView(motion: motion, renderer: CatRenderer(palette: pookie.coat.palette))
@@ -298,6 +299,8 @@ final class PetWindowController {
     func apply(pookie: PookieConfig) {
         self.pookie = pookie
         motion.species = pookie.species
+        motion.pattern = pookie.pattern
+        motion.pattern = pookie.pattern
         view.renderer = CatRenderer(palette: pookie.coat.palette)
         view.invalidateMask()
         view.needsDisplay = true
