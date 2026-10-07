@@ -79,7 +79,6 @@ final class AppConfig {
     /// `NSWindow.sharingType = .none` hides the pet from screen sharing and
     /// captures. Deliberately off by default so screenshots still show Pookie.
     var hideFromScreenShare = false
-    var palette: CatPalette = .tabby
     /// How big she is drawn. See `CatScale`.
     var petScale: CatScale = .medium
     /// How many pets to start with. The menu adds and removes them from there;

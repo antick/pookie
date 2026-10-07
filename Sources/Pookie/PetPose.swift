@@ -359,8 +359,7 @@ enum CatSkin: String, CaseIterable {
 }
 
 extension CatPalette {
-    /// The default coat. `CatSkin` owns the colours; these are the conveniences
-    /// the tests and the defaults use.
+    /// The default coat. `CatSkin` owns the colours; this is the convenience the
+    /// tests and the defaults use.
     static var tabby: CatPalette { CatSkin.tabby.palette }
-    static var midnight: CatPalette { CatSkin.midnight.palette }
 }

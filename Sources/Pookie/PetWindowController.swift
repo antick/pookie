@@ -564,6 +564,7 @@ final class PetWindowController {
             + "platforms=\(motion.platforms.count) "
             + "jumps=\(motion.jumpCount) "
             + "hops=\(motion.teleportCount) "
+            + "plays=\(motion.playCount) "
             + "bubble=\(speech.bubble == nil ? "no" : "yes") "
             + "paused=\(motion.isPaused) "
             + "overCat=\(view.isPointerOverPet)"
