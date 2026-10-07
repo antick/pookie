@@ -160,7 +160,12 @@ on this renderer (software Core Graphics, a 3840x1620 display):
 | 5 | ~17% | 60 MB |
 
 That is 2.4x the cost of one pet rather than 5x, and the remaining cost is the same M1 problem the
-first cat already had: the fix is the SpriteKit renderer, not a smaller cap.
+first cat already had: the fix is the SpriteKit renderer, not a smaller cap. Idle is the number that
+matters for a desktop pet, but for the record: five of them awake, wandering and scrapping measure
+around 25%.
+
+Five is also a *default you can change*, not a floor. If the menagerie is more company than you want,
+**Remove a critter** takes it down to one, and the choice persists.
 
 ### Teleporting
 
