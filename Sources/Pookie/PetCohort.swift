@@ -83,9 +83,15 @@ final class PetCohort {
 
     /// Where a new pet appears: along the bottom of the primary display, spaced
     /// out, so a litter arrives in a row rather than stacked on one spot.
+    ///
+    /// `--at x,y` (or a configured start point) is the user naming a spot, so the
+    /// first pet goes exactly there and the rest line up to the right of her.
     private func homeOrigin(slot: Int) -> CGPoint {
         let region = NSScreen.screens.first?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
         let size = AppConfig.shared.petSize
+        if let start = AppConfig.shared.startOrigin {
+            return CGPoint(x: start.x + CGFloat(slot) * (size.width + 24), y: start.y)
+        }
         let width = max(1, region.width - size.width - 80)
         let step = width / CGFloat(Self.maximumPets)
         let x = region.minX + 40 + CGFloat(min(slot, Self.maximumPets - 1)) * step
