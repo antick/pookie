@@ -165,6 +165,11 @@ struct CatPose {
     /// species is a value change rather than a different code path everywhere.
     var species: PetSpecies = .cat
 
+    /// Wing flap, 0 (folded) to 1 (up). A bird walks with a little flutter and
+    /// flies with a full flap; for everyone else this stays at zero and nothing
+    /// is drawn.
+    var flap: Double = 0
+
     /// A neutral, awake, forward-facing cat.
     static let neutral = CatPose()
 }
@@ -306,6 +311,12 @@ enum CatSkin: String, CaseIterable {
     case snow
     /// White with black points: the coat a panda is read from.
     case panda
+    /// Duckling yellow, with an orange bill and feet: `nose` is the bill.
+    case duckling
+    /// Warm brown, for a bear.
+    case cocoa
+    /// Sandy gold, for a hamster.
+    case hazel
 
     var name: String {
         switch self {
@@ -320,6 +331,9 @@ enum CatSkin: String, CaseIterable {
         case .chocolate: return "Chocolate"
         case .snow: return "Snow"
         case .panda: return "Panda"
+        case .duckling: return "Duckling"
+        case .cocoa: return "Cocoa"
+        case .hazel: return "Hazel"
         }
     }
 
@@ -393,6 +407,26 @@ enum CatSkin: String, CaseIterable {
                 fur: 0xF6F2EA, furDark: 0x2A2A2E, belly: 0xFFFDF8, earInner: 0x2A2A2E,
                 outline: 0x1A1A1E, eye: 0x232326, nose: 0x232326, mouth: 0x3A3A3E,
                 tongue: 0xD98F94, blush: 0xD9A0A0, whiskerAlpha: 0.5
+            )
+        case .duckling:
+            // The bill and the webbed feet are drawn from `nose`, so this coat's
+            // orange is the whole duckling.
+            return .coat(
+                fur: 0xF7D64C, furDark: 0xE8BE33, belly: 0xFFF3B8, earInner: 0xF0C84A,
+                outline: 0xC9A02A, eye: 0x2E2A26, nose: 0xF08A2B, mouth: 0xC96A1E,
+                tongue: 0xF0A0A8, blush: 0xF2A0A0
+            )
+        case .cocoa:
+            return .coat(
+                fur: 0xA9744C, furDark: 0x8A5B38, belly: 0xE8C9A8, earInner: 0xD9A98A,
+                outline: 0x5E3D26, eye: 0x4A3520, nose: 0x3A2A1E, mouth: 0x7A5A44,
+                tongue: 0xE09090, blush: 0xE0A090
+            )
+        case .hazel:
+            return .coat(
+                fur: 0xD9A96A, furDark: 0xC08F4E, belly: 0xFFF2DC, earInner: 0xF0B8B0,
+                outline: 0x8A6A3E, eye: 0x3A2A20, nose: 0xE39A9A, mouth: 0xA9705A,
+                tongue: 0xF0A0A8, blush: 0xEFA8A0
             )
         }
     }

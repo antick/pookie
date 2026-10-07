@@ -48,7 +48,7 @@ final class PetCohort {
     /// menu marks as the default.
     var spokespet: PetWindowController? {
         guard !pets.isEmpty else { return nil }
-        let index = min(max(AppConfig.shared.defaultCritter, 0), pets.count - 1)
+        let index = min(max(AppConfig.shared.boss, 0), pets.count - 1)
         return pets[index]
     }
 
@@ -71,19 +71,23 @@ final class PetCohort {
         // The saved roster decides what is on the desk; anything past the end of
         // it is the next animal nobody has yet, which is what makes
         // `Pookie --pets 5` hand you one of each.
-        let critter: CritterConfig
+        let pookie: PookieConfig
         if let species {
-            critter = CritterConfig(species)
-            config.roster.append(critter)
+            guard canAdd(species: species) else {
+                Log.info("there is already a \(species.name) on the desk")
+                return nil
+            }
+            pookie = PookieConfig(species)
+            config.roster.append(pookie)
         } else if pets.count < config.roster.count {
-            critter = config.roster[pets.count]
+            pookie = config.roster[pets.count]
         } else {
-            critter = nextCritter()
-            config.roster.append(critter)
+            pookie = nextPookie()
+            config.roster.append(pookie)
         }
 
         let pet = PetWindowController(
-            critter: critter,
+            pookie: pookie,
             personalScale: Rand.double(0.88...1.12),
             startOrigin: homeOrigin(slot: pets.count)
         )
@@ -94,7 +98,7 @@ final class PetCohort {
         if announce, config.chatty {
             pet.say(PetChatter.arrived(), duration: 1.6)
         }
-        Log.info("pet \(pets.count)/\(Self.maximumPets) up (\(critter.species.name), \(critter.coat.name))")
+        Log.info("pet \(pets.count)/\(Self.maximumPets) up: \(pookie.name) the \(pookie.species.name) in \(pookie.coat.name)")
         return pet
     }
 
@@ -112,15 +116,15 @@ final class PetCohort {
     /// The first animal nobody is, in the coat that makes it look like itself —
     /// so adding a pet adds a *different* pet. Past the five species it falls
     /// back to the first coat nobody is wearing.
-    private func nextCritter() -> CritterConfig {
-        let speciesInUse = Set(pets.map(\.critter.species))
+    private func nextPookie() -> PookieConfig {
+        let speciesInUse = Set(pets.map(\.pookie.species))
         if let species = PetSpecies.allCases.first(where: { !speciesInUse.contains($0) }) {
-            return CritterConfig(species)
+            return PookieConfig(species)
         }
-        let coatsInUse = Set(pets.map(\.critter.coat))
+        let coatsInUse = Set(pets.map(\.pookie.coat))
         let coat = CatSkin.allCases.first { !coatsInUse.contains($0) }
             ?? CatSkin.allCases[pets.count % CatSkin.allCases.count]
-        return CritterConfig(species: .cat, coat: coat)
+        return PookieConfig(species: .cat, coat: coat)
     }
 
     /// Where a new pet appears, given the desk and the user's chosen start point.
@@ -225,7 +229,7 @@ final class PetCohort {
                 if AppConfig.shared.chatty, Rand.bool(0.7) {
                     ready[i].say(PetChatter.scuffling(), duration: 1.3)
                 }
-                Log.debug("scuffle between \(ready[i].critter.species.rawValue) and \(ready[j].critter.species.rawValue)")
+                Log.debug("scuffle between \(ready[i].pookie.species.rawValue) and \(ready[j].pookie.species.rawValue)")
                 return true
             }
         }
@@ -286,18 +290,24 @@ final class PetCohort {
     }
 
     /// Change what one pet is, and remember it.
-    func setCritter(_ critter: CritterConfig, at index: Int) {
+    func setPookie(_ pookie: PookieConfig, at index: Int) {
         guard pets.indices.contains(index) else { return }
-        pets[index].apply(critter: critter)
+        // Changing an animal's kind obeys the same rule as adding one: if
+        // somebody else is already that animal, this is not allowed.
+        if pookie.species != pets[index].pookie.species,
+           pets.contains(where: { $0 !== pets[index] && $0.pookie.species == pookie.species }) {
+            return
+        }
+        pets[index].apply(pookie: pookie)
         if AppConfig.shared.roster.indices.contains(index) {
-            AppConfig.shared.roster[index] = critter
+            AppConfig.shared.roster[index] = pookie
         }
     }
 
     /// Make one pet the one that answers producers.
     func makeDefault(index: Int) {
         guard pets.indices.contains(index) else { return }
-        AppConfig.shared.defaultCritter = index
+        AppConfig.shared.boss = index
     }
 
     func setHidden(_ hidden: Bool) {
@@ -311,6 +321,29 @@ final class PetCohort {
         applyColonySettings()
     }
 
+    /// Whether this animal can join: one of each, so a second bunny is not an
+    /// option — a different *coat* on the bunny who is already here is, and that
+    /// is what the coat menu is for.
+    func canAdd(species: PetSpecies) -> Bool {
+        Self.canAddPet(having: pets.count) && !pets.contains { $0.pookie.species == species }
+    }
+
+    /// The animals that could join right now.
+    var availableSpecies: [PetSpecies] {
+        PetSpecies.allCases.filter { canAdd(species: $0) }
+    }
+
+    /// Rename one pookie. The name is the human's, so nothing else keys off it.
+    func renamePookie(at index: Int, to name: String) {
+        guard pets.indices.contains(index) else { return }
+        var config = pets[index].pookie
+        config.name = PookieConfig.clean(name)
+        pets[index].apply(pookie: config)
+        if AppConfig.shared.roster.indices.contains(index) {
+            AppConfig.shared.roster[index] = config
+        }
+    }
+
     /// Take one pet off the desk, whichever one it is — not just the newest.
     @discardableResult
     func removePet(at index: Int) -> Bool {
@@ -320,8 +353,8 @@ final class PetCohort {
         if AppConfig.shared.roster.indices.contains(index) {
             AppConfig.shared.roster.remove(at: index)
         }
-        AppConfig.shared.defaultCritter = min(
-            AppConfig.shared.defaultCritter,
+        AppConfig.shared.boss = min(
+            AppConfig.shared.boss,
             max(0, AppConfig.shared.roster.count - 1)
         )
         applyColonySettings()

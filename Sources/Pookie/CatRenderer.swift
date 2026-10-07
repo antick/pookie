@@ -210,9 +210,13 @@ struct CatRenderer: PetRenderer {
 
         drawTail(in: context, pose: pose, anatomy: anatomy)
         drawBody(in: context, pose: pose, anatomy: anatomy)
+        // Wings sit on the flank, so they go over the body and under the head.
+        drawWings(in: context, pose: pose, anatomy: anatomy)
         drawPaws(in: context, pose: pose, anatomy: anatomy)
         drawEars(in: context, pose: pose, anatomy: anatomy)
         drawHead(in: context, pose: pose, anatomy: anatomy)
+        if pose.species.traits.cheekRuff { drawCheekRuff(in: context, anatomy: anatomy) }
+        if pose.species.traits.cheeks { drawCheeks(in: context, anatomy: anatomy) }
         drawFace(in: context, pose: pose, anatomy: anatomy)
         drawHeadStripes(in: context, pose: pose, anatomy: anatomy)
     }
@@ -334,6 +338,59 @@ struct CatRenderer: PetRenderer {
                 height: radius * 0.7
             ))
 
+        case .brush:
+            // The spine, then the fluff: a brush is a shape with a tail curve
+            // through it rather than a tail drawn with a wide pen.
+            let tip = CGPoint(x: anatomy.tailTip.x, y: anatomy.tailTip.y + lift)
+            let mid = CGPoint(
+                x: (anatomy.tailBase.x + anatomy.tailControl1.x + anatomy.tailControl2.x + tip.x) / 4,
+                y: (anatomy.tailBase.y + anatomy.tailControl1.y + anatomy.tailControl2.y + tip.y) / 4
+            )
+            let spine = CGMutablePath()
+            spine.move(to: anatomy.tailBase)
+            spine.addCurve(
+                to: tip,
+                control1: anatomy.tailControl1,
+                control2: CGPoint(x: anatomy.tailControl2.x, y: anatomy.tailControl2.y + lift)
+            )
+            stroke(context, path: spine, color: palette.outline, width: anatomy.tailOutlineWidth)
+            stroke(context, path: spine, color: palette.fur, width: anatomy.tailFurWidth)
+
+            // Elongated *along* the spine so the fluff hugs the tail: a round
+            // blob in the middle reads as a balloon on a string.
+            let fluff = anatomy.tailFurWidth * 1.05
+            context.saveGState()
+            context.translateBy(x: mid.x, y: mid.y)
+            context.rotate(by: atan2(tip.y - anatomy.tailBase.y, tip.x - anatomy.tailBase.x))
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: CGRect(
+                    x: -fluff * 0.55,
+                    y: -fluff * 1.1,
+                    width: fluff * 1.1,
+                    height: fluff * 2.2
+                ), transform: nil),
+                fill: palette.fur,
+                stroke: palette.outline,
+                width: outlineWidth * 0.8
+            )
+            context.restoreGState()
+
+            // The pale end, overlapping the fluff rather than floating past it.
+            let tipRadius = anatomy.tailFurWidth * 0.68
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: CGRect(
+                    x: tip.x - tipRadius,
+                    y: tip.y - tipRadius,
+                    width: tipRadius * 2,
+                    height: tipRadius * 2
+                ), transform: nil),
+                fill: palette.belly,
+                stroke: palette.outline,
+                width: outlineWidth * 0.7
+            )
+
         case .curve, .curl:
             // A curl is the same curve, tipped up over her back by `curl` above.
             let path = CGMutablePath()
@@ -444,22 +501,141 @@ struct CatRenderer: PetRenderer {
     /// and read as paws folded under the chest, which is what a loaf looks like
     /// from the front.
     private func drawPaws(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
-        // A panda's limbs are the dark half of its coat, so its paws take the
-        // flank colour instead of the belly.
-        let fill = pose.species.traits.darkLimbs ? palette.furDark : palette.belly
+        let traits = pose.species.traits
+        // A panda's limbs are the dark half of its coat, and a fox's feet are
+        // dark socks: both take the flank colour instead of the belly.
+        let fill = (traits.darkLimbs || traits.socks) ? palette.furDark : palette.belly
+
         for direction in [CGFloat(-1), CGFloat(1)] {
             let center = CGPoint(
                 x: anatomy.bodyCenter.x + direction * anatomy.pawOffsetX,
                 y: anatomy.pawCenterY
             )
-            let rect = CGRect(
-                x: center.x - anatomy.pawRadii.width,
-                y: center.y - anatomy.pawRadii.height,
-                width: anatomy.pawRadii.width * 2,
-                height: anatomy.pawRadii.height * 2
+            switch traits.legs {
+            case .paws:
+                let rect = CGRect(
+                    x: center.x - anatomy.pawRadii.width,
+                    y: center.y - anatomy.pawRadii.height,
+                    width: anatomy.pawRadii.width * 2,
+                    height: anatomy.pawRadii.height * 2
+                )
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: rect, transform: nil),
+                    fill: fill,
+                    stroke: palette.outline,
+                    width: outlineWidth * 0.85
+                )
+            case .webbed:
+                // Flat and splayed, in the bill's colour: the whole reason a
+                // duckling reads as a duckling from the feet up.
+                let rect = CGRect(
+                    x: center.x - anatomy.pawRadii.width * 1.35,
+                    y: center.y - anatomy.pawRadii.height * 0.8,
+                    width: anatomy.pawRadii.width * 2.7,
+                    height: anatomy.pawRadii.height * 1.6
+                )
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: rect, transform: nil),
+                    fill: palette.nose,
+                    stroke: palette.outline,
+                    width: outlineWidth * 0.8
+                )
+                // Two notches, so the foot reads as webbed rather than as a blob.
+                for step in [CGFloat(-0.45), CGFloat(0.45)] {
+                    let notch = CGMutablePath()
+                    let x = center.x + step * anatomy.pawRadii.width
+                    notch.move(to: CGPoint(x: x, y: rect.maxY))
+                    notch.addLine(to: CGPoint(x: x, y: rect.minY + rect.height * 0.35))
+                    stroke(context, path: notch, color: palette.outline, width: outlineWidth * 0.5)
+                }
+            }
+        }
+    }
+
+    /// A duckling's wing, folded at rest and lifted as `flap` rises.
+    ///
+    /// Drawn after the body so it sits on the flank, and mirrored with the facing
+    /// flip like everything else.
+    private func drawWings(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let traits = pose.species.traits
+        guard traits.wings else { return }
+        let flap = CGFloat(pose.flap)
+        let scale = anatomy.headScale
+        let reach = 15 * scale
+
+        for direction in [CGFloat(-1), CGFloat(1)] {
+            let anchor = CGPoint(
+                x: anatomy.bodyCenter.x + direction * anatomy.bodyRadii.width * 0.55,
+                y: anatomy.bodyCenter.y + anatomy.bodyRadii.height * 0.15
             )
-            let path = CGPath(ellipseIn: rect, transform: nil)
-            fillStroke(context, path: path, fill: fill, stroke: palette.outline, width: outlineWidth * 0.85)
+            context.saveGState()
+            context.translateBy(x: anchor.x, y: anchor.y)
+            // Up and out as it flaps; a flutter is a small angle, a flight is a
+            // big one.
+            context.rotate(by: direction * (0.25 + 0.9 * flap))
+            let wing = CGRect(
+                x: -reach * 0.45,
+                y: -reach * 0.35,
+                width: reach * 1.5,
+                height: reach * 0.95
+            )
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: wing, transform: nil),
+                fill: palette.furDark,
+                stroke: palette.outline,
+                width: outlineWidth * 0.8
+            )
+            // One feather line, so the wing is not just a second body.
+            let feather = CGMutablePath()
+            feather.move(to: CGPoint(x: -reach * 0.2, y: 0))
+            feather.addLine(to: CGPoint(x: reach * 0.75, y: 0))
+            stroke(context, path: feather, color: palette.outline, width: outlineWidth * 0.5)
+            context.restoreGState()
+        }
+    }
+
+    /// A pale ruff at the jaw, which is how a fox is told from a cat at a glance.
+    private func drawCheekRuff(in context: CGContext, anatomy: CatAnatomy) {
+        for direction in [CGFloat(-1), CGFloat(1)] {
+            let centre = CGPoint(
+                x: anatomy.headCenter.x + direction * anatomy.headRadius * 0.72,
+                y: anatomy.headCenter.y - anatomy.headRadius * 0.34
+            )
+            let rect = CGRect(
+                x: centre.x - anatomy.headRadius * 0.42,
+                y: centre.y - anatomy.headRadius * 0.3,
+                width: anatomy.headRadius * 0.84,
+                height: anatomy.headRadius * 0.6
+            )
+            context.setFillColor(palette.belly)
+            context.fillEllipse(in: rect)
+        }
+    }
+
+    /// A hamster's cheeks: two puffs either side of the muzzle, which is the
+    /// whole joke of a hamster.
+    private func drawCheeks(in context: CGContext, anatomy: CatAnatomy) {
+        for direction in [CGFloat(-1), CGFloat(1)] {
+            let centre = CGPoint(
+                x: anatomy.headCenter.x + direction * anatomy.headRadius * 0.78,
+                y: anatomy.headCenter.y - anatomy.headRadius * 0.3
+            )
+            let radius = anatomy.headRadius * 0.42
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: CGRect(
+                    x: centre.x - radius,
+                    y: centre.y - radius,
+                    width: radius * 2,
+                    height: radius * 2
+                ), transform: nil),
+                fill: palette.belly,
+                stroke: palette.outline,
+                width: outlineWidth * 0.6
+            )
         }
     }
 
@@ -489,6 +665,8 @@ struct CatRenderer: PetRenderer {
             context.translateBy(x: -pivot.x, y: -pivot.y)
 
             switch traits.ears {
+            case .none:
+                break
             case .cat:
                 let tip = 19 * scale * lift
                 let outer = CGMutablePath()
@@ -508,8 +686,10 @@ struct CatRenderer: PetRenderer {
                 context.fillPath()
 
             case .pointed:
-                // Same triangle, taller and with a dark tip, which is most of
-                // what makes a fox a fox.
+                // Taller, wider set and with a dark tip; and a fox's ears are
+                // pale inside where a cat's are pink, which is one of the few
+                // things that tells the two apart at this size.
+                let innerFill = traits.paleEarInner ? palette.belly : palette.earInner
                 let tip = 24 * scale * lift
                 let outer = CGMutablePath()
                 outer.move(to: CGPoint(x: pivot.x + direction * 11 * scale, y: pivot.y - 11 * scale))
@@ -523,7 +703,7 @@ struct CatRenderer: PetRenderer {
                 inner.addLine(to: CGPoint(x: pivot.x - direction * 2 * scale, y: pivot.y + tip - 6 * scale))
                 inner.addLine(to: CGPoint(x: pivot.x - direction * 5 * scale, y: pivot.y + 3 * scale))
                 inner.closeSubpath()
-                context.setFillColor(palette.earInner)
+                context.setFillColor(innerFill)
                 context.addPath(inner)
                 context.fillPath()
 
@@ -625,6 +805,44 @@ struct CatRenderer: PetRenderer {
         let weight = pose.shape.stretch
         let t = min(max((weight - 0.35) / 0.5, 0), 1)
         return CGFloat(t * t * (3 - 2 * t))
+    }
+
+    /// A duckling's bill, in place of a muzzle and nose.
+    private func drawBill(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let open = CGFloat(pose.mouthOpen) * 0.5
+        let width = anatomy.muzzleRadii.width * 1.5
+        let height = anatomy.muzzleRadii.height * 0.85
+        let centre = CGPoint(x: anatomy.muzzleCenter.x, y: anatomy.muzzleCenter.y)
+
+        // Lower mandible first, so an open bill shows a dark gap.
+        for (offset, fill) in [(CGFloat(-height * 0.55), palette.nose), (height * 0.25 + open * 4, palette.nose)] {
+            let rect = CGRect(
+                x: centre.x - width,
+                y: centre.y + offset - height * 0.45,
+                width: width * 2,
+                height: height * 0.9
+            )
+            fillStroke(
+                context,
+                path: CGPath(ellipseIn: rect, transform: nil),
+                fill: fill,
+                stroke: palette.outline,
+                width: outlineWidth * 0.7
+            )
+        }
+        // The nostrils, which is what stops it reading as a second nose.
+        for direction in [CGFloat(-1), CGFloat(1)] {
+            let dot = CGMutablePath()
+            dot.addEllipse(in: CGRect(
+                x: centre.x + direction * width * 0.35 - 0.8,
+                y: centre.y + height * 0.3,
+                width: 1.6,
+                height: 1.6
+            ))
+            context.setFillColor(palette.outline)
+            context.addPath(dot)
+            context.fillPath()
+        }
     }
 
     private func drawFace(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
@@ -731,6 +949,13 @@ struct CatRenderer: PetRenderer {
                 height: 3 * headScale * eyeOpen
             ))
             context.restoreGState()
+        }
+
+        // A bird has a bill instead of the whole muzzle-nose-mouth assembly, and
+        // it is drawn in the bill's own colour rather than the belly.
+        if pose.species.traits.bill {
+            drawBill(in: context, pose: pose, anatomy: anatomy)
+            return
         }
 
         // Muzzle, nose and mouth all hang off the muzzle anchor, so a smaller

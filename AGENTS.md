@@ -59,6 +59,8 @@ relevant one before changing behaviour in its area.
   the skeleton, the animations and the behaviour are shared. Adding a sixth animal is a `SpeciesTraits`
   entry plus whatever new ear or tail shape it needs — never a parallel draw path or a second behaviour
   engine.
+- **One of each animal.** `PetCohort` refuses a second pookie of a kind somebody already is, and a
+  saved roster is repaired on load rather than trusted. Coats and names are the free axes.
 - **A launch flag is not a settings edit.** `--no-wander` and friends are overrides for one run;
   `AppConfig.persistsChanges` is what keeps them out of the settings store.
 

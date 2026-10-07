@@ -90,17 +90,21 @@ enum TeleportCadence: String, CaseIterable {
     }
 }
 
-/// One pet in the roster: what animal, and in what coat.
+/// One pookie in the roster: what animal, in what coat, and what it is called.
 ///
-/// The roster is what "which pookie do I want loaded" means — the settings store
+/// The roster is what "which pookies do I want loaded" means — the settings store
 /// it, and the colony spawns exactly it.
-struct CritterConfig: Equatable {
+struct PookieConfig: Equatable {
     var species: PetSpecies
     var coat: CatSkin
+    /// What the human calls this one. Names are theirs, so nothing else keys off
+    /// them; two pookies may share a name.
+    var name: String
 
-    init(species: PetSpecies, coat: CatSkin) {
+    init(species: PetSpecies, coat: CatSkin, name: String? = nil) {
         self.species = species
         self.coat = coat
+        self.name = PookieConfig.clean(name ?? species.defaultName)
     }
 
     /// A new animal wearing the coat that makes it look like itself.
@@ -108,18 +112,55 @@ struct CritterConfig: Equatable {
         self.init(species: species, coat: species.defaultCoat)
     }
 
-    static let tabbyCat = CritterConfig(species: .cat, coat: .tabby)
+    static let tabbyCat = PookieConfig(species: .cat, coat: .tabby)
 
-    /// The compact form the settings store keeps, e.g. `bunny:snow`.
-    var encoded: String { "\(species.rawValue):\(coat.rawValue)" }
+    /// One of each animal, which is the rule the desk keeps: two bunnies are one
+    /// bunny and a duplicate. A duplicate is given an animal nobody has yet —
+    /// keeping its coat and its name — or dropped when every kind is already out.
+    ///
+    /// Applied on the way in from the settings store, because a saved roster is
+    /// the one place a duplicate can come from.
+    static func oneOfEach(_ saved: [PookieConfig]) -> [PookieConfig] {
+        var seen = Set<PetSpecies>()
+        var unique: [PookieConfig] = []
+        for entry in saved {
+            if seen.insert(entry.species).inserted {
+                unique.append(entry)
+                continue
+            }
+            guard let spare = PetSpecies.allCases.first(where: { !seen.contains($0) }) else {
+                Log.info("roster: dropped a second \(entry.species.name) — one of each animal")
+                continue
+            }
+            seen.insert(spare)
+            Log.info("roster: a second \(entry.species.name) became \(spare.name)")
+            unique.append(PookieConfig(species: spare, coat: spare.defaultCoat, name: entry.name))
+        }
+        return unique
+    }
+
+    /// A name that survives being written to a settings file and read back: no
+    /// separators, no leading or trailing space, never empty.
+    static func clean(_ raw: String) -> String {
+        let stripped = raw
+            .replacingOccurrences(of: ":", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return stripped.isEmpty ? "Pookie" : String(stripped.prefix(24))
+    }
+
+    /// The compact form the settings store keeps: `bunny:snow:Clover`.
+    ///
+    /// The name is optional on the way in, because the first version of this
+    /// wrote `species:coat` and a saved roster is not something to invalidate.
+    var encoded: String { "\(species.rawValue):\(coat.rawValue):\(name)" }
 
     init?(encoded: String) {
-        let parts = encoded.split(separator: ":")
-        guard parts.count == 2,
+        let parts = encoded.split(separator: ":", maxSplits: 2, omittingEmptySubsequences: false)
+        guard parts.count >= 2,
               let species = PetSpecies(rawValue: String(parts[0])),
               let coat = CatSkin(rawValue: String(parts[1]))
         else { return nil }
-        self.init(species: species, coat: coat)
+        self.init(species: species, coat: coat, name: parts.count > 2 ? String(parts[2]) : nil)
     }
 }
 
@@ -190,13 +231,14 @@ final class AppConfig {
         didSet { store(teleportCadence.rawValue, .cadence) }
     }
     /// Which animals the desk should have, in order. The first one is Pookie
-    /// unless `defaultCritter` says otherwise.
-    var roster: [CritterConfig] = [.tabbyCat] {
+    /// unless `boss` says otherwise.
+    var roster: [PookieConfig] = [.tabbyCat] {
         didSet { store(roster.map(\.encoded), .roster) }
     }
-    /// Who answers when a producer talks to the colony.
-    var defaultCritter: Int = 0 {
-        didSet { store(defaultCritter, .spokespet) }
+    /// The pookie boss: the one that answers when a producer talks to the colony.
+    /// Any pookie can be promoted from the menu.
+    var boss: Int = 0 {
+        didSet { store(boss, .boss) }
     }
     /// How many pets to start with, overriding the saved roster. `--pets N` sets
     /// it; nil means "whatever the roster says", which is the normal launch.
@@ -228,7 +270,10 @@ final class AppConfig {
         case teleport = "teleportEnabled"
         case cadence = "teleportCadence"
         case roster = "roster"
-        case spokespet = "defaultCritter"
+        case boss = "boss"
+        /// What this key was called before the word for these animals settled on
+        /// "pookie". Reading it keeps a desk that already has a boss intact.
+        case legacyBoss = "defaultCritter"
     }
 
     private init(defaults: UserDefaults = .standard) {
@@ -252,11 +297,25 @@ final class AppConfig {
            let cadence = TeleportCadence(rawValue: raw) {
             teleportCadence = cadence
         }
+        var rosterRepaired = false
         if let raw = defaults.stringArray(forKey: Key.roster.rawValue) {
-            let decoded = raw.compactMap(CritterConfig.init(encoded:))
-            if !decoded.isEmpty { roster = decoded }
+            let decoded = raw.compactMap(PookieConfig.init(encoded:))
+            let unique = PookieConfig.oneOfEach(decoded)
+            if !unique.isEmpty {
+                roster = unique
+                rosterRepaired = unique != decoded
+            }
         }
-        defaultCritter = min(max(defaults.integer(forKey: Key.spokespet.rawValue), 0), max(0, roster.count - 1))
+        // `defaultCritter` is what this key was called before the word for these
+        // animals settled on "pookie"; reading it keeps an existing desk intact.
+        let bossRaw = defaults.object(forKey: Key.boss.rawValue) == nil
+            ? defaults.integer(forKey: Key.legacyBoss.rawValue)
+            : defaults.integer(forKey: Key.boss.rawValue)
+        boss = min(max(bossRaw, 0), max(0, roster.count - 1))
+
+        // A repair is a one-time thing, so write it back rather than redoing it on
+        // every launch.
+        if rosterRepaired { store(roster.map(\.encoded), .roster) }
     }
 }
 

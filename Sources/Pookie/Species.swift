@@ -14,6 +14,9 @@ enum PetSpecies: String, CaseIterable {
     case puppy
     case fox
     case panda
+    case duckling
+    case bear
+    case hamster
 
     var name: String {
         switch self {
@@ -22,6 +25,23 @@ enum PetSpecies: String, CaseIterable {
         case .puppy: return "Puppy"
         case .fox: return "Fox"
         case .panda: return "Panda"
+        case .duckling: return "Duckling"
+        case .bear: return "Bear"
+        case .hamster: return "Hamster"
+        }
+    }
+
+    /// What a new pookie of this kind is called until the human renames it.
+    var defaultName: String {
+        switch self {
+        case .cat: return "Pookie"
+        case .bunny: return "Clover"
+        case .puppy: return "Biscuit"
+        case .fox: return "Ember"
+        case .panda: return "Mochi"
+        case .duckling: return "Puddle"
+        case .bear: return "Barnaby"
+        case .hamster: return "Peanut"
         }
     }
 
@@ -34,6 +54,9 @@ enum PetSpecies: String, CaseIterable {
         case .puppy: return .chocolate
         case .fox: return .ginger
         case .panda: return .panda
+        case .duckling: return .duckling
+        case .bear: return .cocoa
+        case .hamster: return .hazel
         }
     }
 
@@ -74,21 +97,27 @@ enum PetSpecies: String, CaseIterable {
                 stripes: false
             )
         case .fox:
-            // Slim, sharp ears, and a tail half again as thick as a cat's.
+            // A fox is not a cat with pointed ears: the snout is narrow and
+            // white-tipped, there are dark socks on all four legs, and the tail is
+            // a brush with a pale end. The ears sit wider apart and lower than a
+            // cat's, which is most of what stops the two reading the same.
             return SpeciesTraits(
-                scale: 0.92,
-                bodyWidth: 0.95,
-                bodyHeight: 0.98,
-                headScale: 0.98,
-                muzzle: 0.95,
+                scale: 0.9,
+                bodyWidth: 0.84,
+                bodyHeight: 0.94,
+                headScale: 0.93,
+                muzzle: 1.5,
                 ears: .pointed,
-                earLift: 1.2,
-                tail: .curve,
-                tailScale: 0.95,
-                tailWidth: 1.3,
-                tailLift: 5,
+                earLift: 1.15,
+                tail: .brush,
+                tailScale: 1.05,
+                tailWidth: 1.15,
+                tailLift: 6,
                 tailTuft: true,
-                stripes: false
+                stripes: false,
+                socks: true,
+                cheekRuff: true,
+                paleEarInner: true
             )
         case .panda:
             // A round body, a small head, small ears on top, and the patches:
@@ -109,12 +138,65 @@ enum PetSpecies: String, CaseIterable {
                 eyePatches: true,
                 darkLimbs: true
             )
+        case .duckling:
+            // A bird: no ears, a bill, wings instead of forelegs, and a flat
+            // little body that reads as a duckling from across the room.
+            return SpeciesTraits(
+                scale: 0.7,
+                bodyWidth: 1.15,
+                bodyHeight: 1.05,
+                headScale: 1.15,
+                muzzle: 0.6,
+                ears: .none,
+                tail: .puff,
+                tailScale: 0.55,
+                whiskers: false,
+                stripes: false,
+                bill: true,
+                wings: true,
+                legs: .webbed
+            )
+        case .bear:
+            // A cub: a big round body, small round ears, a broad muzzle and no
+            // neck to speak of.
+            return SpeciesTraits(
+                scale: 1.0,
+                bodyWidth: 1.3,
+                bodyHeight: 1.12,
+                headScale: 0.92,
+                muzzle: 1.3,
+                ears: .round,
+                earLift: 0.8,
+                tail: .puff,
+                tailScale: 0.5,
+                whiskers: false,
+                stripes: false
+            )
+        case .hamster:
+            // Small and round with button ears and fat cheeks, and the shortest
+            // legs of anything here.
+            return SpeciesTraits(
+                scale: 0.62,
+                bodyWidth: 1.35,
+                bodyHeight: 1.05,
+                headScale: 1.05,
+                muzzle: 1.1,
+                ears: .round,
+                earLift: 0.7,
+                tail: .puff,
+                tailScale: 0.35,
+                whiskers: true,
+                stripes: false,
+                cheeks: true
+            )
         }
     }
 }
 
 /// How an animal's ears are drawn.
 enum EarStyle {
+    /// No ears at all — a bird has a smooth head.
+    case none
     /// The original: a triangle whose tip lifts above the skull.
     case cat
     /// Tall rounded ears that stand up — a bunny.
@@ -129,8 +211,12 @@ enum EarStyle {
 
 /// How an animal's tail is drawn.
 enum TailStyle {
-    /// The cat's curve, stroked; also the fox's, with `tailWidth` and a tuft.
+    /// The cat's curve, stroked.
     case curve
+    /// A fox's brush: the same spine, but the tail itself is a filled shape —
+    /// a fat fluff around the middle with a pale tip. A stroked curve, however
+    /// thick, is still a cat's tail.
+    case brush
     /// A ball of fluff at the rump — a bunny or a panda.
     case puff
     /// A short tail curling upward — a puppy.
@@ -172,4 +258,27 @@ struct SpeciesTraits {
     /// Paws and ear backs in `furDark` rather than `belly` — a panda's black
     /// limbs.
     var darkLimbs: Bool = false
+    /// Dark feet: the fox's socks.
+    var socks: Bool = false
+    /// A pale ruff around the jaw and chest, which is how a fox is told from a
+    /// cat at a glance.
+    var cheekRuff: Bool = false
+    /// Pale ear inners rather than pink: a fox, not a cat.
+    var paleEarInner: Bool = false
+    /// A bill instead of a muzzle and nose — a duckling.
+    var bill: Bool = false
+    /// Wings instead of forelegs, which also flap.
+    var wings: Bool = false
+    /// Fat cheeks, drawn as two puffs either side of the muzzle — a hamster.
+    var cheeks: Bool = false
+    /// How the feet are drawn.
+    var legs: LegStyle = .paws
+}
+
+/// How an animal's feet are drawn.
+enum LegStyle {
+    /// Rounded paws, with a hint of toes.
+    case paws
+    /// Flat webbed feet with a splay — a duckling.
+    case webbed
 }

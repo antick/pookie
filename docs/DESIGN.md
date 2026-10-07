@@ -282,12 +282,14 @@ to keep in sync with the body. This is also the piece of M1's "explicit animatio
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
 
-**A species is a table as well** (`PetSpecies`, `SpeciesTraits`). Five animals share one skeleton:
+**A species is a table as well** (`PetSpecies`, `SpeciesTraits`). Eight animals share one skeleton:
 each species supplies proportions (scaled about the ground line, so nobody floats) and appendages —
 four ear shapes, three tail shapes, and flags for whiskers, markings, eye patches and dark limbs. The
 whole behaviour layer, and every animation in this section, belongs to all five without a line of new
-behaviour. Two constraints the envelope test enforced: a tall-eared animal is *smaller* rather than
-given a taller window (a taller window is a longer ledge it no longer fits on), and a thick tail has
+behaviour. A bird also needed a channel the others do not use: `CatPose.flap`, which the
+behaviour drives from the same state machine as the walk — a flutter on the ground, a full flap in
+the air — so a duckling's two gaits are one animation at two amplitudes. Two constraints the
+envelope test enforced: a tall-eared animal is *smaller* rather than given a taller window (a taller window is a longer ledge it no longer fits on), and a thick tail has
 to be *lifted*, because a stroked curve half a brush wider than a cat's hangs below the ground line it
 is resting on.
 
@@ -446,14 +448,19 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   because "small" and "chatty" are properties of the desk rather than of one cat out of five.
   Everything that maps a design point to the screen is per-pet (`PetMotion.windowOrigin`), which is
   why ten windows can share one renderer without any of them disagreeing about where their cat is.
+- **Names, a boss, and one of each animal** (`PookieConfig`, `PetSpecies`). Every pookie carries a
+  name the human chose; the *pookie boss* is the one that answers producers, and any pookie can be
+  promoted. The desk keeps one of each kind — a duplicate in a saved roster is repaired on load by
+  becoming the next unused animal, keeping its coat and name — because two identical animals read as
+  a bug rather than as company. A *coat* is the free axis: any animal wears any of them.
 - **Per-pet control, including visibility** (`PetView.menu(for:)`, `PetCohort.setHidden(_:at:)`). Right
   clicking a pet offers a menu about *that* pet, built from a `PetMenuState` value so its shape is
   checkable without a window server. Hiding is per pet, not newest-first: a hidden pet's window is
   ordered out, its motion is paused, and it stops holding a share of the shared frame budget, which is
   what makes "hide the one I am pointing at" a better deal than removing it. The same items appear in
-  the menu bar's **Critters ▸**, because a pet you can only reach with the mouse is a pet you cannot
+  the menu bar's **Pookies ▸**, because a pet you can only reach with the mouse is a pet you cannot
   reach when it is hidden.
-- **Five species, and a roster you own** (`PetSpecies`, `CritterConfig`, `AppConfig.roster`). The desk
+- **Five species, and a roster you own** (`PetSpecies`, `PookieConfig`, `AppConfig.roster`). The desk
   can hold one of each animal — cat, bunny, puppy, fox, panda — and the menu decides which, in which
   coat, and which one answers producers. The roster, the size, the switches and the teleport cadence
   persist in `UserDefaults`; launch flags are one-run overrides and deliberately do *not* write to it,

@@ -99,15 +99,25 @@ Global hotkeys, **no Accessibility or Input Monitoring permission required**:
 | `control-option-T` | Say hello (test the speech bubble) |
 | `control-option-M` | Mute / unmute her reactions |
 
-**Right-click any pet** for a menu about *that* pet: bring it home, make it the one that answers for
+### Where your settings live
+
+In `~/Library/Preferences/com.pookie.pet.plist` — the standard macOS preferences file for the app's
+bundle identifier, written through `UserDefaults` (so `defaults read com.pookie.pet` shows you
+everything, and `defaults delete com.pookie.pet` is a factory reset). It holds the roster — kind,
+coat and name for each pookie — plus the pookie boss, the size, the teleport cadence and every
+switch in the menu. Nothing else is stored anywhere: there is no database, no cache directory and no
+file in `Application Support`. Positions, moods and everything else about the moment are deliberately
+not saved; M8 owns the full preferences store.
+
+**Right-click any pookie** for a menu about *that* one: bring it home, make it the one that answers for
 Pookie, **hide it** (or show it again), or remove it from the desk. Hiding is per pet — the animal you
 clicked, not the newest one — and a hidden pet costs nothing: its window is ordered out, its behaviour
 stops, and the frame budget it was holding goes to the ones still on screen. Hidden pets stay in the
 roster, so they come back with their species and coat when you show them.
 
 The pawprint in the menu bar has the rest: **size** (small to extra large), **teleport between
-displays** and **teleport every** (1–30 minutes), **add a critter**, **Critters** (each pet's kind,
-coat, visibility, removal and who answers for Pookie), **hide all critters** / **show all critters**,
+displays** and **teleport every** (1–30 minutes), **add a pookie**, **Pookies** (each pet's kind,
+coat, visibility, removal and who answers for Pookie), **hide all pookies** / **show all pookies**,
 mouse mode, wander, cursor tracking,
 sit-on-windows, jump-onto-windows, speech, hide-from-screen-sharing, float above fullscreen apps, and
 quit. A pet you cannot easily quit is a pet you will resent.
@@ -129,9 +139,9 @@ off the floor line, at every size setting.
 Click-through is a real toggle, and it matters: in the default mode she is transparent to the mouse
 in the gaps around her body, so she never blocks a click on the window behind.
 
-## More than one critter
+## More than one pookie
 
-The menu bar has **Add a critter ▸** (pick the animal) and **Remove a critter**, and `Pookie --pets 5`
+The menu bar has **Add a pookie ▸** (pick the animal) and **Remove a pookie**, and `Pookie --pets 5`
 starts with five. Five is the cap — one of each animal — and there are five to choose from:
 
 | Animal | What makes it read | Its coat |
@@ -139,10 +149,22 @@ starts with five. Five is the cap — one of each animal — and there are five 
 | **Cat** | the original, unchanged | Tabby |
 | **Bunny** | tall pink-lined ears on a small round body, cotton tail | Snow |
 | **Puppy** | big floppy ears that hang, wide muzzle, curled tail | Chocolate |
-| **Fox** | sharp dark-tipped ears, a thick brush with a white tip | Ginger |
+| **Fox** | pale-lined ears, a white snout and cheek ruff, dark socks, and a *filled* brush tail with a pale tip — not a cat with pointy ears | Ginger |
 | **Panda** | black ears, eye patches and paws on a white body | Panda |
+| **Duckling** | no ears, an orange bill, webbed orange feet, and wings that **flutter as it walks and flap in the air** | Duckling |
+| **Bear** | a big round body, button ears and a broad muzzle | Cocoa |
+| **Hamster** | the smallest of them, with fat cheeks either side of the muzzle | Hazel |
 
-**Critters ▸** in the menu is where you decide what is on the desk: for each pet, pick its **kind** and
+**One of each animal at a time**, which is what makes the desk read as a gang rather than a
+duplicate: adding a second bunny is not offered, and a saved roster with a duplicate is repaired on
+load (the second bunny becomes the next animal nobody is, keeping its coat and name). A *coat* is
+the free choice — any animal can wear any of the fourteen, so two pookies never have to look alike.
+
+**Every pookie has a name**, and one of them is the **pookie boss** — the one that speaks when a
+producer sends a line. **Pookies ▸ N ▸** renames one, changes its kind or coat, promotes it to boss,
+hides it or takes it off the desk; right-clicking a pookie offers the same things.
+
+**Pookies ▸** in the menu is where you decide what is on the desk: for each pet, pick its **kind** and
 its **coat** (eleven of them, and any animal can wear any coat), and mark one as the one that
 **answers for Pookie** — the pet a producer's line goes to. Those choices are saved, so the menagerie
 you build is the menagerie that loads next time, along with the size, the switches and the teleport
@@ -156,11 +178,11 @@ wide eyes, a hop, a hiss on the way down and one indignant bubble. When they are
 **chases** the other instead — a 2.5–5 second bout at a run, wearing the happy face — and a chase that
 closes the distance turns into a scrap. No animal perches on another animal.
 
-Five critters are real work. They share one frame budget — 120 drawn frames per second between them, so
+Five pookies are real work. They share one frame budget — 120 drawn frames per second between them, so
 one pet is unaffected and five get 24 fps each — and an occluded pet stops entirely. The honest numbers
 on this renderer (software Core Graphics, a 3840x1620 display):
 
-| Critters | CPU, idle | RSS |
+| Pookies | CPU, idle | RSS |
 |---:|---:|---:|
 | 1 | ~7% | 52 MB |
 | 3 | ~13% | 56 MB |
@@ -172,7 +194,7 @@ matters for a desktop pet, but for the record: five of them awake, wandering and
 around 25%.
 
 Five is also a *default you can change*, not a floor. If the menagerie is more company than you want,
-**Remove a critter** takes it down to one, and the choice persists.
+**Remove a pookie** takes it down to one, and the choice persists.
 
 ### Teleporting
 
@@ -280,7 +302,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 266 headless checks, including:
+runs 275 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,
@@ -373,7 +395,7 @@ now smoothed in screen space and converted once on the way into the pose, which 
 on the pointer *through* a turn instead of sweeping across it. The selftest drives both halves: the
 behaviour, and the renderer's mirror.
 
-And there is **more than one of her** — in fact more than one *animal*. Up to five critters live
+And there is **more than one of her** — in fact more than one *animal*. Up to five pookies live
 under one shared budget: a cat, a bunny, a puppy, a fox and a panda, each with its own coat and size,
 each with every capability the first cat has, stepping out of each other's way, chasing each other
 across a display and having the occasional scrap when they get close. What is on the desk, what each

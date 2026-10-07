@@ -922,55 +922,57 @@ enum Diagnostics {
         let petMenu = AppDelegate.petMenu(
             for: AppDelegate.PetMenuState(
                 index: 1,
+                name: "Clover",
                 species: .bunny,
                 coat: .snow,
                 count: 3,
                 isHidden: false,
-                isDefault: false,
+                isBoss: false,
                 someHidden: true
             ),
             target: nil
         )
         print("  info menu: " + petMenu.items.map(\.title).joined(separator: " | "))
-        check(petMenu.items.contains { $0.title == "Hide this critter" }, "it offers to hide *this* pet")
+        check(petMenu.items.contains { $0.title == "Hide this pookie" }, "it offers to hide *this* pet")
         check(
-            petMenu.items.first { $0.title == "Hide this critter" }?.tag == 1,
+            petMenu.items.first { $0.title == "Hide this pookie" }?.tag == 1,
             "and the item names the pet you clicked, not the newest one"
         )
         check(
-            petMenu.items.first { $0.title == "Remove this critter" }?.tag == 1,
+            petMenu.items.first { $0.title == "Remove this pookie" }?.tag == 1,
             "removal names the clicked pet too"
         )
-        check(petMenu.items.contains { $0.title == "Show all critters" }, "and the hidden ones can come back")
-        check(petMenu.items.contains { $0.title == "Bunny · Snow" }, "the menu says which animal it is")
+        check(petMenu.items.contains { $0.title == "Show all pookies" }, "and the hidden ones can come back")
+        check(petMenu.items.contains { $0.title == "Clover · Bunny · Snow" }, "the menu names the pookie")
         check(petMenu.items.contains { $0.title == "Bring this one home" }, "and can put it back on the floor")
 
         let hiddenMenu = AppDelegate.petMenu(
             for: AppDelegate.PetMenuState(
                 index: 0,
+                name: "Pookie",
                 species: .cat,
                 coat: .tabby,
                 count: 1,
                 isHidden: true,
-                isDefault: true,
+                isBoss: true,
                 someHidden: false
             ),
             target: nil
         )
         check(
-            hiddenMenu.items.contains { $0.title == "Show this critter" },
+            hiddenMenu.items.contains { $0.title == "Show this pookie" },
             "a hidden pet's own menu offers to show it again"
         )
         check(
-            hiddenMenu.items.first { $0.title == "Remove this critter" }?.isEnabled == false,
+            hiddenMenu.items.first { $0.title == "Remove this pookie" }?.isEnabled == false,
             "and the last pet cannot be removed"
         )
         check(
-            hiddenMenu.items.contains { $0.title.hasPrefix("Cat · Tabby") && $0.title.contains("(default)") },
-            "the pet that answers producers is marked as the default"
+            hiddenMenu.items.contains { $0.title.hasPrefix("Pookie · Cat · Tabby") && $0.title.contains("(pookie boss)") },
+            "the pookie boss is marked as the boss"
         )
         check(
-            !hiddenMenu.items.contains { $0.title == "Show all critters" },
+            !hiddenMenu.items.contains { $0.title == "Show all pookies" },
             "with nobody else hidden there is nothing to bring back"
         )
 
@@ -1108,15 +1110,15 @@ enum Diagnostics {
 
         // The roster is what "load these pookies" means, so it survives a round
         // trip through the settings store.
-        let roster: [CritterConfig] = [
-            CritterConfig(species: .cat, coat: .tabby),
-            CritterConfig(.panda),
-            CritterConfig(species: .fox, coat: .midnight),
+        let roster: [PookieConfig] = [
+            PookieConfig(species: .cat, coat: .tabby),
+            PookieConfig(.panda),
+            PookieConfig(species: .fox, coat: .midnight),
         ]
-        let decoded = roster.map(\.encoded).compactMap(CritterConfig.init(encoded:))
+        let decoded = roster.map(\.encoded).compactMap(PookieConfig.init(encoded:))
         check(decoded == roster, "the roster survives being written down and read back")
-        check(CritterConfig(encoded: "bunny:snow")?.species == .bunny, "a saved animal keeps its species")
-        check(CritterConfig(encoded: "nonsense") == nil, "and a corrupt one is dropped rather than guessed at")
+        check(PookieConfig(encoded: "bunny:snow")?.species == .bunny, "a saved animal keeps its species")
+        check(PookieConfig(encoded: "nonsense") == nil, "and a corrupt one is dropped rather than guessed at")
 
         // Five species, five shapes: nobody is wearing anyone else's silhouette.
         let silhouettes = PetSpecies.allCases.map { species -> String in

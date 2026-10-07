@@ -80,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         let visibility = NSMenuItem(
-            title: cohort?.someHidden == true ? "Show all critters" : "Hide all critters",
+            title: cohort?.someHidden == true ? "Show all pookies" : "Hide all pookies",
             action: #selector(toggleVisibility),
             keyEquivalent: "h"
         )
@@ -135,16 +135,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let addItem = NSMenuItem(
             title: pets >= PetCohort.maximumPets
-                ? "Add a critter (\(PetCohort.maximumPets) is the limit)"
-                : "Add a critter",
+                ? "Add a pookie (\(PetCohort.maximumPets) is the limit)"
+                : "Add a pookie",
             action: nil,
             keyEquivalent: ""
         )
         let addMenu = NSMenu()
         for species in PetSpecies.allCases {
-            let item = NSMenuItem(title: species.name, action: #selector(addCritter(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: species.name, action: #selector(addPookie(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = species.rawValue
+            // One of each animal: a kind that is already on the desk is offered
+            // but disabled, with the reason in the tooltip. A missing item looks
+            // like a bug; a greyed one looks like a rule.
+            let taken = cohort?.pets.contains { $0.pookie.species == species } ?? false
+            item.isEnabled = !taken && (cohort?.count ?? 0) < PetCohort.maximumPets
+            item.toolTip = taken
+                ? "There is already a \(species.name) here — give that one a different coat instead"
+                : nil
             addMenu.addItem(item)
         }
         addItem.submenu = addMenu
@@ -153,12 +161,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Who is on the desk, and what each of them is. This is the answer to
         // "which pookie do I want loaded, and how should it look".
-        let defaultIndex = AppConfig.shared.defaultCritter
-        let crittersItem = NSMenuItem(title: "Critters", action: nil, keyEquivalent: "")
-        let crittersMenu = NSMenu()
+        let defaultIndex = AppConfig.shared.boss
+        let pookiesItem = NSMenuItem(title: "Pookies", action: nil, keyEquivalent: "")
+        let pookiesMenu = NSMenu()
         for (index, pet) in (cohort?.pets ?? []).enumerated() {
-            let title = "\(index + 1). \(pet.critter.species.name) · \(pet.critter.coat.name)"
-                + (index == defaultIndex ? "  (default)" : "")
+            let title = "\(index + 1). \(pet.pookie.name) · \(pet.pookie.species.name) · \(pet.pookie.coat.name)"
+                + (index == defaultIndex ? "  (pookie boss)" : "")
                 + (pet.isHiddenByUser ? "  (hidden)" : "")
             let entry = NSMenuItem(title: title, action: nil, keyEquivalent: "")
             let submenu = NSMenu()
@@ -171,8 +179,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 item.target = self
                 item.tag = index
                 item.representedObject = species.rawValue
-                item.state = pet.critter.species == species ? .on : .off
+                item.state = pet.pookie.species == species ? .on : .off
                 item.indentationLevel = 1
+                // Somebody else already being this animal is the one reason the
+                // change is refused, so say so rather than failing silently.
+                let takenByAnother = (cohort?.pets ?? []).enumerated().contains { other, candidate in
+                    other != index && candidate.pookie.species == species
+                }
+                item.isEnabled = !takenByAnother
+                item.toolTip = takenByAnother
+                    ? "\(species.name) is already here — one of each animal"
+                    : nil
                 submenu.addItem(item)
             }
 
@@ -185,22 +202,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 item.target = self
                 item.tag = index
                 item.representedObject = coat.rawValue
-                item.state = pet.critter.coat == coat ? .on : .off
+                item.state = pet.pookie.coat == coat ? .on : .off
                 item.indentationLevel = 1
                 submenu.addItem(item)
             }
 
             submenu.addItem(.separator())
-            let makeDefault = NSMenuItem(
-                title: "Answer for Pookie",
-                action: #selector(makeDefaultCritter(_:)),
+            let rename = NSMenuItem(title: "Rename…", action: #selector(renamePookie(_:)), keyEquivalent: "")
+            rename.target = self
+            rename.tag = index
+            submenu.addItem(rename)
+
+            let makeBoss = NSMenuItem(
+                title: "Make Pookie Boss",
+                action: #selector(makePookieBoss(_:)),
                 keyEquivalent: ""
             )
-            makeDefault.target = self
-            makeDefault.tag = index
-            makeDefault.state = index == defaultIndex ? .on : .off
-            makeDefault.toolTip = "The one that speaks when a producer sends her a line"
-            submenu.addItem(makeDefault)
+            makeBoss.target = self
+            makeBoss.tag = index
+            makeBoss.state = index == defaultIndex ? .on : .off
+            makeBoss.toolTip = "The pookie boss speaks when a producer sends her a line"
+            submenu.addItem(makeBoss)
 
             submenu.addItem(.separator())
             let home = NSMenuItem(
@@ -213,7 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             submenu.addItem(home)
 
             let hide = NSMenuItem(
-                title: pet.isHiddenByUser ? "Show this critter" : "Hide this critter",
+                title: pet.isHiddenByUser ? "Show this pookie" : "Hide this pookie",
                 action: #selector(togglePetHidden(_:)),
                 keyEquivalent: ""
             )
@@ -222,8 +244,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             submenu.addItem(hide)
 
             let remove = NSMenuItem(
-                title: "Remove this critter",
-                action: #selector(removeCritter(_:)),
+                title: "Remove this pookie",
+                action: #selector(removePookie(_:)),
                 keyEquivalent: ""
             )
             remove.target = self
@@ -232,10 +254,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             submenu.addItem(remove)
 
             entry.submenu = submenu
-            crittersMenu.addItem(entry)
+            pookiesMenu.addItem(entry)
         }
-        crittersItem.submenu = crittersMenu
-        menu.addItem(crittersItem)
+        pookiesItem.submenu = pookiesMenu
+        menu.addItem(pookiesItem)
 
         menu.addItem(.separator())
 
@@ -386,11 +408,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// what the user can do to *this* pet, and that claim is worth a test.
     struct PetMenuState {
         var index: Int
+        var name: String
         var species: PetSpecies
         var coat: CatSkin
         var count: Int
         var isHidden: Bool
-        var isDefault: Bool
+        var isBoss: Bool
         var someHidden: Bool
     }
 
@@ -399,7 +422,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         let header = NSMenuItem(
-            title: "\(state.species.name) · \(state.coat.name)\(state.isDefault ? " (default)" : "")",
+            title: "\(state.name) · \(state.species.name) · \(state.coat.name)\(state.isBoss ? "  (pookie boss)" : "")",
             action: nil,
             keyEquivalent: ""
         )
@@ -423,21 +446,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         home.tag = state.index
         menu.addItem(home)
 
-        let spokespet = NSMenuItem(
-            title: "Answer for Pookie",
-            action: #selector(AppDelegate.makeDefaultCritter(_:)),
+        let rename = NSMenuItem(
+            title: "Rename…",
+            action: #selector(AppDelegate.renamePookie(_:)),
             keyEquivalent: ""
         )
-        spokespet.target = target
-        spokespet.tag = state.index
-        spokespet.state = state.isDefault ? .on : .off
-        spokespet.toolTip = "The one that speaks when a producer sends her a line"
-        menu.addItem(spokespet)
+        rename.target = target
+        rename.tag = state.index
+        menu.addItem(rename)
+
+        let boss = NSMenuItem(
+            title: "Make Pookie Boss",
+            action: #selector(AppDelegate.makePookieBoss(_:)),
+            keyEquivalent: ""
+        )
+        boss.target = target
+        boss.tag = state.index
+        boss.state = state.isBoss ? .on : .off
+        boss.toolTip = "The pookie boss speaks when a producer sends her a line"
+        menu.addItem(boss)
 
         menu.addItem(.separator())
         // The point of the whole menu: this pet, not the newest one.
         let hide = NSMenuItem(
-            title: state.isHidden ? "Show this critter" : "Hide this critter",
+            title: state.isHidden ? "Show this pookie" : "Hide this pookie",
             action: #selector(AppDelegate.togglePetHidden(_:)),
             keyEquivalent: ""
         )
@@ -447,7 +479,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if state.someHidden {
             let showAll = NSMenuItem(
-                title: "Show all critters",
+                title: "Show all pookies",
                 action: #selector(AppDelegate.toggleVisibility),
                 keyEquivalent: ""
             )
@@ -456,8 +488,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let remove = NSMenuItem(
-            title: "Remove this critter",
-            action: #selector(AppDelegate.removeCritter(_:)),
+            title: "Remove this pookie",
+            action: #selector(AppDelegate.removePookie(_:)),
             keyEquivalent: ""
         )
         remove.target = target
@@ -465,7 +497,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         remove.isEnabled = state.count > 1
         remove.toolTip = state.count > 1
             ? "Takes this one off the desk and out of the roster"
-            : "The last critter stays: quit Pookie instead"
+            : "The last pookie stays: quit Pookie instead"
         menu.addItem(remove)
 
         return menu
@@ -477,11 +509,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return Self.petMenu(
             for: PetMenuState(
                 index: index,
-                species: pet.critter.species,
-                coat: pet.critter.coat,
+                name: pet.pookie.name,
+                species: pet.pookie.species,
+                coat: pet.pookie.coat,
                 count: cohort?.pets.count ?? 1,
                 isHidden: pet.isHiddenByUser,
-                isDefault: index == AppConfig.shared.defaultCritter,
+                isBoss: index == AppConfig.shared.boss,
                 someHidden: cohort?.someHidden ?? false
             ),
             target: self
@@ -494,7 +527,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildMenu()
     }
 
-    @objc private func removeCritter(_ sender: NSMenuItem) {
+    @objc private func removePookie(_ sender: NSMenuItem) {
         cohort?.removePet(at: sender.tag)
         rebuildMenu()
     }
@@ -510,7 +543,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func addCritter(_ sender: NSMenuItem) {
+    @objc private func addPookie(_ sender: NSMenuItem) {
         let raw = sender.representedObject as? String ?? ""
         cohort?.spawn(species: PetSpecies(rawValue: raw))
         rebuildMenu()
@@ -520,7 +553,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let pet = cohort?.pets[safe: sender.tag],
               let raw = sender.representedObject as? String,
               let species = PetSpecies(rawValue: raw) else { return }
-        cohort?.setCritter(CritterConfig(species: species, coat: pet.critter.coat), at: sender.tag)
+        cohort?.setPookie(PookieConfig(species: species, coat: pet.pookie.coat), at: sender.tag)
         rebuildMenu()
     }
 
@@ -528,11 +561,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let pet = cohort?.pets[safe: sender.tag],
               let raw = sender.representedObject as? String,
               let coat = CatSkin(rawValue: raw) else { return }
-        cohort?.setCritter(CritterConfig(species: pet.critter.species, coat: coat), at: sender.tag)
+        cohort?.setPookie(PookieConfig(species: pet.pookie.species, coat: coat), at: sender.tag)
         rebuildMenu()
     }
 
-    @objc private func makeDefaultCritter(_ sender: NSMenuItem) {
+    @objc private func renamePookie(_ sender: NSMenuItem) {
+        guard let pet = cohort?.pets[safe: sender.tag] else { return }
+        let alert = NSAlert()
+        alert.messageText = "Name this pookie"
+        alert.informativeText = "At the moment it is called \(pet.pookie.name)."
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = pet.pookie.name
+        field.placeholderString = pet.pookie.species.defaultName
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        // The app is an accessory, so it has to be brought forward for a modal
+        // alert to be typeable.
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            cohort?.renamePookie(at: sender.tag, to: field.stringValue)
+        }
+        rebuildMenu()
+    }
+
+    @objc private func makePookieBoss(_ sender: NSMenuItem) {
         cohort?.makeDefault(index: sender.tag)
         rebuildMenu()
     }
@@ -610,7 +666,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let pets = cohort.pets.map { pet -> String in
             let motion = pet.motion
             let perch = motion.supportPlatform().map { "\($0.ownerName)#\($0.windowNumber)" } ?? "floor"
-            return "\(pet.critter.species.rawValue)/\(pet.critter.coat.rawValue)@\(NSStringFromPoint(motion.origin)) "
+            return "\(pet.pookie.species.rawValue)/\(pet.pookie.coat.rawValue)@\(NSStringFromPoint(motion.origin)) "
                 + "\(motion.pose.mood.rawValue)/\(motion.shape.rawValue) perch=\(perch)"
                 + (motion.isPlaying ? " playing" : "")
         }
@@ -639,26 +695,27 @@ extension AppDelegate: NSMenuItemValidation {
         if menuItem.action == #selector(selectScale(_:)), let raw = menuItem.representedObject as? String {
             menuItem.state = AppConfig.shared.petScale.rawValue == raw ? .on : .off
         }
-        if menuItem.action == #selector(addCritter(_:)) {
-            return PetCohort.canAddPet(having: cohort?.count ?? 0)
+        if menuItem.action == #selector(addPookie(_:)), let raw = menuItem.representedObject as? String {
+            guard let species = PetSpecies(rawValue: raw) else { return false }
+            return cohort?.canAdd(species: species) ?? false
         }
         if menuItem.action == #selector(selectSpecies(_:)),
            let pet = cohort?.pets[safe: menuItem.tag],
            let raw = menuItem.representedObject as? String {
-            menuItem.state = pet.critter.species.rawValue == raw ? .on : .off
+            menuItem.state = pet.pookie.species.rawValue == raw ? .on : .off
         }
         if menuItem.action == #selector(selectCoat(_:)),
            let pet = cohort?.pets[safe: menuItem.tag],
            let raw = menuItem.representedObject as? String {
-            menuItem.state = pet.critter.coat.rawValue == raw ? .on : .off
+            menuItem.state = pet.pookie.coat.rawValue == raw ? .on : .off
         }
-        if menuItem.action == #selector(makeDefaultCritter(_:)) {
-            menuItem.state = menuItem.tag == AppConfig.shared.defaultCritter ? .on : .off
+        if menuItem.action == #selector(makePookieBoss(_:)) {
+            menuItem.state = menuItem.tag == AppConfig.shared.boss ? .on : .off
         }
         if menuItem.action == #selector(selectCadence(_:)), let raw = menuItem.representedObject as? String {
             menuItem.state = AppConfig.shared.teleportCadence.rawValue == raw ? .on : .off
         }
-        if menuItem.action == #selector(removeCritter(_:)) {
+        if menuItem.action == #selector(removePookie(_:)) {
             return (cohort?.count ?? 0) > 1
         }
         return true

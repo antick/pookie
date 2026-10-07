@@ -38,7 +38,7 @@ final class PetWindowController {
     /// What she is: the cohort hands this out, and the same pair means the same
     /// pet. Neither needs a new window to change — the species is a pose value
     /// and the coat is the renderer's palette.
-    private(set) var critter: CritterConfig
+    private(set) var pookie: PookieConfig
     /// Her size relative to the shared setting, so a litter has a kitten in it.
     let personalScale: CGFloat
     /// Ceiling on this pet's drawn frame rate, set by the colony so that N pets
@@ -64,9 +64,9 @@ final class PetWindowController {
         CGSize(width: (shared.width * personal).rounded(), height: (shared.height * personal).rounded())
     }
 
-    init(critter: CritterConfig = .tabbyCat, personalScale: CGFloat = 1, startOrigin: CGPoint? = nil) {
+    init(pookie: PookieConfig = .tabbyCat, personalScale: CGFloat = 1, startOrigin: CGPoint? = nil) {
         let config = AppConfig.shared
-        self.critter = critter
+        self.pookie = pookie
         self.personalScale = personalScale
         let size = Self.windowSize(shared: config.petSize, personal: personalScale)
         let screenFrame = NSScreen.main?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
@@ -82,10 +82,10 @@ final class PetWindowController {
         motion.jumpEnabled = config.jumpEnabled
         motion.teleportEnabled = config.teleportEnabled
         motion.teleportCadence = config.teleportCadence
-        motion.species = critter.species
+        motion.species = pookie.species
         motion.rescheduleTeleport()
 
-        view = PetView(motion: motion, renderer: CatRenderer(palette: critter.coat.palette))
+        view = PetView(motion: motion, renderer: CatRenderer(palette: pookie.coat.palette))
 
         // Whole-point origin on purpose: the offset that puts her feet on the
         // floor is fractional, and handing the window server a fractional frame
@@ -292,10 +292,10 @@ final class PetWindowController {
 
     /// Change what this pet is, without rebuilding her: the species is written
     /// into the pose and the coat is the renderer's palette.
-    func apply(critter: CritterConfig) {
-        self.critter = critter
-        motion.species = critter.species
-        view.renderer = CatRenderer(palette: critter.coat.palette)
+    func apply(pookie: PookieConfig) {
+        self.pookie = pookie
+        motion.species = pookie.species
+        view.renderer = CatRenderer(palette: pookie.coat.palette)
         view.invalidateMask()
         view.needsDisplay = true
     }
@@ -572,7 +572,7 @@ final class PetWindowController {
         let cpu = metrics.cpuPercent(now: CACurrentMediaTime())
         let perch = motion.supportPlatform().map { "\($0.ownerName)#\($0.windowNumber)" } ?? "floor"
         Log.info(
-            "[\(critter.species.rawValue):\(critter.coat.rawValue)] "
+            "[\(pookie.species.rawValue):\(pookie.coat.rawValue)] "
             + "drawn=\(String(format: "%.1f", fps))fps "
             + "tier=\(String(format: "%.0f", (1.0 / targetInterval).rounded()))fps "
             + "cpu=\(String(format: "%.1f", cpu))% "
