@@ -496,7 +496,7 @@ final class PetWindowController {
         let fit = CatGeometry.fit(in: motion.size)
         // Follow the *current* head, so a bubble spoken from a loaf sits on the
         // loaf's head rather than floating where a standing cat's would be.
-        let head = CatAnatomy.blend(motion.pose.shape)
+        let head = motion.pose.anatomy
         let headTop = fit.viewPoint(
             x: head.headCenter.x,
             y: head.headCenter.y + head.headRadius + 2

@@ -51,6 +51,10 @@ final class PetMotion {
     /// Displays she has blinked to, for the heartbeat and the selftest.
     private(set) var teleportCount = 0
 
+    /// What kind of animal she is. Written into the pose each frame, so the
+    /// renderer, the envelope test and the gaze anchor all read one value.
+    var species: PetSpecies = .cat
+
     /// Where the other pets are, pushed in by the cohort. Used for two things:
     /// not standing inside each other, and chasing each other around.
     var companions: [CGPoint] = []
@@ -1034,6 +1038,8 @@ final class PetMotion {
 
         pose.facing = facing
 
+        pose.species = species
+
         // The blink, as the one number the renderer needs: out is her going, in
         // is her arriving.
         switch teleportPhase {
@@ -1141,7 +1147,7 @@ final class PetMotion {
         }
         lastCursor = cursor
 
-        let headScreen = screenPoint(designX: 50, designY: CatAnatomy.blend(pose.shape).eyeY)
+        let headScreen = screenPoint(designX: 50, designY: pose.anatomy.eyeY)
         let dx = cursor.x - headScreen.x
         let dy = cursor.y - headScreen.y
         let distance = max(1, hypot(dx, dy))
@@ -1171,7 +1177,7 @@ final class PetMotion {
         if isPlaying { return .happy }
         if sleepy { return .sleepy }
         if let cursor, followCursor {
-            let headScreen = screenPoint(designX: 50, designY: CatAnatomy.blend(pose.shape).headCenter.y)
+            let headScreen = screenPoint(designX: 50, designY: pose.anatomy.headCenter.y)
             if hypot(cursor.x - headScreen.x, cursor.y - headScreen.y) < 90 { return .curious }
         }
         if walking { return .walking }

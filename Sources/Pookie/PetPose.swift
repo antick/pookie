@@ -161,8 +161,24 @@ struct CatPose {
     /// the default, so a pose built by hand or by an old test is the M0 cat.
     var shape = CatShapeWeights()
 
+    /// What kind of animal she is. The renderer draws whatever this names, so a
+    /// species is a value change rather than a different code path everywhere.
+    var species: PetSpecies = .cat
+
     /// A neutral, awake, forward-facing cat.
     static let neutral = CatPose()
+}
+
+extension CatPose {
+    /// The skeleton this pose is drawn with: the blended shapes, at the species'
+    /// proportions.
+    ///
+    /// One place applies the species, so nothing can forget to — and the art
+    /// envelope, the pose transform, the gaze anchor and the bubble all agree
+    /// about where the animal's head is.
+    var anatomy: CatAnatomy {
+        CatAnatomy.blend(shape).wearing(species.traits)
+    }
 }
 
 // MARK: - Render envelope
@@ -207,7 +223,7 @@ extension CatPose {
         }
         if clamped.shape.total <= 0.0001 { clamped.shape = CatShapeWeights() }
 
-        let lean = RenderLimits.tilt * CatAnatomy.blend(clamped.shape).leanScale
+        let lean = RenderLimits.tilt * clamped.anatomy.leanScale
         clamped.tilt = min(max(tilt, -lean), lean)
         clamped.stretch = min(max(stretch, RenderLimits.minStretch), RenderLimits.maxStretch)
         clamped.squash = min(max(squash, RenderLimits.minSquash), RenderLimits.maxSquash)
@@ -288,6 +304,8 @@ enum CatSkin: String, CaseIterable {
     case grey
     case chocolate
     case snow
+    /// White with black points: the coat a panda is read from.
+    case panda
 
     var name: String {
         switch self {
@@ -301,6 +319,7 @@ enum CatSkin: String, CaseIterable {
         case .grey: return "Grey"
         case .chocolate: return "Chocolate"
         case .snow: return "Snow"
+        case .panda: return "Panda"
         }
     }
 
@@ -365,6 +384,15 @@ enum CatSkin: String, CaseIterable {
                 fur: 0xF7F4EE, furDark: 0xE0DAD0, belly: 0xFFFFFF, earInner: 0xF2B7B2,
                 outline: 0x8A8580, eye: 0x5A7FA8, nose: 0xED9AA0, mouth: 0xB4747A,
                 tongue: 0xF0A0A8, blush: 0xEFA0A0
+            )
+        case .panda:
+            // `furDark` is the black: ears, eye patches, paws and the tail
+            // stripes, which is why the panda species draws those parts from the
+            // flank colour rather than the belly.
+            return .coat(
+                fur: 0xF6F2EA, furDark: 0x2A2A2E, belly: 0xFFFDF8, earInner: 0x2A2A2E,
+                outline: 0x1A1A1E, eye: 0x232326, nose: 0x232326, mouth: 0x3A3A3E,
+                tongue: 0xD98F94, blush: 0xD9A0A0, whiskerAlpha: 0.5
             )
         }
     }

@@ -68,6 +68,77 @@ struct CatAnatomy {
 
     // MARK: - Blending
 
+    /// The same skeleton at a species' proportions.
+    ///
+    /// Every vertical anchor is scaled about `CatGeometry.feetY`, which is what
+    /// keeps a small animal's feet on the ground line instead of floating: the
+    /// species multiplies the distance from the floor, not the absolute
+    /// coordinate.
+    func wearing(_ traits: SpeciesTraits) -> CatAnatomy {
+        func rise(_ y: CGFloat, _ factor: CGFloat) -> CGFloat {
+            CatGeometry.feetY + (y - CatGeometry.feetY) * traits.scale * factor
+        }
+        func spread(_ x: CGFloat) -> CGFloat {
+            CatGeometry.design / 2 + (x - CatGeometry.design / 2) * traits.scale
+        }
+        func point(_ p: CGPoint) -> CGPoint {
+            CGPoint(x: spread(p.x), y: rise(p.y, 1))
+        }
+
+        var anatomy = self
+        // The body grows from its *underside*, which is the part that touches the
+        // ground: scaling the centre and the radii by different factors — a
+        // panda's body is wider and taller than a cat's — would otherwise push a
+        // tall animal's belly through the floor and leave a short one hovering.
+        let bodyUnderside = bodyCenter.y - bodyRadii.height
+        anatomy.bodyRadii = CGSize(
+            width: bodyRadii.width * traits.scale * traits.bodyWidth,
+            height: bodyRadii.height * traits.scale * traits.bodyHeight
+        )
+        anatomy.bodyCenter = CGPoint(
+            x: spread(bodyCenter.x),
+            y: CatGeometry.feetY
+                + (bodyUnderside - CatGeometry.feetY) * traits.scale
+                + anatomy.bodyRadii.height
+        )
+        anatomy.headCenter = point(headCenter)
+        anatomy.headRadius *= traits.scale * traits.headScale
+        anatomy.muzzleCenter = point(muzzleCenter)
+        anatomy.muzzleRadii = CGSize(
+            width: muzzleRadii.width * traits.scale * traits.headScale * traits.muzzle,
+            height: muzzleRadii.height * traits.scale * traits.headScale * traits.muzzle
+        )
+        anatomy.eyeY = rise(eyeY, traits.headScale)
+        anatomy.eyeOffsetX *= traits.scale * traits.headScale
+        anatomy.eyeRadius *= traits.scale * traits.headScale
+        anatomy.pawCenterY = rise(pawCenterY, 1)
+        anatomy.pawOffsetX *= traits.scale
+        anatomy.pawRadii = CGSize(
+            width: pawRadii.width * traits.scale,
+            height: pawRadii.height * traits.scale
+        )
+        // The tail is the one part that scales along its own length rather than
+        // about the floor: an animal's tail is longer, not further up.
+        let tailBasePoint = point(tailBase)
+        func tailPoint(_ p: CGPoint) -> CGPoint {
+            CGPoint(
+                x: tailBasePoint.x + (p.x - tailBase.x) * traits.scale * traits.tailScale,
+                y: tailBasePoint.y + (p.y - tailBase.y) * traits.scale * traits.tailScale
+            )
+        }
+        let lift = traits.tailLift * traits.scale
+        anatomy.tailBase = tailBasePoint
+        anatomy.tailControl1 = CGPoint(x: tailPoint(tailControl1).x, y: tailPoint(tailControl1).y + lift * 0.3)
+        anatomy.tailControl2 = CGPoint(x: tailPoint(tailControl2).x, y: tailPoint(tailControl2).y + lift * 0.7)
+        anatomy.tailTip = CGPoint(x: tailPoint(tailTip).x, y: tailPoint(tailTip).y + lift)
+        anatomy.tailWidth *= traits.scale * traits.tailWidth
+        // A wider animal leans less, for exactly the reason a loaf does: the
+        // further the ink sits from the pivot, the deeper the far edge swings,
+        // and a panda's is a long way out.
+        anatomy.leanScale /= pow(max(1, traits.bodyWidth), 1.5)
+        return anatomy
+    }
+
     /// The weighted average of the shape keyframes: one cat, no cross-fade.
     static func blend(_ weights: CatShapeWeights) -> CatAnatomy {
         var total: Double = 0

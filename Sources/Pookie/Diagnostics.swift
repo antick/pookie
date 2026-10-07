@@ -46,47 +46,48 @@ enum Diagnostics {
         print("")
         print("art envelope (the head and tail must never be cut off)")
         let stage = CatGeometry.stage
-        let inkByShape = Dictionary(
-            uniqueKeysWithValues: CatShape.allCases.map { ($0, inkPoints(renderer: renderer, shape: $0)) }
-        )
-        for shape in CatShape.allCases {
-            let shapeBounds = bounds(of: inkByShape[shape] ?? [])
+        // Every species is drawn on the same stage, so every species has to fit
+        // it — the bunny's ears are what that rule is for, and they are the
+        // reason an animal with long ears is scaled down instead of given a
+        // taller window (a taller window is a longer ledge she no longer fits).
+        for species in PetSpecies.allCases {
+            let inkByShape = Dictionary(uniqueKeysWithValues: CatShape.allCases.map {
+                ($0, inkPoints(renderer: renderer, shape: $0, species: species))
+            })
+            var shapeEnvelopes: [CatShape: CGRect] = [:]
+            for shape in CatShape.allCases {
+                shapeEnvelopes[shape] = transformEnvelope(
+                    shape: shape,
+                    points: inkByShape[shape] ?? [],
+                    species: species
+                )
+            }
+            let envelope = shapeEnvelopes.values.reduce(CGRect.null) { $0.union($1) }
+            let blink = CatShape.allCases.reduce(CGRect.null) { union, shape in
+                union.union(blinkEnvelope(shape: shape, points: inkByShape[shape] ?? [], species: species))
+            }
+            let ink = bounds(of: CatShape.allCases.flatMap { inkByShape[$0] ?? [] })
             print(String(
-                format: "  info %-7@ ink x[%6.1f, %6.1f] y[%6.1f, %6.1f] (%d boundary samples)",
-                shape.rawValue as NSString,
-                shapeBounds.minX, shapeBounds.maxX, shapeBounds.minY, shapeBounds.maxY,
-                inkByShape[shape]?.count ?? 0
+                format: "  info %-6@ ink x[%6.1f, %6.1f] y[%6.1f, %6.1f]  envelope x[%6.1f, %6.1f] y[%6.1f, %6.1f]",
+                species.name as NSString,
+                ink.minX, ink.maxX, ink.minY, ink.maxY,
+                envelope.minX, envelope.maxX, envelope.minY, envelope.maxY
             ))
+            if !stage.contains(envelope) || !stage.contains(blink) {
+                // Say which part is out, rather than making the next person
+                // bisect a rectangle by hand.
+                for shape in CatShape.allCases {
+                    let shapeInk = bounds(of: inkByShape[shape] ?? [])
+                    print(String(
+                        format: "         %-7@ ink x[%6.1f, %6.1f] y[%6.1f, %6.1f]",
+                        shape.rawValue as NSString,
+                        shapeInk.minX, shapeInk.maxX, shapeInk.minY, shapeInk.maxY
+                    ))
+                }
+            }
+            check(stage.contains(envelope), "\(species.name): the stage contains the worst-case pose envelope")
+            check(stage.contains(blink), "\(species.name): the stage contains the blink at every step")
         }
-        var shapeEnvelopes: [CatShape: CGRect] = [:]
-        for shape in CatShape.allCases {
-            let shapeEnvelope = transformEnvelope(shape: shape, points: inkByShape[shape] ?? [])
-            shapeEnvelopes[shape] = shapeEnvelope
-            print(String(
-                format: "  info %-7@ envelope x[%6.1f, %6.1f] y[%6.1f, %6.1f]",
-                shape.rawValue as NSString,
-                shapeEnvelope.minX, shapeEnvelope.maxX, shapeEnvelope.minY, shapeEnvelope.maxY
-            ))
-        }
-        let envelope = shapeEnvelopes.values.reduce(CGRect.null) { $0.union($1) }
-        print(String(format: "  info worst-case envelope x[%.1f, %.1f] y[%.1f, %.1f]; stage x[%.1f, %.1f] y[%.1f, %.1f]",
-                     envelope.minX, envelope.maxX, envelope.minY, envelope.maxY,
-                     stage.minX, stage.maxX, stage.minY, stage.maxY))
-        check(stage.contains(envelope), "the stage contains the worst-case pose envelope")
-
-        // The teleport blink is the one pose the deformation limits do not cover:
-        // it spins her down to nothing, and the spin is what swings her height
-        // out sideways on the way.
-        let blink = CatShape.allCases.reduce(CGRect.null) { union, shape in
-            let shapeBlink = blinkEnvelope(shape: shape, points: inkByShape[shape] ?? [])
-            print(String(
-                format: "  info %-7@ blink    x[%6.1f, %6.1f] y[%6.1f, %6.1f]",
-                shape.rawValue as NSString,
-                shapeBlink.minX, shapeBlink.maxX, shapeBlink.minY, shapeBlink.maxY
-            ))
-            return union.union(shapeBlink)
-        }
-        check(stage.contains(blink), "the stage contains the blink at every step of the twist")
 
         // The analytic envelope assumes extremes happen at parameter corners.
         // These renderings do not assume anything: they rasterise the real
@@ -688,7 +689,7 @@ enum Diagnostics {
             var biggest: CGFloat = 0
             for _ in 0..<Int((seconds * 60).rounded()) {
                 motion.advance(dt: 1.0 / 60.0)
-                let anatomy = CatAnatomy.blend(motion.pose.shape)
+                let anatomy = motion.pose.anatomy
                 if let previous {
                     biggest = max(biggest, hypot(
                         anatomy.bodyCenter.x - previous.bodyCenter.x,
@@ -930,17 +931,17 @@ enum Diagnostics {
 
         // The cap and the budget are pure, so both can be pinned without a window
         // server: nine cats can have a tenth, ten cannot, and the budget divides.
-        check(PetCohort.canAddPet(having: 0), "an empty desk can have a cat")
+        check(PetCohort.canAddPet(having: 0), "an empty desk can have a pet")
         check(PetCohort.canAddPet(having: PetCohort.maximumPets - 1), "the last slot is still a slot")
         check(!PetCohort.canAddPet(having: PetCohort.maximumPets), "the cap holds at \(PetCohort.maximumPets)")
         check(PetCohort.perPetFPS(petCount: 1) == 60, "one cat is not budget-limited")
         check(
             PetCohort.perPetFPS(petCount: PetCohort.maximumPets) >= 8,
-            "ten cats each still get at least the sleep tier (\(String(format: "%.0f", PetCohort.perPetFPS(petCount: PetCohort.maximumPets))) fps)"
+            "five cats each still get at least the sleep tier (\(String(format: "%.0f", PetCohort.perPetFPS(petCount: PetCohort.maximumPets))) fps)"
         )
         check(
             PetCohort.perPetFPS(petCount: PetCohort.maximumPets) < PetCohort.perPetFPS(petCount: 2),
-            "more cats means fewer frames each"
+            "more pets means fewer frames each"
         )
 
         // Where a new cat appears. This rule used to override `--at x,y` silently,
@@ -962,7 +963,7 @@ enum Diagnostics {
         let crowded = (0..<PetCohort.maximumPets).map {
             PetCohort.homeOrigin(slot: $0, region: desk, size: petSize, start: nil).x
         }
-        check(Set(crowded).count == PetCohort.maximumPets, "ten cats arrive in ten different places")
+        check(Set(crowded).count == PetCohort.maximumPets, "the whole colony arrives in different places")
 
         // Two cats converging on one spot read as one buggy cat, so they step
         // apart — positionally, so they settle instead of springing forever.
@@ -1035,7 +1036,7 @@ enum Diagnostics {
     ///
     /// Boundary pixels rather than a bounding box: the cat is not a rectangle,
     /// and the difference is about ten design units of stage width.
-    private static func inkPoints(renderer: CatRenderer, shape: CatShape) -> [CGPoint] {
+    private static func inkPoints(renderer: CatRenderer, shape: CatShape, species: PetSpecies) -> [CGPoint] {
         let size = CatGeometry.preferredWindowSize
         let width = Int(size.width)
         let height = Int(size.height)
@@ -1046,6 +1047,7 @@ enum Diagnostics {
 
         for var pose in ArtSweep.oneFactorPoses() {
             pose.shape = .only(shape)
+            pose.species = species
             let coverage = rasterise(renderer: renderer, size: size, pose: pose)
             for y in 0..<height {
                 for x in 0..<width {
@@ -1094,7 +1096,7 @@ enum Diagnostics {
     /// corners of the parameter box. Rotation is not linear, but the worst an
     /// interior angle can beat an endpoint by is `r * (1 - cos(limit))` — about
     /// 1.3 design units at the legal limit — which the pad below covers.
-    private static func transformEnvelope(shape: CatShape, points: [CGPoint]) -> CGRect {
+    private static func transformEnvelope(shape: CatShape, points: [CGPoint], species: PetSpecies) -> CGRect {
         let limits = CatPose.RenderLimits.self
         var union = CGRect.null
 
@@ -1105,6 +1107,7 @@ enum Diagnostics {
                         for facing in [1.0, -1.0] {
                             var pose = CatPose()
                             pose.shape = .only(shape)
+                            pose.species = species
                             pose.tilt = tilt
                             pose.stretch = stretch
                             pose.squash = squash
@@ -1157,11 +1160,12 @@ enum Diagnostics {
     /// The pad is 1.5 rather than the envelope's 2: the ordinary check takes three
     /// tilt samples and pays for the interior with slack, where this takes
     /// twenty-five steps and needs little more than a pixel of antialiasing bleed.
-    private static func blinkEnvelope(shape: CatShape, points: [CGPoint]) -> CGRect {
+    private static func blinkEnvelope(shape: CatShape, points: [CGPoint], species: PetSpecies) -> CGRect {
         var union = CGRect.null
         for step in 0...24 {
             var pose = CatPose()
             pose.shape = .only(shape)
+            pose.species = species
             pose.vanish = Double(step) / 24
             let transform = CatGeometry.vanishTransform(pose)
             for point in points {
@@ -1504,6 +1508,95 @@ enum Diagnostics {
         print("row 4:      sitting | loafing | lying asleep | waking stretch")
         print("row 5:      settling stand->sit | sit->loaf | loaf->lie | lie->stretch")
         print("row 6:      blinking out 30% | 60% | 90% | and back in")
+        return 0
+    }
+
+    /// A review sheet for the species.
+    ///
+    /// One page, every animal, standing, loafing and pleased: the point of a
+    /// species table is that adding one is a data change, and the only honest way
+    /// to check it is to look at all of them together.
+    static func renderSpeciesPNG(to path: String) -> Int32 {
+        let columns = PetSpecies.allCases.count
+        let rows = 3
+        let cell = 200
+        let width = columns * cell
+        let height = rows * cell
+
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            Log.info("could not create render context")
+            return 1
+        }
+
+        context.setFillColor(CGColor.hex(0xFDF6EC))
+        context.fill(CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
+        context.setStrokeColor(CGColor.hex(0xE8DCCB))
+        context.setLineWidth(1)
+        for column in 1..<columns {
+            context.move(to: CGPoint(x: CGFloat(column * cell), y: 0))
+            context.addLine(to: CGPoint(x: CGFloat(column * cell), y: CGFloat(height)))
+        }
+        for row in 1..<rows {
+            context.move(to: CGPoint(x: 0, y: CGFloat(row * cell)))
+            context.addLine(to: CGPoint(x: CGFloat(width), y: CGFloat(row * cell)))
+        }
+        context.strokePath()
+
+        let grid: [[SheetCell]] = [
+            PetSpecies.allCases.map { species in
+                .cat({ var pose = CatPose(); pose.species = species; return pose }())
+            },
+            PetSpecies.allCases.map { species in
+                .cat({ var pose = CatPose(); pose.species = species; pose.shape = .only(.loaf); pose.tailPhase = 1.4; return pose }())
+            },
+            PetSpecies.allCases.map { species in
+                .cat({ var pose = CatPose(); pose.species = species; pose.mood = .happy; pose.tailPhase = 1.1; pose.gazeX = 0.4; return pose }())
+            },
+        ]
+
+        for (rowIndex, row) in grid.enumerated() {
+            for (columnIndex, item) in row.enumerated() {
+                context.saveGState()
+                context.translateBy(
+                    x: CGFloat(columnIndex * cell),
+                    y: CGFloat(rows - 1 - rowIndex) * CGFloat(cell)
+                )
+                context.clip(to: CGRect(x: 0, y: 0, width: CGFloat(cell), height: CGFloat(cell)))
+                if case .cat(let pose) = item {
+                    CatRenderer(palette: pose.species.defaultCoat.palette)
+                        .draw(in: context, size: CGSize(width: cell, height: cell), pose: pose)
+                }
+                context.restoreGState()
+            }
+        }
+
+        guard let image = context.makeImage() else {
+            Log.info("could not snapshot the species sheet")
+            return 1
+        }
+        let url = URL(fileURLWithPath: path) as CFURL
+        guard let destination = CGImageDestinationCreateWithURL(url, UTType.png.identifier as CFString, 1, nil) else {
+            Log.info("could not create PNG destination at \(path)")
+            return 1
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            Log.info("could not finalise PNG at \(path)")
+            return 1
+        }
+
+        print("wrote \(width)x\(height) species sheet to \(path)")
+        print("row 1: " + PetSpecies.allCases.map { "\($0.name) in \($0.defaultCoat.name)" }.joined(separator: " | "))
+        print("row 2: the same five, loafing")
+        print("row 3: the same five, pleased")
         return 0
     }
 

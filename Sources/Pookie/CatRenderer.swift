@@ -92,7 +92,7 @@ enum CatGeometry {
     /// point up in the air where a standing cat's chest used to be.
     static func poseTransform(_ pose: CatPose) -> CGAffineTransform {
         let feet = CGPoint(x: design / 2, y: feetY)
-        let pivot = CatAnatomy.blend(pose.shape).bodyCenter
+        let pivot = pose.anatomy.bodyCenter
         var transform = CGAffineTransform.identity
 
         transform = transform.translatedBy(x: 0, y: pose.hopOffset)
@@ -137,7 +137,7 @@ enum CatGeometry {
         let vanish = min(max(pose.vanish, 0), 1)
         guard vanish > 0.0001 else { return .identity }
 
-        let pivot = CatAnatomy.blend(pose.shape).bodyCenter
+        let pivot = pose.anatomy.bodyCenter
         let scale = CGFloat((1 - vanish) * (1 - vanish))
         var transform = CGAffineTransform.identity
         transform = transform.translatedBy(x: pivot.x, y: pivot.y)
@@ -184,7 +184,7 @@ struct CatRenderer: PetRenderer {
         // wild pose from a producer becomes a slightly tamer cat rather than one
         // with an ear sliced off.
         let pose = pose.clampedForRender()
-        let anatomy = CatAnatomy.blend(pose.shape)
+        let anatomy = pose.anatomy
 
         let fit = CatGeometry.fit(in: size)
         guard fit.scale > 0 else { return }
@@ -210,11 +210,11 @@ struct CatRenderer: PetRenderer {
 
         drawTail(in: context, pose: pose, anatomy: anatomy)
         drawBody(in: context, pose: pose, anatomy: anatomy)
-        drawPaws(in: context, anatomy: anatomy)
+        drawPaws(in: context, pose: pose, anatomy: anatomy)
         drawEars(in: context, pose: pose, anatomy: anatomy)
         drawHead(in: context, pose: pose, anatomy: anatomy)
         drawFace(in: context, pose: pose, anatomy: anatomy)
-        drawHeadStripes(in: context, anatomy: anatomy)
+        drawHeadStripes(in: context, pose: pose, anatomy: anatomy)
     }
 
     /// Applies `CatGeometry.poseTransform`, which is also what the art-envelope
@@ -284,36 +284,98 @@ struct CatRenderer: PetRenderer {
     }
 
     private func drawTail(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let traits = pose.species.traits
         let sway = sin(pose.tailPhase) * 0.40 * anatomy.tailSway
         let lift = cos(pose.tailPhase * 0.7) * 3.0 * anatomy.tailSway
 
         context.saveGState()
         // Pivot inside the body, so the visible tail swings from the rump
-        // rather than detaching from it.
+        // rather than detaching from it. A curled tail is the same curve, tipped
+        // up over her back.
+        let curl: Double = traits.tail == .curl ? -0.5 : 0
         context.translateBy(x: anatomy.tailBase.x, y: anatomy.tailBase.y)
-        context.rotate(by: sway)
+        context.rotate(by: sway + curl)
         context.translateBy(x: -anatomy.tailBase.x, y: -anatomy.tailBase.y)
 
-        let path = CGMutablePath()
-        path.move(to: anatomy.tailBase)
-        path.addCurve(
-            to: CGPoint(x: anatomy.tailTip.x, y: anatomy.tailTip.y + lift),
-            control1: anatomy.tailControl1,
-            control2: CGPoint(x: anatomy.tailControl2.x, y: anatomy.tailControl2.y + lift)
-        )
+        switch traits.tail {
+        case .puff:
+            // A ball of fluff: three overlapping circles, which is a cotton tail
+            // for the price of three ellipses. The sway becomes a bounce.
+            let bounce = CGFloat(lift) * 0.4
+            let radius = max(4, anatomy.tailWidth * 0.55)
+            let centre = CGPoint(
+                x: anatomy.tailBase.x - radius * 1.05,
+                y: anatomy.tailBase.y + radius * 0.5 + bounce
+            )
+            for (offset, size) in [
+                (CGPoint(x: 0, y: 0), radius),
+                (CGPoint(x: -radius * 0.75, y: radius * 0.45), radius * 0.72),
+                (CGPoint(x: radius * 0.3, y: radius * 0.7), radius * 0.6),
+            ] {
+                let rect = CGRect(
+                    x: centre.x + offset.x - size,
+                    y: centre.y + offset.y - size,
+                    width: size * 2,
+                    height: size * 2
+                )
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: rect, transform: nil),
+                    fill: palette.fur,
+                    stroke: palette.outline,
+                    width: outlineWidth * 0.8
+                )
+            }
+            context.setFillColor(palette.belly)
+            context.fillEllipse(in: CGRect(
+                x: centre.x - radius * 0.55,
+                y: centre.y - radius * 0.15,
+                width: radius * 0.75,
+                height: radius * 0.7
+            ))
 
-        // Outline first as a wider stroke, then the fur on top: cheaper and
-        // cleaner than computing an offset path.
-        stroke(context, path: path, color: palette.outline, width: anatomy.tailOutlineWidth)
-        stroke(context, path: path, color: palette.fur, width: anatomy.tailFurWidth)
-        stroke(
-            context,
-            path: path,
-            color: palette.furDark,
-            width: anatomy.tailStripeWidth,
-            dash: [2.4, 4.6],
-            phase: 1.6
-        )
+        case .curve, .curl:
+            // A curl is the same curve, tipped up over her back by `curl` above.
+            let path = CGMutablePath()
+            path.move(to: anatomy.tailBase)
+            path.addCurve(
+                to: CGPoint(x: anatomy.tailTip.x, y: anatomy.tailTip.y + lift),
+                control1: anatomy.tailControl1,
+                control2: CGPoint(x: anatomy.tailControl2.x, y: anatomy.tailControl2.y + lift)
+            )
+
+            // Outline first as a wider stroke, then the fur on top: cheaper and
+            // cleaner than computing an offset path.
+            stroke(context, path: path, color: palette.outline, width: anatomy.tailOutlineWidth)
+            stroke(context, path: path, color: palette.fur, width: anatomy.tailFurWidth)
+            stroke(
+                context,
+                path: path,
+                color: palette.furDark,
+                width: anatomy.tailStripeWidth,
+                dash: [2.4, 4.6],
+                phase: 1.6
+            )
+
+            // The brush tip: a lighter end, which is half of what makes a fox
+            // read as a fox.
+            if traits.tailTuft {
+                let tip = CGPoint(x: anatomy.tailTip.x, y: anatomy.tailTip.y + lift)
+                let radius = anatomy.tailFurWidth * 0.45
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: CGRect(
+                        x: tip.x - radius,
+                        y: tip.y - radius,
+                        width: radius * 2,
+                        height: radius * 2
+                    ), transform: nil),
+                    fill: palette.belly,
+                    stroke: palette.outline,
+                    width: outlineWidth * 0.7
+                )
+            }
+        }
         context.restoreGState()
     }
 
@@ -349,35 +411,42 @@ struct CatRenderer: PetRenderer {
 
         // Flank stripes. Placed low and to the sides so the head does not
         // cover them and so they read as tabby markings rather than shading.
-        context.saveGState()
-        context.addPath(path)
-        context.clip()
-        let stripeWidth = 3.2 * (halfHeight / 19)
-        for direction in [CGFloat(-1), CGFloat(1)] {
-            for offset in [CGFloat(14.0 / 25), CGFloat(20.0 / 25)] {
-                let x = anatomy.bodyCenter.x + direction * offset * halfWidth
-                let stripe = CGMutablePath()
-                stripe.move(to: CGPoint(x: x, y: anatomy.bodyCenter.y + halfHeight * (8.0 / 19)))
-                stripe.addQuadCurve(
-                    to: CGPoint(
-                        x: x + direction * halfWidth * (1.5 / 25),
-                        y: anatomy.bodyCenter.y + halfHeight * (1.0 / 19)
-                    ),
-                    control: CGPoint(
-                        x: x + direction * halfWidth * (4.0 / 25),
-                        y: anatomy.bodyCenter.y + halfHeight * (4.5 / 19)
+        // Markings belong to the cats and the foxes; a bunny, a puppy and a
+        // panda wear plain fur, and skip the whole pass.
+        if pose.species.traits.stripes {
+            context.saveGState()
+            context.addPath(path)
+            context.clip()
+            let stripeWidth = 3.2 * (halfHeight / 19)
+            for direction in [CGFloat(-1), CGFloat(1)] {
+                for offset in [CGFloat(14.0 / 25), CGFloat(20.0 / 25)] {
+                    let x = anatomy.bodyCenter.x + direction * offset * halfWidth
+                    let stripe = CGMutablePath()
+                    stripe.move(to: CGPoint(x: x, y: anatomy.bodyCenter.y + halfHeight * (8.0 / 19)))
+                    stripe.addQuadCurve(
+                        to: CGPoint(
+                            x: x + direction * halfWidth * (1.5 / 25),
+                            y: anatomy.bodyCenter.y + halfHeight * (1.0 / 19)
+                        ),
+                        control: CGPoint(
+                            x: x + direction * halfWidth * (4.0 / 25),
+                            y: anatomy.bodyCenter.y + halfHeight * (4.5 / 19)
+                        )
                     )
-                )
-                stroke(context, path: stripe, color: palette.furDark, width: stripeWidth)
+                    stroke(context, path: stripe, color: palette.furDark, width: stripeWidth)
+                }
             }
+            context.restoreGState()
         }
-        context.restoreGState()
     }
 
     /// Front paws. In the tucked shapes they land on top of the body silhouette
     /// and read as paws folded under the chest, which is what a loaf looks like
     /// from the front.
-    private func drawPaws(in context: CGContext, anatomy: CatAnatomy) {
+    private func drawPaws(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        // A panda's limbs are the dark half of its coat, so its paws take the
+        // flank colour instead of the belly.
+        let fill = pose.species.traits.darkLimbs ? palette.furDark : palette.belly
         for direction in [CGFloat(-1), CGFloat(1)] {
             let center = CGPoint(
                 x: anatomy.bodyCenter.x + direction * anatomy.pawOffsetX,
@@ -390,17 +459,24 @@ struct CatRenderer: PetRenderer {
                 height: anatomy.pawRadii.height * 2
             )
             let path = CGPath(ellipseIn: rect, transform: nil)
-            fillStroke(context, path: path, fill: palette.belly, stroke: palette.outline, width: outlineWidth * 0.85)
+            fillStroke(context, path: path, fill: fill, stroke: palette.outline, width: outlineWidth * 0.85)
         }
     }
 
     /// Ears are drawn *before* the head, so their bases tuck behind the skull.
     /// That overlap is what makes them read as attached rather than stuck on.
+    ///
+    /// Four shapes cover the five species. A tall-eared animal is smaller overall
+    /// (`SpeciesTraits.scale`), which is what keeps a bunny's ears inside the
+    /// same stage the cat defined — the alternative was a taller window for every
+    /// pet, and a taller window is a longer ledge she no longer fits on.
     private func drawEars(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let traits = pose.species.traits
         let scale = anatomy.headScale
         let twitch = CGFloat(pose.earTwitch)
         let flattened = pose.mood == .dragged || pose.mood == .alarmed
-        let tipLift: CGFloat = (flattened ? 12 : 19) * scale
+        let lift = traits.earLift * (flattened ? 0.63 : 1)
+        let outerFill = traits.darkLimbs ? palette.furDark : palette.fur
 
         for direction in [CGFloat(-1), CGFloat(1)] {
             let pivot = CGPoint(
@@ -412,21 +488,115 @@ struct CatRenderer: PetRenderer {
             context.rotate(by: direction * twitch)
             context.translateBy(x: -pivot.x, y: -pivot.y)
 
-            let outer = CGMutablePath()
-            outer.move(to: CGPoint(x: pivot.x + direction * 10 * scale, y: pivot.y - 10 * scale))
-            outer.addLine(to: CGPoint(x: pivot.x - direction * 1.5 * scale, y: pivot.y + tipLift))
-            outer.addLine(to: CGPoint(x: pivot.x - direction * 8 * scale, y: pivot.y + 8 * scale))
-            outer.closeSubpath()
-            fillStroke(context, path: outer, fill: palette.fur, stroke: palette.outline, width: outlineWidth)
+            switch traits.ears {
+            case .cat:
+                let tip = 19 * scale * lift
+                let outer = CGMutablePath()
+                outer.move(to: CGPoint(x: pivot.x + direction * 10 * scale, y: pivot.y - 10 * scale))
+                outer.addLine(to: CGPoint(x: pivot.x - direction * 1.5 * scale, y: pivot.y + tip))
+                outer.addLine(to: CGPoint(x: pivot.x - direction * 8 * scale, y: pivot.y + 8 * scale))
+                outer.closeSubpath()
+                fillStroke(context, path: outer, fill: outerFill, stroke: palette.outline, width: outlineWidth)
 
-            let inner = CGMutablePath()
-            inner.move(to: CGPoint(x: pivot.x + direction * 5.5 * scale, y: pivot.y - 5.5 * scale))
-            inner.addLine(to: CGPoint(x: pivot.x - direction * 1.5 * scale, y: pivot.y + tipLift - 7 * scale))
-            inner.addLine(to: CGPoint(x: pivot.x - direction * 4.5 * scale, y: pivot.y + 4.5 * scale))
-            inner.closeSubpath()
-            context.setFillColor(palette.earInner)
-            context.addPath(inner)
-            context.fillPath()
+                let inner = CGMutablePath()
+                inner.move(to: CGPoint(x: pivot.x + direction * 5.5 * scale, y: pivot.y - 5.5 * scale))
+                inner.addLine(to: CGPoint(x: pivot.x - direction * 1.5 * scale, y: pivot.y + tip - 7 * scale))
+                inner.addLine(to: CGPoint(x: pivot.x - direction * 4.5 * scale, y: pivot.y + 4.5 * scale))
+                inner.closeSubpath()
+                context.setFillColor(palette.earInner)
+                context.addPath(inner)
+                context.fillPath()
+
+            case .pointed:
+                // Same triangle, taller and with a dark tip, which is most of
+                // what makes a fox a fox.
+                let tip = 24 * scale * lift
+                let outer = CGMutablePath()
+                outer.move(to: CGPoint(x: pivot.x + direction * 11 * scale, y: pivot.y - 11 * scale))
+                outer.addLine(to: CGPoint(x: pivot.x - direction * 2.5 * scale, y: pivot.y + tip))
+                outer.addLine(to: CGPoint(x: pivot.x - direction * 9.5 * scale, y: pivot.y + 7 * scale))
+                outer.closeSubpath()
+                fillStroke(context, path: outer, fill: outerFill, stroke: palette.outline, width: outlineWidth)
+
+                let inner = CGMutablePath()
+                inner.move(to: CGPoint(x: pivot.x + direction * 6 * scale, y: pivot.y - 5 * scale))
+                inner.addLine(to: CGPoint(x: pivot.x - direction * 2 * scale, y: pivot.y + tip - 6 * scale))
+                inner.addLine(to: CGPoint(x: pivot.x - direction * 5 * scale, y: pivot.y + 3 * scale))
+                inner.closeSubpath()
+                context.setFillColor(palette.earInner)
+                context.addPath(inner)
+                context.fillPath()
+
+                let tipPatch = CGMutablePath()
+                tipPatch.move(to: CGPoint(x: pivot.x - direction * 1.4 * scale, y: pivot.y + tip - 9 * scale))
+                tipPatch.addLine(to: CGPoint(x: pivot.x - direction * 2.5 * scale, y: pivot.y + tip))
+                tipPatch.addLine(to: CGPoint(x: pivot.x - direction * 5 * scale, y: pivot.y + tip - 8 * scale))
+                tipPatch.closeSubpath()
+                context.setFillColor(palette.furDark)
+                context.addPath(tipPatch)
+                context.fillPath()
+
+            case .long:
+                // A tall standing oval, tipped outward. This is the ear that sets
+                // the bunny's whole silhouette.
+                let length = 34 * scale * lift
+                context.saveGState()
+                context.translateBy(x: pivot.x, y: pivot.y)
+                context.rotate(by: direction * 0.16)
+                let outer = CGRect(
+                    x: -4.6 * scale,
+                    y: 2 * scale,
+                    width: 9.2 * scale,
+                    height: length
+                )
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: outer, transform: nil),
+                    fill: outerFill,
+                    stroke: palette.outline,
+                    width: outlineWidth
+                )
+                let inner = outer.insetBy(dx: 2.4 * scale, dy: 4 * scale)
+                context.setFillColor(palette.earInner)
+                context.fillEllipse(in: inner)
+                context.restoreGState()
+
+            case .floppy:
+                // A rounded flap hanging off the side of the head rather than
+                // standing above it: softer, and free of height.
+                context.saveGState()
+                context.translateBy(x: pivot.x + direction * 4 * scale, y: pivot.y - 14 * scale)
+                context.rotate(by: direction * 0.34)
+                let flap = CGRect(x: -7 * scale, y: -15 * scale, width: 14 * scale, height: 30 * scale)
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: flap, transform: nil),
+                    fill: outerFill,
+                    stroke: palette.outline,
+                    width: outlineWidth
+                )
+                context.setFillColor(palette.earInner)
+                context.fillEllipse(in: flap.insetBy(dx: 3 * scale, dy: 5 * scale))
+                context.restoreGState()
+
+            case .round:
+                // A button on top of the head — panda, bear, anything round.
+                let button = CGRect(
+                    x: pivot.x - 9 * scale,
+                    y: pivot.y + 1 * scale,
+                    width: 18 * scale,
+                    height: 18 * scale
+                )
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: button, transform: nil),
+                    fill: outerFill,
+                    stroke: palette.outline,
+                    width: outlineWidth
+                )
+                context.setFillColor(palette.earInner)
+                context.fillEllipse(in: button.insetBy(dx: 3.5 * scale, dy: 3.5 * scale))
+            }
 
             context.restoreGState()
         }
@@ -466,6 +636,33 @@ struct CatRenderer: PetRenderer {
         let eyeOpen = CGFloat(blink)
         let eyeRadius = anatomy.eyeRadius
         let headScale = anatomy.headScale
+
+        // A panda is read entirely from its patches, so they go down before the
+        // eyes and are simply a pair of dark ellipses around them.
+        if pose.species.traits.eyePatches {
+            for direction in [CGFloat(-1), CGFloat(1)] {
+                let centre = CGPoint(
+                    x: anatomy.headCenter.x + direction * anatomy.eyeOffsetX,
+                    y: anatomy.eyeY
+                )
+                context.saveGState()
+                context.translateBy(x: centre.x, y: centre.y)
+                context.rotate(by: direction * 0.5)
+                fillStroke(
+                    context,
+                    path: CGPath(ellipseIn: CGRect(
+                        x: -eyeRadius * 1.15,
+                        y: -eyeRadius * 1.0,
+                        width: eyeRadius * 2.3,
+                        height: eyeRadius * 2.05
+                    ), transform: nil),
+                    fill: palette.furDark,
+                    stroke: palette.outline,
+                    width: outlineWidth * 0.7
+                )
+                context.restoreGState()
+            }
+        }
 
         for direction in [CGFloat(-1), CGFloat(1)] {
             let center = CGPoint(
@@ -606,9 +803,10 @@ struct CatRenderer: PetRenderer {
             stroke(context, path: mouth, color: palette.outline, width: 1.8 * anatomy.muzzleScale)
         }
 
-        // Whiskers.
+        // Whiskers. A cat's and a fox's; a bunny, a puppy and a panda have
+        // muzzles without them, and the face reads cleaner for the omission.
         let whiskerWidth = 1.3 * anatomy.muzzleScale
-        for direction in [CGFloat(-1), CGFloat(1)] {
+        for direction in [CGFloat(-1), CGFloat(1)] where pose.species.traits.whiskers {
             for (index, dropPoint) in [CGFloat(2.4), 0, -2.4].enumerated() {
                 let drop = dropPoint * (muzzleRadii.height / 7.5)
                 let whisker = CGMutablePath()
@@ -648,7 +846,8 @@ struct CatRenderer: PetRenderer {
         }
     }
 
-    private func drawHeadStripes(in context: CGContext, anatomy: CatAnatomy) {
+    private func drawHeadStripes(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        guard pose.species.traits.stripes else { return }
         let scale = anatomy.headScale
         let top = anatomy.headCenter.y + anatomy.headRadius
         context.saveGState()

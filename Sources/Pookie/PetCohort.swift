@@ -7,12 +7,14 @@ import AppKit
 /// plays with whom, and the frame budget they share. A single pet is unaffected —
 /// the cohort does nothing to her that the settings did not ask for.
 final class PetCohort {
-    /// The population the settings offer.
-    static let maximumPets = 10
-    /// Total drawn frames per second, shared evenly across the pets. One cat's
+    /// The population the settings offer. Five is one of each species, which is
+    /// the number that reads as a little gang rather than as a crowd — and five
+    /// at the idle tier is a quarter of the cost of ten.
+    static let maximumPets = 5
+    /// Total drawn frames per second, shared evenly across the pets. One pet's
     /// own tiers sit below this, so the budget only starts to bite at three or
-    /// four; ten cats get 12 fps each, which is the tier a sleeping cat already
-    /// used. Ten cats on this renderer are still ten cats' worth of software
+    /// four; five get 24 fps each, which is the tier a walking cat already uses.
+    /// Five pets on this renderer are still five pets' worth of software
     /// rasterisation — that is the M1 SpriteKit work, not a tuning problem.
     static let totalFrameBudget: Double = 120
 
