@@ -45,9 +45,12 @@ final class PetMotion {
     /// Blink to another display every so often. Only does anything when there is
     /// more than one display to blink to.
     var teleportEnabled = false
+    /// How often she blinks, before the jitter. Set from the settings; the
+    /// jitter is what stops five pets blinking in unison.
+    var teleportCadence: TeleportCadence = .normal
     /// Seconds until the next hop. Re-jittered after each one, and a `var` so the
     /// selftest can pin it.
-    var teleportInSeconds: Double = Rand.double(45...120)
+    var teleportInSeconds: Double = TeleportCadence.normal.seconds * Rand.double(0.65...1.35)
     /// Displays she has blinked to, for the heartbeat and the selftest.
     private(set) var teleportCount = 0
 
@@ -65,6 +68,49 @@ final class PetMotion {
     /// Bouts played, for the heartbeat and the selftest.
     private(set) var playCount = 0
     private var playRetarget: Double = 0
+
+    /// Seconds left in a scuffle: the close-quarters version of playing. Two
+    /// animals who are already next to each other bat at each other instead of
+    /// chasing, which is what "a little fight" looks like.
+    private(set) var scuffleSeconds: Double = 0
+    var isScuffling: Bool { scuffleSeconds > 0 }
+    /// Scraps had, for the heartbeat and the selftest.
+    private(set) var scuffleCount = 0
+
+    /// A scrap is allowed in more situations than a chase: the whole point is
+    /// that it happens between neighbours, including two who were already
+    /// chasing each other a moment ago.
+    var canScuffle: Bool {
+        wanderEnabled && !isDragging && !isAirborne && !isCrouching && !isTalking
+            && !isAsleep && !isScuffling && !isTeleporting
+    }
+
+    /// Start (or extend) a scrap. Returns false when she is in no state for one.
+    @discardableResult
+    func startScuffle(_ seconds: Double) -> Bool {
+        guard canScuffle else { return false }
+        if scuffleSeconds <= 0 { scuffleCount += 1 }
+        scuffleSeconds = max(scuffleSeconds, seconds)
+        // The chase, if there was one, is over: this is the contact version.
+        playSeconds = 0
+        wanderTargetX = nil
+        return true
+    }
+
+    /// A scrap, on the beat: a hop, a hiss, and a fast tail, with the two of them
+    /// holding their ground a paw's length apart. Driven straight off the timer,
+    /// so there is no second animation clock to keep in sync.
+    private func updateScuffle(_ dt: Double) {
+        guard scuffleSeconds > 0 else { return }
+        scuffleSeconds -= dt
+        guard scuffleSeconds > 0 else { return }
+
+        if let rival = nearestCompanion() {
+            let mine = origin.x + size.width / 2
+            let theirs = rival.x + size.width / 2
+            facing = theirs >= mine ? 1 : -1
+        }
+    }
 
     /// Every pet who is in a state to notice another one. The cohort picks its
     /// play pairs from this.
@@ -367,6 +413,7 @@ final class PetMotion {
         }
 
         updatePlay(dt)
+        updateScuffle(dt)
         updateTeleport(dt)
         updateRest(dt)
         updatePose(dt)
@@ -474,19 +521,27 @@ final class PetMotion {
         guard teleportEnabled, desktop.visibleFrames.count > 1 else { return }
         // She does not blink out of your hand, out of mid-air, out of a
         // sentence, out of a nap, or out of a game of chase.
-        guard !isDragging, !isAirborne, !isCrouching, !isTalking, !isAsleep, !isPlaying else { return }
+        guard !isDragging, !isAirborne, !isCrouching, !isTalking, !isAsleep,
+              !isPlaying, !isScuffling else { return }
 
         teleportInSeconds -= dt
         guard teleportInSeconds <= 0 else { return }
-        teleportInSeconds = Rand.double(45...120)
+        rescheduleTeleport()
         beginTeleport()
+    }
+
+    /// Re-roll the blink timer: the next hop lands somewhere inside the cadence
+    /// the settings asked for, not exactly on it.
+    func rescheduleTeleport() {
+        teleportInSeconds = teleportCadence.seconds * Rand.double(0.65...1.35)
     }
 
     /// Start a blink: out, move, in. Returns false when she is in no state to go.
     @discardableResult
     func beginTeleport() -> Bool {
         guard !isTeleporting, desktop.visibleFrames.count > 1 else { return false }
-        guard !isDragging, !isAirborne, !isCrouching, !isTalking, !isAsleep, !isPlaying else { return false }
+        guard !isDragging, !isAirborne, !isCrouching, !isTalking, !isAsleep,
+              !isPlaying, !isScuffling else { return false }
         teleportPhase = .leaving
         teleportProgress = 0
         // She is not walking anywhere: the blink is the locomotion.
@@ -578,7 +633,7 @@ final class PetMotion {
     /// she is being held, in the air, talking, or asleep.
     var canStretch: Bool {
         !isDragging && !isAirborne && !isCrouching && !isTalking && !isAsleep
-            && wanderTargetX == nil && !isPlaying && !isTeleporting
+            && wanderTargetX == nil && !isPlaying && !isTeleporting && !isScuffling
     }
 
     private func updateStretch(_ dt: Double) {
@@ -638,7 +693,7 @@ final class PetMotion {
     /// rather than a state, so she gets up again on her own.
     private func desiredRestingShape() -> CatShape {
         if isDragging || isAirborne || isCrouching || isTalking { return .stand }
-        if wanderTargetX != nil || isPlaying || isTeleporting { return .stand }
+        if wanderTargetX != nil || isPlaying || isTeleporting || isScuffling { return .stand }
         if isAsleep { return .lie }
         if idleSeconds >= sitAfterSeconds { return .sit }
         if perchSeconds >= loafAfterSeconds, perchSeconds < loafAfterSeconds + loafHoldSeconds {
@@ -923,7 +978,7 @@ final class PetMotion {
         // timer. The loaf ends by its own clock (see `desiredRestingShape`), the
         // sit is the run-up to sleep, and a sleeping cat must not stand up and
         // wander off mid-nap.
-        guard !isResting, !isPlaying, !isTeleporting else { return }
+        guard !isResting, !isPlaying, !isTeleporting, !isScuffling else { return }
 
         wanderCountdown -= dt
         guard wanderCountdown <= 0 else { return }
@@ -1040,6 +1095,7 @@ final class PetMotion {
 
         pose.species = species
 
+
         // The blink, as the one number the renderer needs: out is her going, in
         // is her arriving.
         switch teleportPhase {
@@ -1073,6 +1129,17 @@ final class PetMotion {
 
         // Mouth is reserved for M2's speech; idle cats keep it shut.
         pose.mouthOpen *= pow(0.02, dt)
+
+        // The scrap is applied last, on purpose: it is the one thing she does
+        // that has to override the walk cycle and the mouth decay rather than be
+        // composed with them.
+        if isScuffling {
+            // Two beats a second: up on the hop, mouth open on the way down, which
+            // is a cat batting at someone rather than a seizure.
+            let beat = sin(scuffleSeconds * 12)
+            pose.hopOffset = max(pose.hopOffset, CGFloat(max(0, beat)) * 2.4)
+            pose.mouthOpen = max(pose.mouthOpen, CGFloat(max(0, -beat)) * 0.9)
+        }
 
         pose.mood = resolveMood(sleepy: sleepy, airborne: airborne, walking: walking)
         pose.blush = pose.mood == .happy ? min(1, pose.blush + dt * 2) : max(0, pose.blush - dt * 3)
@@ -1174,6 +1241,9 @@ final class PetMotion {
         if airborne && abs(velocity.dy) > 700 { return .alarmed }
         // A cat in a chase is playing, and the happy face already has the ears
         // up, the tail faster and the blush — which is the whole expression.
+        // A scrap is not a happy face: flattened ears, wide eyes and a hiss is
+        // what a small fight looks like on this cat.
+        if isScuffling { return .alarmed }
         if isPlaying { return .happy }
         if sleepy { return .sleepy }
         if let cursor, followCursor {

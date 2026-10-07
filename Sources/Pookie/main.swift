@@ -40,6 +40,14 @@ if arguments.contains("--verbose") {
     Log.verbose = true
 }
 
+// A launch flag is an override for one run, not an edit to the saved settings:
+// without this, `--no-wander` switches wandering off for good.
+let overridesSettings = ["--no-wander", "--no-perch", "--no-jump", "--no-teleport", "--scale", "--at"]
+    .contains { arguments.contains($0) }
+if overridesSettings {
+    AppConfig.shared.persistsChanges = false
+}
+
 // Useful for taking a clean energy reading without the cat ambling around.
 if arguments.contains("--no-wander") {
     AppConfig.shared.wanderEnabled = false

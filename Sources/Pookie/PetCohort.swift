@@ -32,8 +32,13 @@ final class PetCohort {
     var count: Int { pets.count }
     var isHiddenByUser: Bool { pets.first?.isHiddenByUser ?? false }
     var isRaisedAboveEverything: Bool { pets.first?.isRaisedAboveEverything ?? false }
-    /// The pet a producer talks through when it does not name one.
-    var spokespet: PetWindowController? { pets.first }
+    /// The pet a producer talks through when it does not name one: the one the
+    /// menu marks as the default.
+    var spokespet: PetWindowController? {
+        guard !pets.isEmpty else { return nil }
+        let index = min(max(AppConfig.shared.defaultCritter, 0), pets.count - 1)
+        return pets[index]
+    }
 
     /// The shared colony clock, rate-limited here rather than given its own
     /// timer: a colony where every pet is occluded or hidden stops ticking, and
@@ -41,15 +46,32 @@ final class PetCohort {
     private var lastSync: Double = 0
     private static let syncInterval: Double = 0.05
     private var playCountdown: Double = Rand.double(20...50)
+    /// Scraps are more frequent than chases but still not a chained brawl.
+    private var scuffleCooldown: Double = Rand.double(6...16)
 
     // MARK: - Population
 
     @discardableResult
-    func spawn(announce: Bool = true) -> PetWindowController? {
+    func spawn(species: PetSpecies? = nil, announce: Bool = true) -> PetWindowController? {
         guard Self.canAddPet(having: pets.count) else { return nil }
 
+        let config = AppConfig.shared
+        // The saved roster decides what is on the desk; anything past the end of
+        // it is the next animal nobody has yet, which is what makes
+        // `Pookie --pets 5` hand you one of each.
+        let critter: CritterConfig
+        if let species {
+            critter = CritterConfig(species)
+            config.roster.append(critter)
+        } else if pets.count < config.roster.count {
+            critter = config.roster[pets.count]
+        } else {
+            critter = nextCritter()
+            config.roster.append(critter)
+        }
+
         let pet = PetWindowController(
-            skin: nextSkin(),
+            critter: critter,
             personalScale: Rand.double(0.88...1.12),
             startOrigin: homeOrigin(slot: pets.count)
         )
@@ -57,10 +79,10 @@ final class PetCohort {
         pets.append(pet)
         applyColonySettings()
 
-        if announce, AppConfig.shared.chatty {
+        if announce, config.chatty {
             pet.say(PetChatter.arrived(), duration: 1.6)
         }
-        Log.info("pet \(pets.count)/\(Self.maximumPets) up (\(pet.skin.rawValue))")
+        Log.info("pet \(pets.count)/\(Self.maximumPets) up (\(critter.species.name), \(critter.coat.name))")
         return pet
     }
 
@@ -71,16 +93,28 @@ final class PetCohort {
         guard pets.count > 1 else { return false }
         let pet = pets.removeLast()
         pet.close()
+        if AppConfig.shared.roster.count > 1 { AppConfig.shared.roster.removeLast() }
+        AppConfig.shared.defaultCritter = min(
+            AppConfig.shared.defaultCritter,
+            max(0, AppConfig.shared.roster.count - 1)
+        )
         applyColonySettings()
         Log.info("pet removed, \(pets.count)/\(Self.maximumPets) left")
         return true
     }
 
-    /// The first coat nobody is wearing, so a new pet is always a new cat.
-    private func nextSkin() -> CatSkin {
-        let taken = Set(pets.map(\.skin))
-        return CatSkin.allCases.first { !taken.contains($0) }
+    /// The first animal nobody is, in the coat that makes it look like itself —
+    /// so adding a pet adds a *different* pet. Past the five species it falls
+    /// back to the first coat nobody is wearing.
+    private func nextCritter() -> CritterConfig {
+        let speciesInUse = Set(pets.map(\.critter.species))
+        if let species = PetSpecies.allCases.first(where: { !speciesInUse.contains($0) }) {
+            return CritterConfig(species)
+        }
+        let coatsInUse = Set(pets.map(\.critter.coat))
+        let coat = CatSkin.allCases.first { !coatsInUse.contains($0) }
             ?? CatSkin.allCases[pets.count % CatSkin.allCases.count]
+        return CritterConfig(species: .cat, coat: coat)
     }
 
     /// Where a new pet appears, given the desk and the user's chosen start point.
@@ -150,10 +184,46 @@ final class PetCohort {
             pet.motion.companions = others
         }
 
+        // Company close enough to touch is its own trigger: whether they arrived
+        // by chasing each other or by sitting down side by side, two animals this
+        // close will have a go at each other.
+        scuffleCooldown -= elapsed
+        if scuffleCooldown <= 0, startScuffleIfClose() { return }
+
         playCountdown -= elapsed
         guard playCountdown <= 0 else { return }
         playCountdown = Rand.double(20...50)
         startPlayBout()
+    }
+
+    /// Two pets within a paw's length of each other, on the same footing, will
+    /// scrap. Returns true when a bout started, so the caller does not also
+    /// start a chase in the same tick.
+    @discardableResult
+    private func startScuffleIfClose() -> Bool {
+        let ready = pets.filter { $0.motion.canScuffle }
+        guard ready.count >= 2 else { return false }
+
+        for i in ready.indices {
+            for j in ready.indices where j > i {
+                let a = ready[i].motion
+                let b = ready[j].motion
+                guard abs(a.origin.y - b.origin.y) < a.size.height * 0.6 else { continue }
+                guard abs(a.origin.x - b.origin.x) < a.personalSpace * 1.35 else { continue }
+
+                let bout = Rand.double(1.4...2.6)
+                guard a.startScuffle(bout) else { continue }
+                b.startScuffle(bout * Rand.double(0.8...1.2))
+                scuffleCooldown = Rand.double(8...20)
+                // One of them says something, once.
+                if AppConfig.shared.chatty, Rand.bool(0.7) {
+                    ready[i].say(PetChatter.scuffling(), duration: 1.3)
+                }
+                Log.debug("scuffle between \(ready[i].critter.species.rawValue) and \(ready[j].critter.species.rawValue)")
+                return true
+            }
+        }
+        return false
     }
 
     /// Pick two pets who could plausibly notice each other, and let them chase.
@@ -195,6 +265,33 @@ final class PetCohort {
 
     func applyPetScale() {
         for pet in pets { pet.applyPetScale() }
+    }
+
+    /// Re-roll every pet's blink timer after the cadence setting moved.
+    func applyTeleportCadence() {
+        for pet in pets {
+            pet.motion.teleportCadence = AppConfig.shared.teleportCadence
+            pet.motion.rescheduleTeleport()
+        }
+    }
+
+    func setTeleporting(_ enabled: Bool) {
+        for pet in pets { pet.motion.teleportEnabled = enabled }
+    }
+
+    /// Change what one pet is, and remember it.
+    func setCritter(_ critter: CritterConfig, at index: Int) {
+        guard pets.indices.contains(index) else { return }
+        pets[index].apply(critter: critter)
+        if AppConfig.shared.roster.indices.contains(index) {
+            AppConfig.shared.roster[index] = critter
+        }
+    }
+
+    /// Make one pet the one that answers producers.
+    func makeDefault(index: Int) {
+        guard pets.indices.contains(index) else { return }
+        AppConfig.shared.defaultCritter = index
     }
 
     func setHidden(_ hidden: Bool) {

@@ -19,8 +19,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Log.verbose = AppConfig.shared.verboseLogging
         let colony = PetCohort()
         cohort = colony
-        let wanted = max(1, min(PetCohort.maximumPets, AppConfig.shared.startPets))
-        for _ in 0..<wanted { colony.spawn(announce: false) }
+        // The saved roster is what loads; `--pets N` overrides the headcount for
+        // one run without touching it.
+        let wanted = AppConfig.shared.startPets ?? AppConfig.shared.roster.count
+        for _ in 0..<max(1, min(PetCohort.maximumPets, wanted)) {
+            colony.spawn(announce: false)
+        }
         installStatusItem()
         installHotKeys()
         installSayBridge()
@@ -109,25 +113,101 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         teleport.state = AppConfig.shared.teleportEnabled ? .on : .off
         teleport.isEnabled = NSScreen.screens.count > 1
         teleport.toolTip = teleport.isEnabled
-            ? "Blink to another display every minute or so"
+            ? "Blink to another display every so often"
             : "Needs a second display"
         menu.addItem(teleport)
 
+        let cadenceItem = NSMenuItem(title: "Teleport every", action: nil, keyEquivalent: "")
+        cadenceItem.indentationLevel = 1
+        let cadenceMenu = NSMenu()
+        for cadence in TeleportCadence.allCases {
+            let item = NSMenuItem(title: cadence.label, action: #selector(selectCadence(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = cadence.rawValue
+            item.state = AppConfig.shared.teleportCadence == cadence ? .on : .off
+            cadenceMenu.addItem(item)
+        }
+        cadenceItem.submenu = cadenceMenu
+        menu.addItem(cadenceItem)
+
         menu.addItem(.separator())
 
-        let addPet = NSMenuItem(
+        let addItem = NSMenuItem(
             title: pets >= PetCohort.maximumPets
-                ? "Add a cat (\(PetCohort.maximumPets) is the limit)"
-                : "Add a cat",
-            action: #selector(addPet),
-            keyEquivalent: "n"
+                ? "Add a critter (\(PetCohort.maximumPets) is the limit)"
+                : "Add a critter",
+            action: nil,
+            keyEquivalent: ""
         )
-        addPet.target = self
-        menu.addItem(addPet)
+        let addMenu = NSMenu()
+        for species in PetSpecies.allCases {
+            let item = NSMenuItem(title: species.name, action: #selector(addCritter(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = species.rawValue
+            addMenu.addItem(item)
+        }
+        addItem.submenu = addMenu
+        menu.addItem(addItem)
 
-        let removePet = NSMenuItem(title: "Remove a cat", action: #selector(removePet), keyEquivalent: "")
+        let removePet = NSMenuItem(title: "Remove a critter", action: #selector(removePet), keyEquivalent: "")
         removePet.target = self
         menu.addItem(removePet)
+
+        // Who is on the desk, and what each of them is. This is the answer to
+        // "which pookie do I want loaded, and how should it look".
+        let defaultIndex = AppConfig.shared.defaultCritter
+        let crittersItem = NSMenuItem(title: "Critters", action: nil, keyEquivalent: "")
+        let crittersMenu = NSMenu()
+        for (index, pet) in (cohort?.pets ?? []).enumerated() {
+            let title = "\(index + 1). \(pet.critter.species.name) · \(pet.critter.coat.name)"
+                + (index == defaultIndex ? "  (default)" : "")
+            let entry = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let submenu = NSMenu()
+
+            let speciesHeader = NSMenuItem(title: "Kind", action: nil, keyEquivalent: "")
+            speciesHeader.isEnabled = false
+            submenu.addItem(speciesHeader)
+            for species in PetSpecies.allCases {
+                let item = NSMenuItem(title: species.name, action: #selector(selectSpecies(_:)), keyEquivalent: "")
+                item.target = self
+                item.tag = index
+                item.representedObject = species.rawValue
+                item.state = pet.critter.species == species ? .on : .off
+                item.indentationLevel = 1
+                submenu.addItem(item)
+            }
+
+            submenu.addItem(.separator())
+            let coatHeader = NSMenuItem(title: "Coat", action: nil, keyEquivalent: "")
+            coatHeader.isEnabled = false
+            submenu.addItem(coatHeader)
+            for coat in CatSkin.allCases {
+                let item = NSMenuItem(title: coat.name, action: #selector(selectCoat(_:)), keyEquivalent: "")
+                item.target = self
+                item.tag = index
+                item.representedObject = coat.rawValue
+                item.state = pet.critter.coat == coat ? .on : .off
+                item.indentationLevel = 1
+                submenu.addItem(item)
+            }
+
+            submenu.addItem(.separator())
+            let makeDefault = NSMenuItem(
+                title: "Answer for Pookie",
+                action: #selector(makeDefaultCritter(_:)),
+                keyEquivalent: ""
+            )
+            makeDefault.target = self
+            makeDefault.tag = index
+            makeDefault.state = index == defaultIndex ? .on : .off
+            makeDefault.toolTip = "The one that speaks when a producer sends her a line"
+            submenu.addItem(makeDefault)
+
+            entry.submenu = submenu
+            crittersMenu.addItem(entry)
+        }
+        crittersItem.submenu = crittersMenu
+        menu.addItem(crittersItem)
 
         menu.addItem(.separator())
 
@@ -267,14 +347,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleTeleport() {
         AppConfig.shared.teleportEnabled.toggle()
-        for pet in cohort?.pets ?? [] {
-            pet.motion.teleportEnabled = AppConfig.shared.teleportEnabled
-        }
+        cohort?.setTeleporting(AppConfig.shared.teleportEnabled)
         rebuildMenu()
     }
 
-    @objc private func addPet() {
-        cohort?.spawn()
+    @objc private func addCritter(_ sender: NSMenuItem) {
+        let raw = sender.representedObject as? String ?? ""
+        cohort?.spawn(species: PetSpecies(rawValue: raw))
+        rebuildMenu()
+    }
+
+    @objc private func selectSpecies(_ sender: NSMenuItem) {
+        guard let pet = cohort?.pets[safe: sender.tag],
+              let raw = sender.representedObject as? String,
+              let species = PetSpecies(rawValue: raw) else { return }
+        cohort?.setCritter(CritterConfig(species: species, coat: pet.critter.coat), at: sender.tag)
+        rebuildMenu()
+    }
+
+    @objc private func selectCoat(_ sender: NSMenuItem) {
+        guard let pet = cohort?.pets[safe: sender.tag],
+              let raw = sender.representedObject as? String,
+              let coat = CatSkin(rawValue: raw) else { return }
+        cohort?.setCritter(CritterConfig(species: pet.critter.species, coat: coat), at: sender.tag)
+        rebuildMenu()
+    }
+
+    @objc private func makeDefaultCritter(_ sender: NSMenuItem) {
+        cohort?.makeDefault(index: sender.tag)
+        rebuildMenu()
+    }
+
+    @objc private func selectCadence(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let cadence = TeleportCadence(rawValue: raw) else { return }
+        AppConfig.shared.teleportCadence = cadence
+        cohort?.applyTeleportCadence()
         rebuildMenu()
     }
 
@@ -346,7 +454,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let pets = cohort.pets.map { pet -> String in
             let motion = pet.motion
             let perch = motion.supportPlatform().map { "\($0.ownerName)#\($0.windowNumber)" } ?? "floor"
-            return "\(pet.skin.rawValue)@\(NSStringFromPoint(motion.origin)) "
+            return "\(pet.critter.species.rawValue)/\(pet.critter.coat.rawValue)@\(NSStringFromPoint(motion.origin)) "
                 + "\(motion.pose.mood.rawValue)/\(motion.shape.rawValue) perch=\(perch)"
                 + (motion.isPlaying ? " playing" : "")
         }
@@ -375,8 +483,24 @@ extension AppDelegate: NSMenuItemValidation {
         if menuItem.action == #selector(selectScale(_:)), let raw = menuItem.representedObject as? String {
             menuItem.state = AppConfig.shared.petScale.rawValue == raw ? .on : .off
         }
-        if menuItem.action == #selector(addPet) {
+        if menuItem.action == #selector(addCritter(_:)) {
             return PetCohort.canAddPet(having: cohort?.count ?? 0)
+        }
+        if menuItem.action == #selector(selectSpecies(_:)),
+           let pet = cohort?.pets[safe: menuItem.tag],
+           let raw = menuItem.representedObject as? String {
+            menuItem.state = pet.critter.species.rawValue == raw ? .on : .off
+        }
+        if menuItem.action == #selector(selectCoat(_:)),
+           let pet = cohort?.pets[safe: menuItem.tag],
+           let raw = menuItem.representedObject as? String {
+            menuItem.state = pet.critter.coat.rawValue == raw ? .on : .off
+        }
+        if menuItem.action == #selector(makeDefaultCritter(_:)) {
+            menuItem.state = menuItem.tag == AppConfig.shared.defaultCritter ? .on : .off
+        }
+        if menuItem.action == #selector(selectCadence(_:)), let raw = menuItem.representedObject as? String {
+            menuItem.state = AppConfig.shared.teleportCadence.rawValue == raw ? .on : .off
         }
         if menuItem.action == #selector(removePet) {
             return (cohort?.count ?? 0) > 1

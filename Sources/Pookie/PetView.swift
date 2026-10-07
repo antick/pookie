@@ -141,6 +141,13 @@ final class PetView: NSView {
         }
     }
 
+    /// Forget the cached silhouette. Changing what an animal *is* — its species
+    /// or its coat — changes the shape the mouse pass-through tests against, and
+    /// the cache would otherwise be a half second stale.
+    func invalidateMask() {
+        mask = nil
+    }
+
     /// Re-sync the cached pass-through state after the mode changes out from
     /// under the frame pump.
     func syncMouseState() {

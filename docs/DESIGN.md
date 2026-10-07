@@ -213,8 +213,9 @@ the `idle` state, each with its own cooldown and randomization:
 | Ear twitch | every 8–20 s | Triggered by sharp sounds later (M6) |
 | Look-at-cursor | when idle, cursor within a radius | Reuses `lookAt`; includes a small head-lead bias |
 | Wander | every 20–60 s | `moveTo` a waypoint inside the current screen's edge band. Suppressed while she is settled into a rest shape, so the sit before sleep is not interrupted by a stroll |
-| Teleport to another display | every 45–120 s, when there is more than one display and the setting is on | The only way a pet on a two-monitor desk ever uses the second monitor. **Staged in two halves**: she spins down into a poof of light and her own fur (0.5 s), the hop happens while she is off screen, and she spins back in with a landing squash (0.5 s). She arrives *from above*, so a window top under her becomes the ground she lands on rather than something she appears in front of. Suppressed while you are holding her, mid-air, mid-sentence, asleep or mid-chase — and grabbing her mid-blink cancels it, because the user's hand outranks an effect in progress |
-| Company | continuous, when other cats are near | Two cats converging on one pixel read as one buggy cat, so each steps out of the other's way. The push is positional and decays to zero at one personal space, so they settle apart instead of springing at each other forever, and it only applies between cats on the same footing — one on a ledge and one on the floor are not stacked |
+| Teleport to another display | a jittered 1–30 minutes (a setting), when there is more than one display and the setting is on | The only way a pet on a two-monitor desk ever uses the second monitor. **Staged in two halves**: she spins down into a poof of light and her own fur (0.5 s), the hop happens while she is off screen, and she spins back in with a landing squash (0.5 s). She arrives *from above*, so a window top under her becomes the ground she lands on rather than something she appears in front of. Suppressed while you are holding her, mid-air, mid-sentence, asleep or mid-chase — and grabbing her mid-blink cancels it, because the user's hand outranks an effect in progress |
+| Scrap | when two pets are within a paw's length, every 8–20 s | The close-quarters version of playing: flattened ears, a hop, a hiss on the way down, one indignant bubble, 1.4–2.6 s. A chase that closes the distance becomes one, which is what makes "they fight a little when they are close" fall out of the same rule as the chase rather than being a third scheduler |
+| Company | continuous, when other pets are near | Two cats converging on one pixel read as one buggy cat, so each steps out of the other's way. The push is positional and decays to zero at one personal space, so they settle apart instead of springing at each other forever, and it only applies between cats on the same footing — one on a ledge and one on the floor are not stacked |
 | Play | every 20–50 s, when two cats are awake on the same display | A jittered 2–5 s chase: aim at the playmate through the ordinary wander channel, re-aimed every 0.3 s, wearing the happy face. Refused while asleep, held, mid-air or mid-sentence, and behind the same "Wander around" switch as any other unprompted walking. One cat of the pair says a line, not both |
 | Perch | on landing above a window top | One-way platform: a window top is a floor only if she is already above it. She rides a dragged window and falls off the end |
 | Jump to a ledge | every 12–32 s, or 3–8 s if nothing was in reach | She gathers, leaps onto a reachable window top, and climbs from one window to a higher one. Suppressed during a sentence, while asleep, and by the menu toggle |
@@ -281,6 +282,15 @@ to keep in sync with the body. This is also the piece of M1's "explicit animatio
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
 
+**A species is a table as well** (`PetSpecies`, `SpeciesTraits`). Five animals share one skeleton:
+each species supplies proportions (scaled about the ground line, so nobody floats) and appendages —
+four ear shapes, three tail shapes, and flags for whiskers, markings, eye patches and dark limbs. The
+whole behaviour layer, and every animation in this section, belongs to all five without a line of new
+behaviour. Two constraints the envelope test enforced: a tall-eared animal is *smaller* rather than
+given a taller window (a taller window is a longer ledge it no longer fits on), and a thick tail has
+to be *lifted*, because a stroked curve half a brush wider than a cat's hangs below the ground line it
+is resting on.
+
 **The teleport blink is the same trick again**, and the reason it is a transform rather than a
 sprite flip: `CatPose.vanish` is one number, the behaviour plays it 0 → 1, moves her, then 1 → 0, and
 the renderer spins her down to nothing on the way. Two constraints shaped it, both discovered by the
@@ -341,14 +351,14 @@ while idle and visible**, effectively 0% while occluded.
 Tier transitions are hysteresis-based. A pet at the boundary between "idle" and "active" must not
 oscillate between 12 and 30 fps every frame.
 
-**Many cats share one budget.** The population is capped at ten (`PetCohort`), and the frame rates are
+**Many pets share one budget.** The population is capped at five (`PetCohort`) — one of each species,
+which is the number that reads as a little gang rather than as a crowd — and the frame rates are
 divided rather than multiplied: `totalFrameBudget` is 120 drawn frames per second for the whole
-colony, so a single pet is unaffected by it and ten get 12 fps each — the tier a sleeping cat already
-used. An occluded pet pauses outright, so a colony behind a fullscreen app costs nothing. Measured on
-a 3840x1620 display while idle: one cat ≈ 7% CPU / 52 MB, three ≈ 17% / 59 MB, ten ≈ 25% / 71 MB.
-Ten cats therefore cost about 3.4x one rather than 10x — and the remaining absolute cost is the
-software rasterisation M1 exists to remove, multiplied by ten. This is the honest reason the cap is a
-cap.
+colony, so a single pet is unaffected by it and five get 24 fps each, the tier a walking cat already
+uses. An occluded pet pauses outright, so a colony behind a fullscreen app costs nothing. Measured on
+a 3840x1620 display while idle: one pet ≈ 7% CPU / 52 MB, three ≈ 13% / 56 MB, five ≈ 17% / 60 MB.
+Five therefore cost about 2.4x one rather than 5x — and the remaining absolute cost is the software
+rasterisation M1 exists to remove, multiplied by five. This is the honest reason the cap is a cap.
 
 ---
 
@@ -436,6 +446,15 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   because "small" and "chatty" are properties of the desk rather than of one cat out of five.
   Everything that maps a design point to the screen is per-pet (`PetMotion.windowOrigin`), which is
   why ten windows can share one renderer without any of them disagreeing about where their cat is.
+- **Five species, and a roster you own** (`PetSpecies`, `CritterConfig`, `AppConfig.roster`). The desk
+  can hold one of each animal — cat, bunny, puppy, fox, panda — and the menu decides which, in which
+  coat, and which one answers producers. The roster, the size, the switches and the teleport cadence
+  persist in `UserDefaults`; launch flags are one-run overrides and deliberately do *not* write to it,
+  because a debugging flag that silently rewrites the saved settings is a bug the user cannot see.
+- **Scuffles** (`PetMotion.startScuffle`). Two pets within a paw's length have a 1.4–2.6 second scrap
+  — flattened ears, a hop, a hiss, one bubble — and because the trigger is "close", a chase that closes
+  the distance turns into one for free. It is the same separation rule keeping them a paw apart while
+  they bat at each other.
 - **The teleport has an effect** (`CatPose.vanish`, `CatGeometry.vanishTransform`). Leaving and
   arriving are separate animations rather than one teleport mark on the position: she spins down to
   nothing in a poof of light and fur, the hop happens off screen, and she spins back in. The whole

@@ -4,8 +4,9 @@ A cat that lives on your screen. Transparent, always on top, rides every Space, 
 focus**. She breathes, blinks, watches your cursor, wanders, sits, tucks her paws under into a loaf,
 dozes off, and stretches when she wakes — and she can be picked up and thrown, lands on the top edges
 of your windows, **jumps up onto them by herself**, climbs from one window to a higher one, rides them
-when you drag them, and talks in a speech bubble. Ask for more of her and you get a **colony of up to
-ten**, each a different cat, running around and chasing each other.
+when you drag them, and talks in a speech bubble. Ask for more and you get a **menagerie of up to
+five** — a cat, a bunny, a puppy, a fox and a panda — running around, chasing each other, and having
+the occasional undignified scuffle.
 
 ![Pookie pose sheet](shots/poses.png)
 
@@ -23,6 +24,11 @@ are not sprites — every shape is a table of anchors, and the renderer draws th
 she eases down into a loaf instead of cutting to one. See
 [`CatAnatomy.swift`](Sources/Pookie/CatAnatomy.swift). Row 6 is the teleport blink, drawn from the
 same one number the behaviour plays.
+
+A species is a table too. Every animal shares that skeleton and those animations, and differs only in
+its proportions and appendages — so all five perch, jump, loaf, stretch and blink identically:
+
+![Five species](shots/species.png)
 
 ![Pookie talking on the desktop](shots/talking.png)
 
@@ -93,8 +99,9 @@ Global hotkeys, **no Accessibility or Input Monitoring permission required**:
 | `control-option-T` | Say hello (test the speech bubble) |
 | `control-option-M` | Mute / unmute her reactions |
 
-The pawprint in the menu bar has the rest: **size** (small, medium, large, extra large),
-**teleport between displays**, **add a cat** / **remove a cat**, mouse mode, wander, cursor tracking,
+The pawprint in the menu bar has the rest: **size** (small to extra large), **teleport between
+displays** and **teleport every** (1–30 minutes), **add a critter** / **remove a critter**,
+**Critters** (each pet's kind, coat and who answers for Pookie), mouse mode, wander, cursor tracking,
 sit-on-windows, jump-onto-windows, speech, hide-from-screen-sharing, float above fullscreen apps, and
 quit. A pet you cannot easily quit is a pet you will resent.
 
@@ -115,33 +122,53 @@ off the floor line, at every size setting.
 Click-through is a real toggle, and it matters: in the default mode she is transparent to the mouse
 in the gaps around her body, so she never blocks a click on the window behind.
 
-## More than one cat
+## More than one critter
 
-The menu bar has **Add a cat** and **Remove a cat**, and `Pookie --pets 5` starts with five. Ten is
-the cap, and every cat is a different cat: ten coats — tabby, midnight, tuxedo, ginger, cream, calico,
-siamese, grey, chocolate, snow — and a personal size between kitten and grown, so a litter never reads
-as one cat drawn five times.
+The menu bar has **Add a critter ▸** (pick the animal) and **Remove a critter**, and `Pookie --pets 5`
+starts with five. Five is the cap — one of each animal — and there are five to choose from:
 
-![Ten Pookie coats](shots/ten-cats.png)
+| Animal | What makes it read | Its coat |
+|---|---|---|
+| **Cat** | the original, unchanged | Tabby |
+| **Bunny** | tall pink-lined ears on a small round body, cotton tail | Snow |
+| **Puppy** | big floppy ears that hang, wide muzzle, curled tail | Chocolate |
+| **Fox** | sharp dark-tipped ears, a thick brush with a white tip | Ginger |
+| **Panda** | black ears, eye patches and paws on a white body | Panda |
 
-They have everything the first cat has — perching, jumping, teleporting, loafing, stretching — and
-they know where each other are. Two cats who end up on the same spot step apart rather than stacking,
-and every so often two of them on the same display notice each other and start a chase: a jittered
-2–5 second bout, running at each other, wearing the happy face, with one of them saying "mrrp!!".
-No cat perches on another cat.
+**Critters ▸** in the menu is where you decide what is on the desk: for each pet, pick its **kind** and
+its **coat** (eleven of them, and any animal can wear any coat), and mark one as the one that
+**answers for Pookie** — the pet a producer's line goes to. Those choices are saved, so the menagerie
+you build is the menagerie that loads next time, along with the size, the switches and the teleport
+cadence. Launch flags (`--no-wander`, `--scale`, …) are overrides for one run and never rewrite what
+you saved.
 
-Ten cats are real work. They share one frame budget — 120 drawn frames per second between them, so a
-single cat is unaffected and ten get 12 fps each — and an occluded cat stops entirely. The honest
-numbers on this renderer (software Core Graphics, a 3840x1620 display):
+They all have everything the first cat has — perching, jumping, teleporting, loafing, stretching — and
+they know where each other are. Two who end up on the same spot step apart rather than stacking. When
+two of them get close, they **have a go at each other**: a 1.4–2.6 second scrap with flattened ears,
+wide eyes, a hop, a hiss on the way down and one indignant bubble. When they are further apart one
+**chases** the other instead — a 2.5–5 second bout at a run, wearing the happy face — and a chase that
+closes the distance turns into a scrap. No animal perches on another animal.
 
-| Cats | CPU, idle | RSS |
+Five critters are real work. They share one frame budget — 120 drawn frames per second between them, so
+one pet is unaffected and five get 24 fps each — and an occluded pet stops entirely. The honest numbers
+on this renderer (software Core Graphics, a 3840x1620 display):
+
+| Critters | CPU, idle | RSS |
 |---:|---:|---:|
 | 1 | ~7% | 52 MB |
-| 3 | ~17% | 59 MB |
-| 10 | ~25% | 71 MB |
+| 3 | ~13% | 56 MB |
+| 5 | ~17% | 60 MB |
 
-That is 3.4x the cost of one cat rather than 10x, and the remaining cost is the same M1 problem the
+That is 2.4x the cost of one pet rather than 5x, and the remaining cost is the same M1 problem the
 first cat already had: the fix is the SpriteKit renderer, not a smaller cap.
+
+### Teleporting
+
+Off with one display, and nothing happens unless you leave it on. With two or more, each pet waits a
+jittered interval — **Teleport every** in the menu sets the cadence to 1, 2, 5, 10 or 30 minutes — then
+spins down into a small poof of warm light and its own fur, and reappears somewhere on another display.
+Leaving and arriving are separate animations, with the hop itself happening while the animal is not on
+screen to see it. The jitter is what stops five of them blinking in unison.
 
 ## Talking to her
 
@@ -241,7 +268,17 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 227 headless checks, including:
+runs 252 headless checks, including:
+
+- **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
+  mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,
+  its own proportions and a coat nobody else is wearing. This is what caught a panda whose body grew
+  through the floor and a fox whose brush swung off the side of the world;
+- **scuffles**: that a scrap hops, hisses, faces the rival and wears the flattened-ear face, that it
+  ends on its own, and that a sleeping or held animal will not be drawn into one;
+- **the settings**: the teleport cadence offers minutes and lands where it says, and the roster
+  survives being written to the settings store and read back — including dropping a corrupt entry
+  rather than guessing at it;
 
 - the `CGBitmapContext` row order, probed at runtime rather than assumed;
 - **the teleport blink**: it leaves before it moves — half way out she is part way gone and has not
@@ -321,11 +358,13 @@ now smoothed in screen space and converted once on the way into the pose, which 
 on the pointer *through* a turn instead of sweeping across it. The selftest drives both halves: the
 behaviour, and the renderer's mirror.
 
-And there is **more than one of her**. Up to ten cats live under one shared budget, each with her own
-coat and size, each with every capability the first cat has, stepping out of each other's way and
-occasionally chasing each other across a display. That is the in-process half of M8's `spawn` /
-`despawn`; the wire protocol will be able to drive it for free once M3 lands, because the verbs
-already exist on paper.
+And there is **more than one of her** — in fact more than one *animal*. Up to five critters live
+under one shared budget: a cat, a bunny, a puppy, a fox and a panda, each with its own coat and size,
+each with every capability the first cat has, stepping out of each other's way, chasing each other
+across a display and having the occasional scrap when they get close. What is on the desk, what each
+one is, and how often they blink between displays are all settings, and they are saved between
+launches. That is the in-process half of M8's `spawn` / `despawn`; the wire protocol will be able to
+drive it for free once M3 lands, because the verbs already exist on paper.
 
 Next is **M1**: SpriteKit renderer, cached geometry, and the remaining animation states. Then
 the rest of M2 (preemption stack, attention budget, streaming from the wire), M3 (the CLI control

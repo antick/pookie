@@ -191,6 +191,19 @@ enum PetChatter {
         ].randomElement() ?? "mrrp!"
     }
 
+    /// Mid-scrap. Short, indignant, and only ever one bubble between the two of
+    /// them.
+    static func scuffling() -> String {
+        [
+            "mrrp!!",
+            "hsss!",
+            "*bap*",
+            "hey!",
+            "!!",
+            "hisss",
+        ].randomElement() ?? "mrrp!!"
+    }
+
     /// Mid-chase. One line per bout, not one per cat: two bubbles at once is the
     /// noise the speech rules exist to prevent.
     static func playing() -> String {

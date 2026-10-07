@@ -104,6 +104,17 @@ extension CGRect {
     var center: CGPoint { CGPoint(x: midX, y: midY) }
 }
 
+extension Collection {
+    /// The element at `index`, or nil when it is out of bounds.
+    ///
+    /// Menu items carry an index into the colony and can outlive the pet they
+    /// point at — the menu is rebuilt on every action, but validation walks it
+    /// first.
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+}
+
 /// A screen's usable region (excludes the menu bar and the Dock).
 struct Desktop {
     var visibleFrames: [CGRect]

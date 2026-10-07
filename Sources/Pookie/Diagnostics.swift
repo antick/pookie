@@ -914,6 +914,45 @@ enum Diagnostics {
         check(!nowhere.beginTeleport(), "with one display there is nowhere to blink to")
 
         print("")
+        print("scuffles")
+        let scuffleDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
+        // The close-quarters version of playing: two animals who are already next
+        // to each other bat at each other instead of chasing.
+        let scrappy = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        scrappy.followCursor = false
+        let rival = CGPoint(x: 300 + scrappy.personalSpace * 0.9, y: 0)
+        scrappy.companions = [rival]
+        check(!scrappy.isScuffling, "she is not scrapping to start with")
+        check(scrappy.startScuffle(2), "a scrap can start")
+        check(scrappy.isScuffling, "and then she is scrapping")
+
+        var sawHop = false
+        var sawHiss = false
+        for _ in 0..<90 {
+            scrappy.companions = [rival]
+            scrappy.advance(dt: 1.0 / 60.0)
+            if scrappy.pose.hopOffset > 0.5 { sawHop = true }
+            if scrappy.pose.mouthOpen > 0.3 { sawHiss = true }
+        }
+        check(sawHop, "she hops at her rival")
+        check(sawHiss, "and hisses at her")
+        check(scrappy.pose.mood == .alarmed, "wearing the flattened-ear face while she does it")
+        check(scrappy.facingDirection > 0, "and facing her, who is to her right")
+        run(scrappy, 2)
+        check(!scrappy.isScuffling, "the scrap ends on its own")
+
+        let dozing = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        dozing.followCursor = false
+        dozing.sleepAfterSeconds = 1
+        run(dozing, 2)
+        check(dozing.isAsleep && !dozing.startScuffle(2), "a sleeping animal does not get up to fight")
+
+        let cradled = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        cradled.followCursor = false
+        cradled.beginDrag(at: CGPoint(x: 300, y: 0))
+        check(!cradled.startScuffle(2), "and she does not fight out of your hand")
+
+        print("")
         print("a colony of cats")
         // Ten coats, all different: two identical cats on one desk read as a
         // rendering bug rather than as two pets.
@@ -964,6 +1003,55 @@ enum Diagnostics {
             PetCohort.homeOrigin(slot: $0, region: desk, size: petSize, start: nil).x
         }
         check(Set(crowded).count == PetCohort.maximumPets, "the whole colony arrives in different places")
+
+        // How often a pet blinks is a setting, and the jitter is what keeps five
+        // of them from blinking in unison.
+        check(
+            TeleportCadence.allCases.map(\.minutes) == [1, 2, 5, 10, 30],
+            "the cadence menu offers minutes, not milliseconds"
+        )
+        let patient = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: twinDesk)
+        patient.followCursor = false
+        patient.teleportCadence = .rare
+        patient.rescheduleTeleport()
+        check(
+            patient.teleportInSeconds >= TeleportCadence.rare.seconds * 0.65
+                && patient.teleportInSeconds <= TeleportCadence.rare.seconds * 1.35,
+            "and a pet's next blink lands inside the cadence it was given"
+        )
+
+        // The roster is what "load these pookies" means, so it survives a round
+        // trip through the settings store.
+        let roster: [CritterConfig] = [
+            CritterConfig(species: .cat, coat: .tabby),
+            CritterConfig(.panda),
+            CritterConfig(species: .fox, coat: .midnight),
+        ]
+        let decoded = roster.map(\.encoded).compactMap(CritterConfig.init(encoded:))
+        check(decoded == roster, "the roster survives being written down and read back")
+        check(CritterConfig(encoded: "bunny:snow")?.species == .bunny, "a saved animal keeps its species")
+        check(CritterConfig(encoded: "nonsense") == nil, "and a corrupt one is dropped rather than guessed at")
+
+        // Five species, five shapes: nobody is wearing anyone else's silhouette.
+        let silhouettes = PetSpecies.allCases.map { species -> String in
+            let anatomy = CatAnatomy.stand.wearing(species.traits)
+            return String(
+                format: "%.1f/%.1f/%.1f",
+                anatomy.headRadius, anatomy.bodyRadii.width, anatomy.pawOffsetX
+            )
+        }
+        check(Set(silhouettes).count == PetSpecies.allCases.count, "every species has its own proportions")
+        check(
+            Set(PetSpecies.allCases.map(\.defaultCoat)).count == PetSpecies.allCases.count,
+            "and a coat of its own to be recognised by"
+        )
+        for species in PetSpecies.allCases {
+            let anatomy = CatAnatomy.stand.wearing(species.traits)
+            check(
+                abs(anatomy.groundContact - CatGeometry.feetY) < 1.0,
+                "\(species.name) stands on the ground line (contact y=\(String(format: "%.1f", anatomy.groundContact)))"
+            )
+        }
 
         // Two cats converging on one spot read as one buggy cat, so they step
         // apart — positionally, so they settle instead of springing forever.
