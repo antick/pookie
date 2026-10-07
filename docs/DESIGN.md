@@ -213,7 +213,7 @@ the `idle` state, each with its own cooldown and randomization:
 | Ear twitch | every 8–20 s | Triggered by sharp sounds later (M6) |
 | Look-at-cursor | when idle, cursor within a radius | Reuses `lookAt`; includes a small head-lead bias |
 | Wander | every 20–60 s | `moveTo` a waypoint inside the current screen's edge band. Suppressed while she is settled into a rest shape, so the sit before sleep is not interrupted by a stroll |
-| Teleport to another display | every 45–120 s, when there is more than one display and the setting is on | The only way a pet on a two-monitor desk ever uses the second monitor. She arrives *from above*, so a window top under her becomes the ground she lands on rather than something she appears in front of. Suppressed while you are holding her, mid-air, mid-sentence, or asleep |
+| Teleport to another display | every 45–120 s, when there is more than one display and the setting is on | The only way a pet on a two-monitor desk ever uses the second monitor. **Staged in two halves**: she spins down into a poof of light and her own fur (0.5 s), the hop happens while she is off screen, and she spins back in with a landing squash (0.5 s). She arrives *from above*, so a window top under her becomes the ground she lands on rather than something she appears in front of. Suppressed while you are holding her, mid-air, mid-sentence, asleep or mid-chase — and grabbing her mid-blink cancels it, because the user's hand outranks an effect in progress |
 | Company | continuous, when other cats are near | Two cats converging on one pixel read as one buggy cat, so each steps out of the other's way. The push is positional and decays to zero at one personal space, so they settle apart instead of springing at each other forever, and it only applies between cats on the same footing — one on a ledge and one on the floor are not stacked |
 | Play | every 20–50 s, when two cats are awake on the same display | A jittered 2–5 s chase: aim at the playmate through the ordinary wander channel, re-aimed every 0.3 s, wearing the happy face. Refused while asleep, held, mid-air or mid-sentence, and behind the same "Wander around" switch as any other unprompted walking. One cat of the pair says a line, not both |
 | Perch | on landing above a window top | One-way platform: a window top is a floor only if she is already above it. She rides a dragged window and falls off the end |
@@ -280,6 +280,16 @@ mouth and the squint are the renderer's reading of that weight, so there is no s
 to keep in sync with the body. This is also the piece of M1's "explicit animation state machine"
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
+
+**The teleport blink is the same trick again**, and the reason it is a transform rather than a
+sprite flip: `CatPose.vanish` is one number, the behaviour plays it 0 → 1, moves her, then 1 → 0, and
+the renderer spins her down to nothing on the way. Two constraints shaped it, both discovered by the
+art-envelope test rather than by taste. A full turn at full size sweeps her head through the ground
+line, so the spin is a quarter turn and the shrink leads it — the further the turn has gone, the
+smaller she must be, and a bigger turn reaches its dangerous angle sooner, which costs her
+visibility. The poof (two rings and seven sparks) is bounded to the same stage: the first version
+threw fur below the floor line and `--selftest` failed on the pixels, which is exactly what that
+sweep is for.
 
 ---
 
@@ -426,6 +436,11 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   because "small" and "chatty" are properties of the desk rather than of one cat out of five.
   Everything that maps a design point to the screen is per-pet (`PetMotion.windowOrigin`), which is
   why ten windows can share one renderer without any of them disagreeing about where their cat is.
+- **The teleport has an effect** (`CatPose.vanish`, `CatGeometry.vanishTransform`). Leaving and
+  arriving are separate animations rather than one teleport mark on the position: she spins down to
+  nothing in a poof of light and fur, the hop happens off screen, and she spins back in. The whole
+  effect is one pose number, and the art-envelope check sweeps it at twenty-five steps because it is
+  the only pose the deformation limits do not cover (§7).
 
 ### Deferred, with the milestone that owns it
 

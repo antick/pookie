@@ -58,19 +58,35 @@ enum Diagnostics {
                 inkByShape[shape]?.count ?? 0
             ))
         }
-        let envelope = CatShape.allCases.reduce(CGRect.null) { union, shape in
+        var shapeEnvelopes: [CatShape: CGRect] = [:]
+        for shape in CatShape.allCases {
             let shapeEnvelope = transformEnvelope(shape: shape, points: inkByShape[shape] ?? [])
+            shapeEnvelopes[shape] = shapeEnvelope
             print(String(
                 format: "  info %-7@ envelope x[%6.1f, %6.1f] y[%6.1f, %6.1f]",
                 shape.rawValue as NSString,
                 shapeEnvelope.minX, shapeEnvelope.maxX, shapeEnvelope.minY, shapeEnvelope.maxY
             ))
-            return union.union(shapeEnvelope)
         }
+        let envelope = shapeEnvelopes.values.reduce(CGRect.null) { $0.union($1) }
         print(String(format: "  info worst-case envelope x[%.1f, %.1f] y[%.1f, %.1f]; stage x[%.1f, %.1f] y[%.1f, %.1f]",
                      envelope.minX, envelope.maxX, envelope.minY, envelope.maxY,
                      stage.minX, stage.maxX, stage.minY, stage.maxY))
         check(stage.contains(envelope), "the stage contains the worst-case pose envelope")
+
+        // The teleport blink is the one pose the deformation limits do not cover:
+        // it spins her down to nothing, and the spin is what swings her height
+        // out sideways on the way.
+        let blink = CatShape.allCases.reduce(CGRect.null) { union, shape in
+            let shapeBlink = blinkEnvelope(shape: shape, points: inkByShape[shape] ?? [])
+            print(String(
+                format: "  info %-7@ blink    x[%6.1f, %6.1f] y[%6.1f, %6.1f]",
+                shape.rawValue as NSString,
+                shapeBlink.minX, shapeBlink.maxX, shapeBlink.minY, shapeBlink.maxY
+            ))
+            return union.union(shapeBlink)
+        }
+        check(stage.contains(blink), "the stage contains the blink at every step of the twist")
 
         // The analytic envelope assumes extremes happen at parameter corners.
         // These renderings do not assume anything: they rasterise the real
@@ -194,8 +210,11 @@ enum Diagnostics {
         )
         check(!motion.isDragging, "pet is no longer being dragged")
 
-        // Wandering must keep it on screen.
+        // Wandering must keep it on screen. The rest ladder is pinned out of the
+        // way: a cat who sits down half way through this is not failing to
+        // wander, she is doing what she is supposed to do.
         motion.wanderEnabled = true
+        motion.sitAfterSeconds = 10_000
         var minX = motion.origin.x
         var maxX = motion.origin.x
         for _ in 0..<5400 {
@@ -843,6 +862,56 @@ enum Diagnostics {
         run(carried, 10)
         check(carried.teleportCount == 0, "she does not blink out of your hand")
 
+        // The blink is staged: she spins down to nothing, the move happens while
+        // she is not on screen to see it, and then she spins back in.
+        let blinker = PetMotion(origin: CGPoint(x: 600, y: 0), size: size, desktop: twinDesk)
+        blinker.wanderEnabled = false
+        blinker.followCursor = false
+        blinker.sleepAfterSeconds = 10_000
+        check(!blinker.isTeleporting, "she is not blinking to start with")
+        check(blinker.beginTeleport(), "a blink can start")
+        check(blinker.teleportPhase == .leaving, "and it starts by leaving")
+
+        let halfBlink = PetMotion.teleportHalfSeconds
+        run(blinker, halfBlink * 0.5)
+        check(
+            blinker.pose.vanish > 0.3,
+            "half way out she is part way gone (vanish=\(String(format: "%.2f", blinker.pose.vanish)))"
+        )
+        check(abs(blinker.origin.x - 600) < 0.01, "and she has not moved yet")
+        check(!blinker.canStretch, "a cat mid-blink does not stop to stretch")
+
+        run(blinker, halfBlink * 0.5 + 0.02)
+        check(blinker.teleportPhase == .arriving, "then the move happens and she is arriving")
+        check(blinker.teleportCount == 1, "one blink, one move")
+        check(twinDesk.visibleFrames[1].contains(blinker.origin), "and she arrives on the other display")
+        check(
+            blinker.pose.vanish > 0.8,
+            "arriving starts out still gone (vanish=\(String(format: "%.2f", blinker.pose.vanish)))"
+        )
+
+        run(blinker, halfBlink + 0.02)
+        check(!blinker.isTeleporting, "the blink ends")
+        check(blinker.pose.vanish == 0, "with her fully back on screen")
+        check(blinker.isSettling, "and a landing squash to sell it")
+
+        // The user's hand outranks an effect in progress.
+        let interrupted = PetMotion(origin: CGPoint(x: 600, y: 0), size: size, desktop: twinDesk)
+        interrupted.followCursor = false
+        check(interrupted.beginTeleport(), "she can start a blink")
+        run(interrupted, halfBlink * 0.4)
+        check(interrupted.pose.vanish > 0, "and is part way gone")
+        interrupted.beginDrag(at: CGPoint(x: 600, y: 0))
+        run(interrupted, 1.0 / 60.0)
+        check(
+            !interrupted.isTeleporting && interrupted.pose.vanish == 0,
+            "grabbing her mid-blink cancels it"
+        )
+
+        let nowhere = PetMotion(origin: CGPoint(x: 600, y: 0), size: size, desktop: soloDesk)
+        nowhere.followCursor = false
+        check(!nowhere.beginTeleport(), "with one display there is nowhere to blink to")
+
         print("")
         print("a colony of cats")
         // Ten coats, all different: two identical cats on one desk read as a
@@ -1056,6 +1125,33 @@ enum Diagnostics {
         return buffer
     }
 
+    /// The stage a blink needs.
+    ///
+    /// The blink is a transform *on top of* the pose, so the ink cloud the
+    /// ordinary envelope is built from is the right thing to push through it —
+    /// not the envelope rectangle, whose corners are empty air and would demand a
+    /// stage half again as wide. Twenty-five steps of the twist, each applied to
+    /// every sampled boundary point.
+    ///
+    /// The pad is 1.5 rather than the envelope's 2: the ordinary check takes three
+    /// tilt samples and pays for the interior with slack, where this takes
+    /// twenty-five steps and needs little more than a pixel of antialiasing bleed.
+    private static func blinkEnvelope(shape: CatShape, points: [CGPoint]) -> CGRect {
+        var union = CGRect.null
+        for step in 0...24 {
+            var pose = CatPose()
+            pose.shape = .only(shape)
+            pose.vanish = Double(step) / 24
+            let transform = CatGeometry.vanishTransform(pose)
+            for point in points {
+                union = union.union(
+                    CGRect(x: point.x, y: point.y, width: 0, height: 0).applying(transform)
+                )
+            }
+        }
+        return union.insetBy(dx: -1.5, dy: -1.5)
+    }
+
     /// The window-space y of the lowest row that has any ink.
     ///
     /// This is the line she actually stands on: her window's bottom edge is
@@ -1144,8 +1240,8 @@ enum Diagnostics {
 
     private static func describe(_ pose: CatPose) -> String {
         String(
-            format: "tilt=%.2f stretch=%.2f squash=%.2f hop=%.1f tail=%.2f facing=%.0f",
-            pose.tilt, pose.stretch, pose.squash, pose.hopOffset, pose.tailPhase, pose.facing
+            format: "tilt=%.2f stretch=%.2f squash=%.2f hop=%.1f tail=%.2f facing=%.0f vanish=%.2f",
+            pose.tilt, pose.stretch, pose.squash, pose.hopOffset, pose.tailPhase, pose.facing, pose.vanish
         )
     }
 
@@ -1264,7 +1360,7 @@ enum Diagnostics {
 
     static func renderPNG(to path: String) -> Int32 {
         let columns = 4
-        let rows = 5
+        let rows = 6
         let cell = 200
         let width = columns * cell
         let height = rows * cell
@@ -1337,6 +1433,13 @@ enum Diagnostics {
                 .cat({ var p = CatPose(); p.shape = .lerp(.only(.loaf), .only(.lie), 0.5); p.tailPhase = 1.2; return p }()),
                 .cat({ var p = CatPose(); p.shape = .lerp(.only(.lie), .only(.stretch), 0.5); p.tailPhase = 1.5; return p }()),
             ],
+            // The teleport blink: leaving, gone, and back again.
+            [
+                .cat({ var p = CatPose(); p.vanish = 0.3; p.tailPhase = 1.0; return p }()),
+                .cat({ var p = CatPose(); p.vanish = 0.62; p.tailPhase = 1.0; return p }()),
+                .cat({ var p = CatPose(); p.vanish = 0.88; p.tailPhase = 1.0; return p }()),
+                .cat({ var p = CatPose(); p.vanish = 0.5; p.tailPhase = 1.0; return p }()),
+            ],
         ]
 
         for (rowIndex, row) in grid.enumerated() {
@@ -1379,6 +1482,7 @@ enum Diagnostics {
         print("row 3:      sleepy  | walking | alarmed | talking")
         print("row 4:      sitting | loafing | lying asleep | waking stretch")
         print("row 5:      settling stand->sit | sit->loaf | loaf->lie | lie->stretch")
+        print("row 6:      blinking out 30% | 60% | 90% | and back in")
         return 0
     }
 
@@ -1538,6 +1642,25 @@ enum ArtSweep {
                 pose.squash = extreme.squash
                 pose.hopOffset = extreme.hop
                 pose.tailPhase = extreme.tail
+                pose.facing = facing
+                poses.append(pose)
+            }
+        }
+
+        // The blink, which is the one pose parameter the deformation limits do
+        // not cover: it has to reach zero.
+        poses.append(contentsOf: blinkPoses())
+        return poses
+    }
+
+    /// Every step of the teleport blink, both ways round.
+    static func blinkPoses() -> [CatPose] {
+        var poses: [CatPose] = []
+        for step in 0...12 {
+            let vanish = Double(step) / 12
+            for facing in [1.0, -1.0] {
+                var pose = CatPose()
+                pose.vanish = vanish
                 pose.facing = facing
                 poses.append(pose)
             }

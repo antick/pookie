@@ -133,6 +133,17 @@ struct CatPose {
     var hopOffset: Double = 0        // design-space points, +up
     var tilt: Double = 0             // radians, about the feet
 
+    /// The teleport blink: 0 is an ordinary cat, 1 is a cat who is not there.
+    ///
+    /// One number for the whole effect. The renderer spins her down to nothing as
+    /// this rises and throws a little light and fur off her feet; the behaviour
+    /// plays it 0 → 1, moves her, then 1 → 0, so the twist unwinds on the way in
+    /// and there is no second number to keep in sync.
+    ///
+    /// Deliberately not `stretch`/`squash`: those are clamped to the art
+    /// envelope, and this one has to reach zero, which is the entire point.
+    var vanish: Double = 0
+
     // Orientation and attention
     var facing: Double = 1           // +1 right, -1 left
     /// Pupil offset in *design* space, so the facing flip mirrors it: `PetMotion`
@@ -208,6 +219,7 @@ extension CatPose {
         clamped.gazeY = min(max(gazeY, -1), 1)
         clamped.mouthOpen = min(max(mouthOpen, 0), 1)
         clamped.blush = min(max(blush, 0), 1)
+        clamped.vanish = min(max(vanish, 0), 1)
         return clamped
     }
 }

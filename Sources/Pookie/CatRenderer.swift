@@ -112,6 +112,41 @@ enum CatGeometry {
         return transform
     }
 
+    /// The teleport blink, as a transform: she spins and shrinks to nothing.
+    ///
+    /// Separate from `poseTransform` and public for the same reason that one is:
+    /// the art-envelope test has to bound the transform the renderer actually
+    /// applies, and this one takes her somewhere the deformation limits do not —
+    /// all the way to nothing.
+    ///
+    /// The shrink leads the spin on purpose, and the spin is a *quarter* turn.
+    ///
+    /// The cat is nearly as tall as the room the stage leaves above the floor, so
+    /// a full turn at full size would sweep her head through the ground line. The
+    /// two levers are coupled: the further the turn has gone, the smaller she has
+    /// to be, and a larger turn reaches its dangerous angle sooner — which costs
+    /// her visibility, because the shrink has to be front-loaded to pay for it.
+    /// A quarter turn with a square shrink keeps a readable cat for the first half
+    /// of the blink and lands the widest shape (a lie's wrapped tail) with a
+    /// design unit to spare. Turn further and the lie wraps underground.
+    ///
+    /// The composition reads as: scale about the body's centre, then rotate about
+    /// it (the first call is the last thing applied to the point, exactly as in
+    /// `poseTransform`).
+    static func vanishTransform(_ pose: CatPose) -> CGAffineTransform {
+        let vanish = min(max(pose.vanish, 0), 1)
+        guard vanish > 0.0001 else { return .identity }
+
+        let pivot = CatAnatomy.blend(pose.shape).bodyCenter
+        let scale = CGFloat((1 - vanish) * (1 - vanish))
+        var transform = CGAffineTransform.identity
+        transform = transform.translatedBy(x: pivot.x, y: pivot.y)
+        transform = transform.rotated(by: CGFloat(vanish) * .pi / 2)
+        transform = transform.scaledBy(x: scale, y: scale)
+        transform = transform.translatedBy(x: -pivot.x, y: -pivot.y)
+        return transform
+    }
+
     /// Fit the stage inside `size` and centre it. A square window keeps a square
     /// cat; a non-square one letterboxes rather than stretching.
     static func fit(in size: CGSize) -> Fit {
@@ -166,7 +201,12 @@ struct CatRenderer: PetRenderer {
         context.translateBy(x: fit.origin.x, y: fit.origin.y)
         context.scaleBy(x: fit.scale, y: fit.scale)
 
+        // The poof goes down before she does: light and fur coming off her feet,
+        // drawn in design space so it stays on the ground while she twists.
+        drawBlinkEffect(in: context, pose: pose)
+
         applyPose(pose, to: context)
+        context.concatenate(CatGeometry.vanishTransform(pose))
 
         drawTail(in: context, pose: pose, anatomy: anatomy)
         drawBody(in: context, pose: pose, anatomy: anatomy)
@@ -185,6 +225,63 @@ struct CatRenderer: PetRenderer {
     }
 
     // MARK: - Parts
+
+    /// The blink's poof: two rings on the ground and a handful of sparks.
+    ///
+    /// Deliberately tiny — two stroked ellipses and seven short lines, and only
+    /// while she is actually blinking (under a second, once every minute or two).
+    /// The cheapest thing that reads as magic rather than as a window being
+    /// redrawn somewhere else, and it needs no new field beyond `vanish`.
+    private func drawBlinkEffect(in context: CGContext, pose: CatPose) {
+        let vanish = CGFloat(min(max(pose.vanish, 0), 1))
+        // Strongest half way through and nothing at either end, so one curve
+        // serves leaving and arriving alike.
+        let intensity = CGFloat(sin(Double(vanish) * Double.pi))
+        guard intensity > 0.02 else { return }
+
+        // Everything here is squashed toward the ground plane and the reach is
+        // kept inside the stage: the ink sweep in `--selftest` fails if the poof
+        // so much as touches the window edge, and it is the only pose the
+        // deformation limits do not bound.
+        let centre = CGPoint(x: CatGeometry.design / 2, y: CatGeometry.feetY + 4)
+
+        // Two rings, opening as she leaves and closing as she arrives.
+        for (index, ring) in [CGFloat(1), CGFloat(0.62)].enumerated() {
+            let radius = (9 + 18 * vanish) * ring
+            let alpha = intensity * (index == 0 ? 0.5 : 0.75)
+            context.setStrokeColor(CGColor.hex(0xFFE9A8, alpha: alpha))
+            context.setLineWidth(2.4 - CGFloat(index) * 0.7)
+            context.strokeEllipse(in: CGRect(
+                x: centre.x - radius,
+                y: centre.y - radius * 0.25,
+                width: radius * 2,
+                height: radius * 0.5
+            ))
+        }
+
+        // Fur and sparks thrown outward. Her own colour, because the joke is that
+        // the cat is coming apart into fluff.
+        for index in 0..<7 {
+            let angle = Double(index) / 7 * 2 * Double.pi + Double(vanish) * 0.9
+            let inner = 11 + 18 * vanish
+            let outer = inner + 4 + 5 * vanish
+            let path = CGMutablePath()
+            path.move(to: CGPoint(
+                x: centre.x + CGFloat(cos(angle)) * inner,
+                y: centre.y + CGFloat(sin(angle)) * inner * 0.2
+            ))
+            path.addLine(to: CGPoint(
+                x: centre.x + CGFloat(cos(angle)) * outer,
+                y: centre.y + CGFloat(sin(angle)) * outer * 0.2
+            ))
+            stroke(
+                context,
+                path: path,
+                color: palette.fur.copy(alpha: intensity * 0.9) ?? palette.fur,
+                width: 2.6 - 1.2 * vanish
+            )
+        }
+    }
 
     private func drawTail(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
         let sway = sin(pose.tailPhase) * 0.40 * anatomy.tailSway

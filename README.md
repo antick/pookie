@@ -15,12 +15,14 @@ row 2: neutral | blink | curious + blush | facing left
 row 3: sleepy  | walking | alarmed | talking
 row 4: sitting | loafing | lying asleep | waking stretch
 row 5: settling stand->sit | sit->loaf | loaf->lie | lie->stretch
+row 6: blinking out 30% | 60% | 90% | and back in
 ```
 
-The last two rows are the posture work: four resting shapes and the mid-settle frames between them.
-They are not sprites — every shape is a table of anchors, and the renderer draws the *blend*, which is
-why she eases down into a loaf instead of cutting to one. See
-[`CatAnatomy.swift`](Sources/Pookie/CatAnatomy.swift).
+Rows 4 and 5 are the posture work: four resting shapes and the mid-settle frames between them. They
+are not sprites — every shape is a table of anchors, and the renderer draws the *blend*, which is why
+she eases down into a loaf instead of cutting to one. See
+[`CatAnatomy.swift`](Sources/Pookie/CatAnatomy.swift). Row 6 is the teleport blink, drawn from the
+same one number the behaviour plays.
 
 ![Pookie talking on the desktop](shots/talking.png)
 
@@ -57,7 +59,7 @@ Requires macOS 14+ and Xcode command line tools. No third-party dependencies.
 | Leave her alone for a minute or two | She sits down, then lies down and sleeps |
 | Move the cursor once she is asleep | She stretches and yawns, then goes back to standing |
 | Move to another screen | She trots back to the screen you are working on |
-| Leave her on a multi-monitor desk | She blinks to the other display every minute or so |
+| Leave her on a multi-monitor desk | She spins down into a poof of light and fur and reappears on the other display |
 | Drop her above a window | She lands on its top edge and sits there |
 | Leave her on the floor | She gathers, leaps, and lands on a reachable window top herself |
 | Leave her on a perch | She hops up to a higher window if one is in reach |
@@ -99,8 +101,11 @@ quit. A pet you cannot easily quit is a pet you will resent.
 Size is a real size change rather than a zoom: the window, the drawing and the behaviour geometry all
 scale together, so a bigger Pookie still fits on the ledge she jumps to, still picks wander targets in
 her own units, and still stands *on* the window top she is perched on. Teleporting is off with one
-display and does nothing unless you leave it on: with two or more she waits a jittered minute, blinks
-to another display, and lands on whatever window top is under her.
+display and does nothing unless you leave it on: with two or more she waits a jittered minute, spins
+down into a small poof of warm light and her own fur, and reappears somewhere on the other display —
+arriving from above, so she lands on whatever window top is under her rather than in front of one. The
+departure and the arrival are separate animations, with the hop itself happening while she is not on
+screen to see it.
 
 She stands on things, not above them. Her window's bottom edge is deliberately *below* the line her
 feet are on, so a leaning paw or a wrapped tail is never clipped — which used to show up as a visible
@@ -236,9 +241,13 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 196 headless checks, including:
+runs 214 headless checks, including:
 
 - the `CGBitmapContext` row order, probed at runtime rather than assumed;
+- **the teleport blink**: it leaves before it moves — half way out she is part way gone and has not
+  moved, the hop happens while she is off screen, and she spins back in with a landing squash. The
+  twist is also swept through the art envelope at twenty-five steps, because it is the one pose the
+  deformation limits do not cover;
 - **a colony of cats**: ten different coats for the ten the cap allows, the cap itself, and the frame
   budget dividing down to a floor at the sleep tier. Two cats who start on the same spot step apart
   to exactly one personal space, a bout sends a cat running at her playmate with the happy face on,

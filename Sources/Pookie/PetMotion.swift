@@ -69,7 +69,7 @@ final class PetMotion {
     /// walking" switch, and a chase across the screen is exactly that.
     var canPlay: Bool {
         wanderEnabled && !isDragging && !isAirborne && !isCrouching && !isTalking
-            && !isAsleep && !isPlaying
+            && !isAsleep && !isPlaying && !isTeleporting
     }
 
     /// How close another cat may get before she steps aside. Two cats converging
@@ -275,6 +275,10 @@ final class PetMotion {
         dragSamples = [(time, point)]
         wanderTargetX = nil
         noteInteraction()
+        // The user's hand outranks an effect in progress: grab a blinking cat and
+        // you get a cat, not a half-vanished one.
+        teleportPhase = .none
+        teleportProgress = 0
         // The user's hand outranks a gather she had already started.
         jumpWindupRemaining = 0
         pendingJump = nil
@@ -423,10 +427,46 @@ final class PetMotion {
 
     // MARK: - Teleporting between displays
 
+    /// Which half of the blink is playing, if either.
+    enum TeleportPhase: String {
+        case none
+        case leaving
+        case arriving
+    }
+
+    /// How long each half of the blink takes. Short enough that a missing cat is
+    /// never a mystery, long enough that the swivel and the poof are seen rather
+    /// than inferred.
+    static let teleportHalfSeconds: Double = 0.5
+
+    private(set) var teleportPhase: TeleportPhase = .none
+    private var teleportProgress: Double = 0
+    /// True while she is mid-blink, so the frame pump treats it as an animation
+    /// rather than as idle time and the rest ladder leaves her alone.
+    var isTeleporting: Bool { teleportPhase != .none }
+
     /// A cat on a two-monitor desk that only ever lives on one of them is half a
-    /// pet. This is the whole mechanic: wait a jittered minute, then be
-    /// somewhere else.
+    /// pet. This is the whole mechanic: wait a jittered minute, vanish in a twist
+    /// of light and fur, and be somewhere else.
     private func updateTeleport(_ dt: Double) {
+        if teleportPhase != .none {
+            teleportProgress += dt / Self.teleportHalfSeconds
+            guard teleportProgress >= 1 else { return }
+
+            if teleportPhase == .leaving {
+                // The move happens while she is not on screen to see it, which is
+                // what makes it a blink rather than a slide.
+                _ = teleportToRandomScreen()
+                teleportPhase = .arriving
+            } else {
+                teleportPhase = .none
+                // She lands on the way back in, so the squash is the arrival.
+                squashKick = 0.55
+            }
+            teleportProgress = 0
+            return
+        }
+
         guard teleportEnabled, desktop.visibleFrames.count > 1 else { return }
         // She does not blink out of your hand, out of mid-air, out of a
         // sentence, out of a nap, or out of a game of chase.
@@ -435,11 +475,24 @@ final class PetMotion {
         teleportInSeconds -= dt
         guard teleportInSeconds <= 0 else { return }
         teleportInSeconds = Rand.double(45...120)
-        _ = teleportToRandomScreen()
+        beginTeleport()
     }
 
-    /// Blink her onto another display, at a random spot, landing on whatever
-    /// window top is under her. Returns false when there is nowhere else to go.
+    /// Start a blink: out, move, in. Returns false when she is in no state to go.
+    @discardableResult
+    func beginTeleport() -> Bool {
+        guard !isTeleporting, desktop.visibleFrames.count > 1 else { return false }
+        guard !isDragging, !isAirborne, !isCrouching, !isTalking, !isAsleep, !isPlaying else { return false }
+        teleportPhase = .leaving
+        teleportProgress = 0
+        // She is not walking anywhere: the blink is the locomotion.
+        wanderTargetX = nil
+        return true
+    }
+
+    /// Move her to a random spot on another display. Instant and public on
+    /// purpose: this is the primitive the blink wraps, and what the selftest can
+    /// drive without waiting out an animation.
     @discardableResult
     func teleportToRandomScreen() -> Bool {
         let current = desktop.visibleFrames.firstIndex(of: desktop.region(containing: origin))
@@ -460,9 +513,6 @@ final class PetMotion {
         isCrouching = false
         perchSeconds = 0
         facing = Rand.bool() ? 1 : -1
-        // A landing squash is what sells the arrival as a landing rather than a
-        // redraw.
-        squashKick = 0.55
         teleportCount += 1
         return true
     }
@@ -524,7 +574,7 @@ final class PetMotion {
     /// she is being held, in the air, talking, or asleep.
     var canStretch: Bool {
         !isDragging && !isAirborne && !isCrouching && !isTalking && !isAsleep
-            && wanderTargetX == nil && !isPlaying
+            && wanderTargetX == nil && !isPlaying && !isTeleporting
     }
 
     private func updateStretch(_ dt: Double) {
@@ -584,7 +634,7 @@ final class PetMotion {
     /// rather than a state, so she gets up again on her own.
     private func desiredRestingShape() -> CatShape {
         if isDragging || isAirborne || isCrouching || isTalking { return .stand }
-        if wanderTargetX != nil || isPlaying { return .stand }
+        if wanderTargetX != nil || isPlaying || isTeleporting { return .stand }
         if isAsleep { return .lie }
         if idleSeconds >= sitAfterSeconds { return .sit }
         if perchSeconds >= loafAfterSeconds, perchSeconds < loafAfterSeconds + loafHoldSeconds {
@@ -869,7 +919,7 @@ final class PetMotion {
         // timer. The loaf ends by its own clock (see `desiredRestingShape`), the
         // sit is the run-up to sleep, and a sleeping cat must not stand up and
         // wander off mid-nap.
-        guard !isResting, !isPlaying else { return }
+        guard !isResting, !isPlaying, !isTeleporting else { return }
 
         wanderCountdown -= dt
         guard wanderCountdown <= 0 else { return }
@@ -983,6 +1033,14 @@ final class PetMotion {
         }
 
         pose.facing = facing
+
+        // The blink, as the one number the renderer needs: out is her going, in
+        // is her arriving.
+        switch teleportPhase {
+        case .none: pose.vanish = 0
+        case .leaving: pose.vanish = teleportProgress
+        case .arriving: pose.vanish = max(0, 1 - teleportProgress)
+        }
 
         // Walking bob.
         let walking = wanderTargetX != nil && origin.y <= ground + 0.5

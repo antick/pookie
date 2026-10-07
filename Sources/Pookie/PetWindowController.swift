@@ -412,10 +412,11 @@ final class PetWindowController {
             dragging: motion.isDragging,
             airborne: motion.isAirborne,
             // Every short animation runs at 30 fps: the landing squash, the
-            // pre-jump crouch, the settle into a loaf, and the stretch. Drawing
-            // any of them at the sleep tier makes them vanish.
+            // pre-jump crouch, the settle into a loaf, the stretch, and the
+            // teleport blink. Drawing any of them at the sleep tier makes them
+            // vanish for the wrong reason.
             animating: motion.isSettling || motion.isCrouching
-                || motion.isStretching || motion.isChangingShape,
+                || motion.isStretching || motion.isChangingShape || motion.isTeleporting,
             overCat: view.isPointerOverPet,
             mood: motion.pose.mood
         )
