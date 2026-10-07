@@ -20,6 +20,7 @@ if arguments.contains("--help") || arguments.contains("-h") {
       Pookie --no-jump             do not jump up onto windows by herself
       Pookie --no-teleport         do not blink between displays
       Pookie --scale <name>        small | medium | large | huge
+      Pookie --pets <n>            start with n cats (1...\(PetCohort.maximumPets))
       Pookie --mute                do not react to being petted
 
     Global hotkeys (no Accessibility permission required):
@@ -62,6 +63,15 @@ if let index = arguments.firstIndex(of: "--scale") {
         exit(2)
     }
     AppConfig.shared.petScale = scale
+}
+
+if let index = arguments.firstIndex(of: "--pets") {
+    let value = index + 1 < arguments.count ? arguments[index + 1] : ""
+    guard let count = Int(value), count >= 1, count <= PetCohort.maximumPets else {
+        FileHandle.standardError.write(Data("--pets expects 1...\(PetCohort.maximumPets)\n".utf8))
+        exit(2)
+    }
+    AppConfig.shared.startPets = count
 }
 
 if arguments.contains("--mute") {

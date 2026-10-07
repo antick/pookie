@@ -7,17 +7,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The `pookie say "hi"` bridge. A distributed notification is the
     /// permission-free way for another process to reach a running pet; it is a
     /// stand-in for the M3 loopback socket protocol, and the shape of the call
-    /// (`controller.say`) is the same either way.
+    /// (`cohort.say`) is the same either way.
     static let sayNotification = Notification.Name("com.pookie.pet.say")
 
-    private var controller: PetWindowController?
+    private var cohort: PetCohort?
     private var statusItem: NSStatusItem?
     private var hotKeys: [GlobalHotKey] = []
     private var sayObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.verbose = AppConfig.shared.verboseLogging
-        controller = PetWindowController()
+        let colony = PetCohort()
+        cohort = colony
+        let wanted = max(1, min(PetCohort.maximumPets, AppConfig.shared.startPets))
+        for _ in 0..<wanted { colony.spawn(announce: false) }
         installStatusItem()
         installHotKeys()
         installSayBridge()
@@ -41,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] note in
             guard let text = note.userInfo?["text"] as? String else { return }
             let style = (note.userInfo?["style"] as? String).flatMap(BubbleStyle.init(rawValue:)) ?? .plain
-            self?.controller?.say(text, style: style)
+            self?.cohort?.say(text, style: style)
         }
     }
 
@@ -60,14 +63,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuildMenu() {
         let menu = NSMenu()
+        let pets = cohort?.count ?? 0
 
-        let header = NSMenuItem(title: "Pookie", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(
+            title: pets > 1 ? "Pookie (\(pets) cats)" : "Pookie",
+            action: nil,
+            keyEquivalent: ""
+        )
         header.isEnabled = false
         menu.addItem(header)
         menu.addItem(.separator())
 
         let visibility = NSMenuItem(
-            title: controller?.isHiddenByUser == true ? "Show Pookie" : "Hide Pookie",
+            title: cohort?.isHiddenByUser == true ? "Show Pookie" : "Hide Pookie",
             action: #selector(toggleVisibility),
             keyEquivalent: "h"
         )
@@ -104,6 +112,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? "Blink to another display every minute or so"
             : "Needs a second display"
         menu.addItem(teleport)
+
+        menu.addItem(.separator())
+
+        let addPet = NSMenuItem(
+            title: pets >= PetCohort.maximumPets
+                ? "Add a cat (\(PetCohort.maximumPets) is the limit)"
+                : "Add a cat",
+            action: #selector(addPet),
+            keyEquivalent: "n"
+        )
+        addPet.target = self
+        menu.addItem(addPet)
+
+        let removePet = NSMenuItem(title: "Remove a cat", action: #selector(removePet), keyEquivalent: "")
+        removePet.target = self
+        menu.addItem(removePet)
 
         menu.addItem(.separator())
 
@@ -158,7 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
         raised.target = self
-        raised.state = controller?.isRaisedAboveEverything == true ? .on : .off
+        raised.state = cohort?.isRaisedAboveEverything == true ? .on : .off
         menu.addItem(raised)
 
         menu.addItem(.separator())
@@ -220,30 +244,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Actions
 
     @objc private func toggleVisibility() {
-        controller?.toggleHidden()
+        cohort?.toggleHidden()
         rebuildMenu()
     }
 
     @objc private func cycleClickThrough() {
-        controller?.toggleClickThrough()
+        cohort?.cycleClickThrough()
         rebuildMenu()
     }
 
     @objc private func resetPosition() {
-        controller?.resetPosition()
+        cohort?.bringAllHome()
     }
 
     @objc private func selectScale(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String,
               let scale = CatScale(rawValue: raw) else { return }
         AppConfig.shared.petScale = scale
-        controller?.applyPetScale()
+        cohort?.applyPetScale()
         rebuildMenu()
     }
 
     @objc private func toggleTeleport() {
         AppConfig.shared.teleportEnabled.toggle()
-        controller?.motion.teleportEnabled = AppConfig.shared.teleportEnabled
+        for pet in cohort?.pets ?? [] {
+            pet.motion.teleportEnabled = AppConfig.shared.teleportEnabled
+        }
+        rebuildMenu()
+    }
+
+    @objc private func addPet() {
+        cohort?.spawn()
+        rebuildMenu()
+    }
+
+    @objc private func removePet() {
+        cohort?.despawn()
         rebuildMenu()
     }
 
@@ -251,68 +287,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let raw = sender.representedObject as? String,
               let mode = ClickThroughMode(rawValue: raw) else { return }
         AppConfig.shared.clickThroughMode = mode
-        controller?.applyClickThroughMode()
+        cohort?.applyClickThroughMode()
         rebuildMenu()
     }
 
     @objc private func toggleWander() {
         AppConfig.shared.wanderEnabled.toggle()
-        controller?.motion.wanderEnabled = AppConfig.shared.wanderEnabled
+        for pet in cohort?.pets ?? [] {
+            pet.motion.wanderEnabled = AppConfig.shared.wanderEnabled
+        }
         rebuildMenu()
     }
 
     @objc private func toggleFollowCursor() {
         AppConfig.shared.followCursor.toggle()
-        controller?.motion.followCursor = AppConfig.shared.followCursor
+        for pet in cohort?.pets ?? [] {
+            pet.motion.followCursor = AppConfig.shared.followCursor
+        }
         rebuildMenu()
     }
 
     @objc private func togglePerch() {
         AppConfig.shared.perchEnabled.toggle()
-        controller?.setPerching(AppConfig.shared.perchEnabled)
+        cohort?.setPerching(AppConfig.shared.perchEnabled)
         rebuildMenu()
     }
 
     @objc private func toggleJump() {
         AppConfig.shared.jumpEnabled.toggle()
-        controller?.setJumping(AppConfig.shared.jumpEnabled)
+        cohort?.setJumping(AppConfig.shared.jumpEnabled)
         rebuildMenu()
     }
 
     @objc private func toggleChatty() {
         AppConfig.shared.chatty.toggle()
-        controller?.setChatty(AppConfig.shared.chatty)
+        cohort?.setChatty(AppConfig.shared.chatty)
         rebuildMenu()
     }
 
     @objc private func sayHello() {
-        controller?.say(PetChatter.tapped(), style: .plain)
+        cohort?.say(PetChatter.tapped(), style: .plain)
     }
 
     @objc private func toggleScreenSharePrivacy() {
         AppConfig.shared.hideFromScreenShare.toggle()
-        controller?.applyScreenSharePrivacy()
+        cohort?.applyScreenSharePrivacy()
         rebuildMenu()
     }
 
     @objc private func toggleRaised() {
-        guard let controller else { return }
-        controller.setRaisedAboveEverything(!controller.isRaisedAboveEverything)
+        guard let cohort else { return }
+        cohort.setRaisedAboveEverything(!cohort.isRaisedAboveEverything)
         rebuildMenu()
     }
 
     @objc private func describeState() {
-        guard let controller else { return }
-        let motion = controller.motion
+        guard let cohort else { return }
+        let pets = cohort.pets.map { pet -> String in
+            let motion = pet.motion
+            let perch = motion.supportPlatform().map { "\($0.ownerName)#\($0.windowNumber)" } ?? "floor"
+            return "\(pet.skin.rawValue)@\(NSStringFromPoint(motion.origin)) "
+                + "\(motion.pose.mood.rawValue)/\(motion.shape.rawValue) perch=\(perch)"
+                + (motion.isPlaying ? " playing" : "")
+        }
         Log.info("""
-        state: origin=\(NSStringFromPoint(motion.origin)) \
-        size=\(Int(motion.size.width))x\(Int(motion.size.height)) \
-        shape=\(motion.shape.rawValue) \
-        mood=\(motion.pose.mood.rawValue) \
-        velocity=(\(Int(motion.velocity.dx)), \(Int(motion.velocity.dy))) \
-        hidden=\(controller.isHiddenByUser) \
+        state: \(pets.count) pet\(pets.count == 1 ? "" : "s") \
+        hidden=\(cohort.isHiddenByUser) \
         mouse=\(AppConfig.shared.clickThroughMode.rawValue) \
         maskRowZeroIsBottom=\(MaskRaster.rowZeroIsBottom)
+          \(pets.joined(separator: "\n  "))
         """)
     }
 
@@ -321,8 +364,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// Keep the menu honest while it is open: displays get plugged and unplugged,
-/// and the settings can also arrive from the command line.
+/// Keep the menu honest while it is open: displays get plugged and unplugged, the
+/// population changes, and the settings can also arrive from the command line.
 extension AppDelegate: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(toggleTeleport) {
@@ -331,6 +374,12 @@ extension AppDelegate: NSMenuItemValidation {
         }
         if menuItem.action == #selector(selectScale(_:)), let raw = menuItem.representedObject as? String {
             menuItem.state = AppConfig.shared.petScale.rawValue == raw ? .on : .off
+        }
+        if menuItem.action == #selector(addPet) {
+            return PetCohort.canAddPet(having: cohort?.count ?? 0)
+        }
+        if menuItem.action == #selector(removePet) {
+            return (cohort?.count ?? 0) > 1
         }
         return true
     }

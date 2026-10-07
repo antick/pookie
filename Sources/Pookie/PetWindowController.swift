@@ -35,11 +35,40 @@ final class PetWindowController {
     private(set) var isHiddenByUser = false
     private(set) var isRaisedAboveEverything = false
 
-    init() {
+    /// Her coat. Handed out by the cohort, and the same coat means the same pet.
+    let skin: CatSkin
+    /// Her size relative to the shared setting, so a litter has a kitten in it.
+    let personalScale: CGFloat
+    /// Ceiling on this pet's drawn frame rate, set by the colony so that N pets
+    /// share one budget instead of getting N of them.
+    var frameRateCap: Double = 60
+    /// The colony she belongs to. Her frame is what pushes the shared clock that
+    /// keeps everyone's companion positions fresh, so nobody needs a timer.
+    weak var cohort: PetCohort?
+
+    /// The pet's own windows: her body and her bubble.
+    var ownWindowNumbers: Set<Int> { [window.windowNumber, bubbleWindow.windowNumber] }
+
+    /// Every pet's windows, so that no cat ever perches on another cat.
+    func setExcludedPerchWindows(_ numbers: Set<Int>) {
+        perch.excludedWindowNumbers = numbers
+        motion.platforms.removeAll { numbers.contains($0.windowNumber) }
+    }
+
+    /// A window size for a pet: the shared size setting times her own factor.
+    /// Rounded, because the window server expands a fractional frame to whole
+    /// points, which would leave the drawing fitted to the wrong box.
+    static func windowSize(shared: CGSize, personal: CGFloat) -> CGSize {
+        CGSize(width: (shared.width * personal).rounded(), height: (shared.height * personal).rounded())
+    }
+
+    init(skin: CatSkin = .tabby, personalScale: CGFloat = 1, startOrigin: CGPoint? = nil) {
         let config = AppConfig.shared
-        let size = config.petSize
+        self.skin = skin
+        self.personalScale = personalScale
+        let size = Self.windowSize(shared: config.petSize, personal: personalScale)
         let screenFrame = NSScreen.main?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
-        let start = config.startOrigin ?? CGPoint(
+        let start = startOrigin ?? config.startOrigin ?? CGPoint(
             x: screenFrame.maxX - size.width - 80,
             y: screenFrame.minY + 24
         )
@@ -50,9 +79,8 @@ final class PetWindowController {
         motion.perchEnabled = config.perchEnabled
         motion.jumpEnabled = config.jumpEnabled
         motion.teleportEnabled = config.teleportEnabled
-        motion.palette = config.palette
 
-        view = PetView(motion: motion, renderer: CatRenderer(palette: config.palette))
+        view = PetView(motion: motion, renderer: CatRenderer(palette: skin.palette))
 
         // Whole-point origin on purpose: the offset that puts her feet on the
         // floor is fractional, and handing the window server a fractional frame
@@ -93,6 +121,18 @@ final class PetWindowController {
     deinit {
         displayLink?.invalidate()
         observers.forEach { $0.center.removeObserver($0.token) }
+    }
+
+    /// Take her off the screen for good. The display link holds its target, so a
+    /// pet removed from the colony without this would keep drawing forever.
+    func close() {
+        displayLink?.invalidate()
+        displayLink = nil
+        observers.forEach { $0.center.removeObserver($0.token) }
+        observers.removeAll()
+        window.orderOut(nil)
+        bubbleWindow.orderOut(nil)
+        motion.companions = []
     }
 
     // MARK: - Window policy
@@ -138,7 +178,7 @@ final class PetWindowController {
         bubbleWindow.collectionBehavior = window.collectionBehavior
         bubbleWindow.sharingType = window.sharingType
 
-        perch.excludedWindowNumbers = [window.windowNumber, bubbleWindow.windowNumber]
+        perch.excludedWindowNumbers = ownWindowNumbers
     }
 
     func applyClickThroughMode() {
@@ -223,7 +263,7 @@ final class PetWindowController {
     /// drawing. She keeps her feet on the same spot: the behaviour origin is the
     /// line she stands on, and only the window around it grows.
     func applyPetScale() {
-        let size = AppConfig.shared.petSize
+        let size = Self.windowSize(shared: AppConfig.shared.petSize, personal: personalScale)
         guard size != motion.size else { return }
 
         // The behaviour geometry changes with her: her feet stay on the same
@@ -348,6 +388,9 @@ final class PetWindowController {
         perch.update(motion: motion, dt: dt)
         view.syncWindowOrigin()
 
+        // Company, on a clock shared by every pet rather than one per pet.
+        cohort?.sync()
+
         reactToPhysics()
         updateBubble()
         recordHeartbeat(dt)
@@ -365,7 +408,7 @@ final class PetWindowController {
     ///   the flight after a throw. That used to fall through to the mood table,
     ///   so a tossed cat fell at 15 fps — the one moment smoothness is obvious.
     private func updateFrameTier(_ dt: Double) {
-        let desired = Self.desiredInterval(
+        let tier = Self.desiredInterval(
             dragging: motion.isDragging,
             airborne: motion.isAirborne,
             // Every short animation runs at 30 fps: the landing squash, the
@@ -376,6 +419,9 @@ final class PetWindowController {
             overCat: view.isPointerOverPet,
             mood: motion.pose.mood
         )
+        // The colony's ceiling is a floor on the interval: ten cats share one
+        // budget rather than each taking a full one.
+        let desired = max(tier, 1.0 / max(1, frameRateCap))
 
         if desired != pendingInterval {
             pendingInterval = desired
@@ -504,7 +550,8 @@ final class PetWindowController {
         let cpu = metrics.cpuPercent(now: CACurrentMediaTime())
         let perch = motion.supportPlatform().map { "\($0.ownerName)#\($0.windowNumber)" } ?? "floor"
         Log.info(
-            "drawn=\(String(format: "%.1f", fps))fps "
+            "[\(skin.rawValue)] "
+            + "drawn=\(String(format: "%.1f", fps))fps "
             + "tier=\(String(format: "%.0f", (1.0 / targetInterval).rounded()))fps "
             + "cpu=\(String(format: "%.1f", cpu))% "
             + "rss=\(String(format: "%.0f", ProcessMetrics.residentMegabytes()))MB "

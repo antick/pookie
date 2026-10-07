@@ -4,7 +4,8 @@ A cat that lives on your screen. Transparent, always on top, rides every Space, 
 focus**. She breathes, blinks, watches your cursor, wanders, sits, tucks her paws under into a loaf,
 dozes off, and stretches when she wakes — and she can be picked up and thrown, lands on the top edges
 of your windows, **jumps up onto them by herself**, climbs from one window to a higher one, rides them
-when you drag them, and talks in a speech bubble.
+when you drag them, and talks in a speech bubble. Ask for more of her and you get a **colony of up to
+ten**, each a different cat, running around and chasing each other.
 
 ![Pookie pose sheet](shots/poses.png)
 
@@ -64,6 +65,7 @@ Requires macOS 14+ and Xcode command line tools. No third-party dependencies.
 | Walk her off the window's end | She falls back to the desktop |
 | Click her | She says something (rate-limited, and mutable) |
 | Run `Pookie --say "..."` | She says it in a bubble |
+| Add a cat from the menu | A new cat arrives, in her own coat, and starts exploring |
 
 ![Pookie perched on a window edge, talking](shots/perching.png)
 
@@ -90,9 +92,9 @@ Global hotkeys, **no Accessibility or Input Monitoring permission required**:
 | `control-option-M` | Mute / unmute her reactions |
 
 The pawprint in the menu bar has the rest: **size** (small, medium, large, extra large),
-**teleport between displays**, mouse mode, wander, cursor tracking, sit-on-windows,
-jump-onto-windows, speech, hide-from-screen-sharing, float above fullscreen apps, and quit. A pet you
-cannot easily quit is a pet you will resent.
+**teleport between displays**, **add a cat** / **remove a cat**, mouse mode, wander, cursor tracking,
+sit-on-windows, jump-onto-windows, speech, hide-from-screen-sharing, float above fullscreen apps, and
+quit. A pet you cannot easily quit is a pet you will resent.
 
 Size is a real size change rather than a zoom: the window, the drawing and the behaviour geometry all
 scale together, so a bigger Pookie still fits on the ledge she jumps to, still picks wander targets in
@@ -107,6 +109,34 @@ off the floor line, at every size setting.
 
 Click-through is a real toggle, and it matters: in the default mode she is transparent to the mouse
 in the gaps around her body, so she never blocks a click on the window behind.
+
+## More than one cat
+
+The menu bar has **Add a cat** and **Remove a cat**, and `Pookie --pets 5` starts with five. Ten is
+the cap, and every cat is a different cat: ten coats — tabby, midnight, tuxedo, ginger, cream, calico,
+siamese, grey, chocolate, snow — and a personal size between kitten and grown, so a litter never reads
+as one cat drawn five times.
+
+![Ten Pookie coats](shots/ten-cats.png)
+
+They have everything the first cat has — perching, jumping, teleporting, loafing, stretching — and
+they know where each other are. Two cats who end up on the same spot step apart rather than stacking,
+and every so often two of them on the same display notice each other and start a chase: a jittered
+2–5 second bout, running at each other, wearing the happy face, with one of them saying "mrrp!!".
+No cat perches on another cat.
+
+Ten cats are real work. They share one frame budget — 120 drawn frames per second between them, so a
+single cat is unaffected and ten get 12 fps each — and an occluded cat stops entirely. The honest
+numbers on this renderer (software Core Graphics, a 3840x1620 display):
+
+| Cats | CPU, idle | RSS |
+|---:|---:|---:|
+| 1 | ~7% | 52 MB |
+| 3 | ~17% | 59 MB |
+| 10 | ~25% | 71 MB |
+
+That is 3.4x the cost of one cat rather than 10x, and the remaining cost is the same M1 problem the
+first cat already had: the fix is the SpriteKit renderer, not a smaller cap.
 
 ## Talking to her
 
@@ -146,6 +176,7 @@ Sources/Pookie/
   AppDelegate.swift        status item, hotkeys, menu
   PetWindow.swift          borderless window that can never become key
   PetWindowController.swift  window policy, frame clock + tiers, perching, bubble placement
+  PetCohort.swift          the colony: population cap, shared frame budget, play, settings fan-out
   PetView.swift            drawing, mouse input, pass-through, hit testing, taps
   PetMotion.swift          physics and behaviour — no AppKit, fully testable
   CatAnatomy.swift         the five shape keyframes, and the blend between them
@@ -174,7 +205,8 @@ docs/
 `lookAt`, `face`, `state`, `bubble.show/append/hide`, `spawn`, `despawn`, and an event stream back —
 and nothing else. Any producer (Codex, Claude Code, a shell script, CI, your calendar) emits those
 intents; the pet renders them. Four of them (`say` and the three `bubble.*` verbs) are implemented
-in-process today, behind `SpeechEngine`; the rest are the M2/M3 work. A behaviour priority stack
+in-process today, behind `SpeechEngine`, and `spawn` / `despawn` exist as an in-process colony with no
+wire protocol behind them yet; the rest are the M2/M3 work. A behaviour priority stack
 decides who wins: `drag(100) > say(60) > follow(40) > idle(0)`, so idle wandering can never interrupt
 a sentence. That is what turns a pet into a platform instead of a pile of one-off integrations. See
 [DESIGN.md](docs/DESIGN.md).
@@ -204,9 +236,13 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 171 headless checks, including:
+runs 196 headless checks, including:
 
 - the `CGBitmapContext` row order, probed at runtime rather than assumed;
+- **a colony of cats**: ten different coats for the ten the cap allows, the cap itself, and the frame
+  budget dividing down to a floor at the sleep tier. Two cats who start on the same spot step apart
+  to exactly one personal space, a bout sends a cat running at her playmate with the happy face on,
+  and play is refused while she is asleep or in your hand;
 - **the art envelope**: every pose in the declared deformation range — and every shape keyframe and
   the blends between them — is rasterised and checked for ink touching the window edge, plus an
   analytic worst case over the pose transform. This is what caught the tail and ears being cut off,
@@ -275,6 +311,12 @@ carried, or with the cursor close enough that she had not turned — tracked it 
 now smoothed in screen space and converted once on the way into the pose, which also keeps her pupils
 on the pointer *through* a turn instead of sweeping across it. The selftest drives both halves: the
 behaviour, and the renderer's mirror.
+
+And there is **more than one of her**. Up to ten cats live under one shared budget, each with her own
+coat and size, each with every capability the first cat has, stepping out of each other's way and
+occasionally chasing each other across a display. That is the in-process half of M8's `spawn` /
+`despawn`; the wire protocol will be able to drive it for free once M3 lands, because the verbs
+already exist on paper.
 
 Next is **M1**: SpriteKit renderer, cached geometry, and the remaining animation states. Then
 the rest of M2 (preemption stack, attention budget, streaming from the wire), M3 (the CLI control

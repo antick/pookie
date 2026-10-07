@@ -82,6 +82,9 @@ final class AppConfig {
     var palette: CatPalette = .tabby
     /// How big she is drawn. See `CatScale`.
     var petScale: CatScale = .medium
+    /// How many pets to start with. The menu adds and removes them from there;
+    /// this is what `--pets N` sets.
+    var startPets: Int = 1
     /// Blink to another display every minute or so. Only does anything with
     /// more than one display attached; off means she stays put.
     var teleportEnabled = true

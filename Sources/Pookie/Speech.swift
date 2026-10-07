@@ -179,4 +179,27 @@ enum PetChatter {
             "good view.",
         ].randomElement() ?? "nice ledge."
     }
+
+    /// A new pet arriving. Only ever said when the user asked for one.
+    static func arrived() -> String {
+        [
+            "hi!",
+            "mrrp!",
+            "hello.",
+            "*looks around*",
+            "oh, a desk.",
+        ].randomElement() ?? "mrrp!"
+    }
+
+    /// Mid-chase. One line per bout, not one per cat: two bubbles at once is the
+    /// noise the speech rules exist to prevent.
+    static func playing() -> String {
+        [
+            "gotcha!",
+            "mrrp!!",
+            "*pounce*",
+            "chase me!",
+            "!",
+        ].randomElement() ?? "mrrp!!"
+    }
 }

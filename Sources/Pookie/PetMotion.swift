@@ -50,7 +50,41 @@ final class PetMotion {
     var teleportInSeconds: Double = Rand.double(45...120)
     /// Displays she has blinked to, for the heartbeat and the selftest.
     private(set) var teleportCount = 0
-    var palette: CatPalette = .tabby
+
+    /// Where the other pets are, pushed in by the cohort. Used for two things:
+    /// not standing inside each other, and chasing each other around.
+    var companions: [CGPoint] = []
+    /// Seconds left in a play bout. Started by the cohort when two pets notice
+    /// each other; a playing cat chases her playmate and wears the happy face.
+    private(set) var playSeconds: Double = 0
+    var isPlaying: Bool { playSeconds > 0 }
+    /// Bouts played, for the heartbeat and the selftest.
+    private(set) var playCount = 0
+    private var playRetarget: Double = 0
+
+    /// Every pet who is in a state to notice another one. The cohort picks its
+    /// play pairs from this.
+    ///
+    /// `wanderEnabled` is in here on purpose: it is the desk's "no unprompted
+    /// walking" switch, and a chase across the screen is exactly that.
+    var canPlay: Bool {
+        wanderEnabled && !isDragging && !isAirborne && !isCrouching && !isTalking
+            && !isAsleep && !isPlaying
+    }
+
+    /// How close another cat may get before she steps aside. Two cats converging
+    /// on the same pixel read as one buggy cat, not as two pets.
+    var personalSpace: CGFloat { size.width * 0.9 }
+
+    /// Start (or extend) a play bout. Returns false when she is busy.
+    @discardableResult
+    func startPlay(_ seconds: Double) -> Bool {
+        guard canPlay else { return false }
+        if playSeconds <= 0 { playCount += 1 }
+        playSeconds = max(playSeconds, seconds)
+        playRetarget = 0
+        return true
+    }
 
     /// Top edges of other apps' windows, refreshed by the perch pump. Empty in
     /// headless tests, which is exactly the old desktop-floor behaviour.
@@ -324,9 +358,67 @@ final class PetMotion {
             applyDragDeformation()
         }
 
+        updatePlay(dt)
         updateTeleport(dt)
         updateRest(dt)
         updatePose(dt)
+    }
+
+    // MARK: - Other pets
+
+    /// Chasing, for the length of a bout: aim at the nearest playmate, often
+    /// enough to follow her rather than to run at where she was.
+    ///
+    /// Deliberately expressed through the existing `wanderTargetX`, so a playing
+    /// cat walks with the same locomotion, facing and bob as any other walk; the
+    /// only new thing is who picks the target.
+    private func updatePlay(_ dt: Double) {
+        guard playSeconds > 0 else { return }
+        playSeconds -= dt
+        guard playSeconds > 0 else {
+            wanderTargetX = nil
+            return
+        }
+
+        playRetarget -= dt
+        guard playRetarget <= 0 else { return }
+        playRetarget = Rand.double(0.25...0.5)
+
+        guard let playmate = nearestCompanion() else { return }
+        let centre = origin.x + size.width / 2
+        let theirs = playmate.x + size.width / 2
+        // Close enough to be playing *with* her rather than walking into her: the
+        // separation below holds the distance, so the pair circles instead of
+        // merging.
+        guard abs(theirs - centre) > personalSpace else {
+            wanderTargetX = nil
+            return
+        }
+        wanderTargetX = playmate.x
+    }
+
+    private func nearestCompanion() -> CGPoint? {
+        companions.min {
+            hypot($0.x - origin.x, $0.y - origin.y) < hypot($1.x - origin.x, $1.y - origin.y)
+        }
+    }
+
+    /// Step out of another pet's way. Positional rather than a force: the push
+    /// decays to nothing at `personalSpace`, so two cats settle apart instead of
+    /// springing at each other forever.
+    private func separateFromCompanions(_ dt: Double, region: CGRect) {
+        guard !companions.isEmpty, !isDragging else { return }
+        let centre = origin.x + size.width / 2
+        for companion in companions {
+            // Only pets on the same footing get in each other's way: one on a
+            // window ledge and one on the floor are not stacked.
+            guard abs(origin.y - companion.y) < size.height * 0.6 else { continue }
+            let gap = centre - (companion.x + size.width / 2)
+            guard abs(gap) < personalSpace else { continue }
+            let ease = (personalSpace - abs(gap)) * CGFloat(dt) * 1.6
+            origin.x += (gap >= 0 ? 1 : -1) * min(ease, 0.75)
+        }
+        origin.x = min(max(origin.x, region.minX - 30), region.maxX - size.width + 30)
     }
 
     // MARK: - Teleporting between displays
@@ -337,8 +429,8 @@ final class PetMotion {
     private func updateTeleport(_ dt: Double) {
         guard teleportEnabled, desktop.visibleFrames.count > 1 else { return }
         // She does not blink out of your hand, out of mid-air, out of a
-        // sentence, or out of a nap.
-        guard !isDragging, !isAirborne, !isCrouching, !isTalking, !isAsleep else { return }
+        // sentence, out of a nap, or out of a game of chase.
+        guard !isDragging, !isAirborne, !isCrouching, !isTalking, !isAsleep, !isPlaying else { return }
 
         teleportInSeconds -= dt
         guard teleportInSeconds <= 0 else { return }
@@ -432,7 +524,7 @@ final class PetMotion {
     /// she is being held, in the air, talking, or asleep.
     var canStretch: Bool {
         !isDragging && !isAirborne && !isCrouching && !isTalking && !isAsleep
-            && wanderTargetX == nil
+            && wanderTargetX == nil && !isPlaying
     }
 
     private func updateStretch(_ dt: Double) {
@@ -492,7 +584,7 @@ final class PetMotion {
     /// rather than a state, so she gets up again on her own.
     private func desiredRestingShape() -> CatShape {
         if isDragging || isAirborne || isCrouching || isTalking { return .stand }
-        if wanderTargetX != nil { return .stand }
+        if wanderTargetX != nil || isPlaying { return .stand }
         if isAsleep { return .lie }
         if idleSeconds >= sitAfterSeconds { return .sit }
         if perchSeconds >= loafAfterSeconds, perchSeconds < loafAfterSeconds + loafHoldSeconds {
@@ -691,6 +783,10 @@ final class PetMotion {
         }
 
         velocity = v
+        // Company before her own decisions: stepping out of another cat's way is
+        // not a decision she made, and it must not be able to cancel a walk she
+        // did choose.
+        separateFromCompanions(dt, region: region)
         // "Grounded" is about altitude only. Testing horizontal velocity here
         // would cancel every walk the moment it started.
         wander(dt, grounded: origin.y <= floor + 0.5)
@@ -768,11 +864,12 @@ final class PetMotion {
             return
         }
 
-        // Do not *start* anything while she is settled into a rest: a cat that
-        // has lain down does not get up on a timer. The loaf ends by its own
-        // clock (see `desiredRestingShape`), the sit is the run-up to sleep, and
-        // a sleeping cat must not stand up and wander off mid-nap.
-        guard !isResting else { return }
+        // Do not *start* anything while she is settled into a rest, or while she
+        // is chasing a playmate: a cat that has lain down does not get up on a
+        // timer. The loaf ends by its own clock (see `desiredRestingShape`), the
+        // sit is the run-up to sleep, and a sleeping cat must not stand up and
+        // wander off mid-nap.
+        guard !isResting, !isPlaying else { return }
 
         wanderCountdown -= dt
         guard wanderCountdown <= 0 else { return }
@@ -1011,6 +1108,9 @@ final class PetMotion {
     private func resolveMood(sleepy: Bool, airborne: Bool, walking: Bool) -> CatMood {
         if isDragging { return .dragged }
         if airborne && abs(velocity.dy) > 700 { return .alarmed }
+        // A cat in a chase is playing, and the happy face already has the ears
+        // up, the tail faster and the blush — which is the whole expression.
+        if isPlaying { return .happy }
         if sleepy { return .sleepy }
         if let cursor, followCursor {
             let headScreen = screenPoint(designX: 50, designY: CatAnatomy.blend(pose.shape).headCenter.y)

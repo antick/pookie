@@ -460,7 +460,7 @@ struct CatRenderer: PetRenderer {
         nose.addLine(to: CGPoint(x: muzzle.x + noseWidth / 2, y: noseBottom + noseHeight))
         nose.addLine(to: CGPoint(x: muzzle.x, y: noseBottom))
         nose.closeSubpath()
-        fillStroke(context, path: nose, fill: .hex(0xE8867F), stroke: palette.outline, width: 1.6 * anatomy.muzzleScale)
+        fillStroke(context, path: nose, fill: palette.nose, stroke: palette.outline, width: 1.6 * anatomy.muzzleScale)
 
         // Mouth. The open variant has to sit just under the nose, on the
         // muzzle — not down on the chest. `mouthOpen` is M2's speech; the yawn
@@ -475,7 +475,7 @@ struct CatRenderer: PetRenderer {
                 height: height
             )
             let openPath = CGPath(ellipseIn: open, transform: nil)
-            fillStroke(context, path: openPath, fill: .hex(0xB4574F), stroke: palette.outline, width: 1.6 * anatomy.muzzleScale)
+            fillStroke(context, path: openPath, fill: palette.mouth, stroke: palette.outline, width: 1.6 * anatomy.muzzleScale)
             // Tongue, because it is funny.
             if mouthOpen > 0.45 {
                 let tongue = CGRect(
@@ -484,7 +484,7 @@ struct CatRenderer: PetRenderer {
                     width: muzzleRadii.width * (6.0 / 11),
                     height: muzzleRadii.height * (3.4 / 7.5)
                 )
-                context.setFillColor(.hex(0xF08E93))
+                context.setFillColor(palette.tongue)
                 context.fillEllipse(in: tongue)
             }
         } else {
@@ -535,7 +535,7 @@ struct CatRenderer: PetRenderer {
         // Blush.
         let blush = CGFloat(max(0, min(1, pose.blush)))
         if blush > 0.02 {
-            context.setFillColor(.hex(0xF07A72, alpha: 0.45 * blush))
+            context.setFillColor(palette.blush.copy(alpha: 0.45 * blush) ?? palette.blush)
             for direction in [CGFloat(-1), CGFloat(1)] {
                 let center = CGPoint(
                     x: anatomy.headCenter.x + direction * 16.5 * headScale,

@@ -214,6 +214,8 @@ the `idle` state, each with its own cooldown and randomization:
 | Look-at-cursor | when idle, cursor within a radius | Reuses `lookAt`; includes a small head-lead bias |
 | Wander | every 20–60 s | `moveTo` a waypoint inside the current screen's edge band. Suppressed while she is settled into a rest shape, so the sit before sleep is not interrupted by a stroll |
 | Teleport to another display | every 45–120 s, when there is more than one display and the setting is on | The only way a pet on a two-monitor desk ever uses the second monitor. She arrives *from above*, so a window top under her becomes the ground she lands on rather than something she appears in front of. Suppressed while you are holding her, mid-air, mid-sentence, or asleep |
+| Company | continuous, when other cats are near | Two cats converging on one pixel read as one buggy cat, so each steps out of the other's way. The push is positional and decays to zero at one personal space, so they settle apart instead of springing at each other forever, and it only applies between cats on the same footing — one on a ledge and one on the floor are not stacked |
+| Play | every 20–50 s, when two cats are awake on the same display | A jittered 2–5 s chase: aim at the playmate through the ordinary wander channel, re-aimed every 0.3 s, wearing the happy face. Refused while asleep, held, mid-air or mid-sentence, and behind the same "Wander around" switch as any other unprompted walking. One cat of the pair says a line, not both |
 | Perch | on landing above a window top | One-way platform: a window top is a floor only if she is already above it. She rides a dragged window and falls off the end |
 | Jump to a ledge | every 12–32 s, or 3–8 s if nothing was in reach | She gathers, leaps onto a reachable window top, and climbs from one window to a higher one. Suppressed during a sentence, while asleep, and by the menu toggle |
 | Settle into a shape | loaf 8–16 s after she stops on a perch, and it lasts 20–45 s; sit after 45–80 s idle; lie when asleep | **Sit, loaf, lie, stretch** — four anatomy keyframes she blends into rather than cuts to. A posture is a weight vector across the shapes, not a state plus a progress bar, so retargeting mid-settle (sitting down, then dozing off before the sit finishes) cannot pop. The loaf is a bounded episode, so a cat that has settled still gets up and moves on. See §7 |
@@ -329,6 +331,15 @@ while idle and visible**, effectively 0% while occluded.
 Tier transitions are hysteresis-based. A pet at the boundary between "idle" and "active" must not
 oscillate between 12 and 30 fps every frame.
 
+**Many cats share one budget.** The population is capped at ten (`PetCohort`), and the frame rates are
+divided rather than multiplied: `totalFrameBudget` is 120 drawn frames per second for the whole
+colony, so a single pet is unaffected by it and ten get 12 fps each — the tier a sleeping cat already
+used. An occluded pet pauses outright, so a colony behind a fullscreen app costs nothing. Measured on
+a 3840x1620 display while idle: one cat ≈ 7% CPU / 52 MB, three ≈ 17% / 59 MB, ten ≈ 25% / 71 MB.
+Ten cats therefore cost about 3.4x one rather than 10x — and the remaining absolute cost is the
+software rasterisation M1 exists to remove, multiplied by ten. This is the honest reason the cap is a
+cap.
+
 ---
 
 ## 10. M0 scope vs deferred
@@ -407,6 +418,14 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   the contract between the two: the floor is `PetMotion.origin`, and the window hangs that much lower
   on screen. `--selftest` rasterises the standing cat at every size setting, finds the lowest ink, and
   fails if it is not on the floor line — so the constant cannot quietly drift again.
+- **A colony of cats** (`PetCohort`, `CatSkin`). `spawn` / `despawn` are real, in-process: up to ten
+  pets, each with its own coat and size factor and the full behaviour set — perching, jumping,
+  teleporting, resting, stretching. The cohort owns what only makes sense for a group: the cap, the
+  shared frame budget (§9), the window exclusions that stop cats perching on each other, the companion
+  positions each pet uses to step aside (§6), and the occasional play bout. Settings stay colony-wide,
+  because "small" and "chatty" are properties of the desk rather than of one cat out of five.
+  Everything that maps a design point to the screen is per-pet (`PetMotion.windowOrigin`), which is
+  why ten windows can share one renderer without any of them disagreeing about where their cat is.
 
 ### Deferred, with the milestone that owns it
 

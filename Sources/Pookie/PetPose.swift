@@ -212,36 +212,155 @@ extension CatPose {
     }
 }
 
-/// Orange tabby, but the palette is injectable so skins are trivial later.
+/// Every colour the cat is painted with. Injectable, because a desk with more
+/// than one cat on it needs them to look like different cats — see `CatSkin`.
 struct CatPalette {
     var fur: CGColor
     var furDark: CGColor
+    /// Chest, muzzle, paws and the white of the eye. This one field does a lot of
+    /// work: a tuxedo is mostly this colour with dark fur on top.
     var belly: CGColor
     var earInner: CGColor
     var outline: CGColor
     var eye: CGColor
     var eyeShine: CGColor
     var whisker: CGColor
+    var nose: CGColor
+    var mouth: CGColor
+    var tongue: CGColor
+    var blush: CGColor
 
-    static let tabby = CatPalette(
-        fur: .hex(0xF2A25C),
-        furDark: .hex(0xD4803A),
-        belly: .hex(0xFDEBD2),
-        earInner: .hex(0xF7B9A0),
-        outline: .hex(0x6B3F1D),
-        eye: .hex(0x3A2E27),
-        eyeShine: .hex(0xFFFFFF),
-        whisker: .hex(0xFFFFFF, alpha: 0.85)
-    )
+    /// Build a coat from one line of numbers.
+    static func coat(
+        fur: UInt32,
+        furDark: UInt32,
+        belly: UInt32,
+        earInner: UInt32,
+        outline: UInt32,
+        eye: UInt32,
+        nose: UInt32,
+        mouth: UInt32,
+        tongue: UInt32,
+        blush: UInt32,
+        whiskerAlpha: Double = 0.85,
+        eyeShine: UInt32 = 0xFFFFFF
+    ) -> CatPalette {
+        CatPalette(
+            fur: .hex(fur),
+            furDark: .hex(furDark),
+            belly: .hex(belly),
+            earInner: .hex(earInner),
+            outline: .hex(outline),
+            eye: .hex(eye),
+            eyeShine: .hex(eyeShine),
+            whisker: .hex(0xFFFFFF, alpha: whiskerAlpha),
+            nose: .hex(nose),
+            mouth: .hex(mouth),
+            tongue: .hex(tongue),
+            blush: .hex(blush)
+        )
+    }
+}
 
-    static let midnight = CatPalette(
-        fur: .hex(0x6C7396),
-        furDark: .hex(0x505778),
-        belly: .hex(0xD9DCF0),
-        earInner: .hex(0xE7B7C4),
-        outline: .hex(0x2B2F45),
-        eye: .hex(0x2A2438),
-        eyeShine: .hex(0xFFFFFF),
-        whisker: .hex(0xFFFFFF, alpha: 0.7)
-    )
+/// A coat, which is also an identity: `PetCohort` hands out a different one to
+/// each pet it spawns, because two identical cats on one desk read as a rendering
+/// bug rather than as two pets. Ten of them, one for each pet the settings allow.
+enum CatSkin: String, CaseIterable {
+    case tabby
+    case midnight
+    case tuxedo
+    case ginger
+    case cream
+    case calico
+    case siamese
+    case grey
+    case chocolate
+    case snow
+
+    var name: String {
+        switch self {
+        case .tabby: return "Tabby"
+        case .midnight: return "Midnight"
+        case .tuxedo: return "Tuxedo"
+        case .ginger: return "Ginger"
+        case .cream: return "Cream"
+        case .calico: return "Calico"
+        case .siamese: return "Siamese"
+        case .grey: return "Grey"
+        case .chocolate: return "Chocolate"
+        case .snow: return "Snow"
+        }
+    }
+
+    var palette: CatPalette {
+        switch self {
+        case .tabby:
+            return .coat(
+                fur: 0xF2A25C, furDark: 0xD4803A, belly: 0xFDEBD2, earInner: 0xF7B9A0,
+                outline: 0x6B3F1D, eye: 0x3A2E27, nose: 0xE8867F, mouth: 0xB4574F,
+                tongue: 0xF08E93, blush: 0xF07A72
+            )
+        case .midnight:
+            return .coat(
+                fur: 0x6C7396, furDark: 0x505778, belly: 0xD9DCF0, earInner: 0xE7B7C4,
+                outline: 0x2B2F45, eye: 0x2A2438, nose: 0xD9A0A8, mouth: 0x6E4F63,
+                tongue: 0xE7B7C4, blush: 0xC98BA8, whiskerAlpha: 0.7
+            )
+        case .tuxedo:
+            return .coat(
+                fur: 0x33364A, furDark: 0x24273A, belly: 0xF7F4EC, earInner: 0xE0A2A2,
+                outline: 0x14161F, eye: 0x3E5B45, nose: 0x3A3A3A, mouth: 0x5E5148,
+                tongue: 0xE89AA0, blush: 0xD98A8A, whiskerAlpha: 0.9
+            )
+        case .ginger:
+            return .coat(
+                fur: 0xE8794A, furDark: 0xC25A32, belly: 0xFBE3CC, earInner: 0xF0A78F,
+                outline: 0x7A3A1C, eye: 0x4A3A22, nose: 0xD97A6A, mouth: 0xA64A3F,
+                tongue: 0xEE8F8A, blush: 0xE0766A
+            )
+        case .cream:
+            return .coat(
+                fur: 0xF0D7B0, furDark: 0xDCBE92, belly: 0xFBF3E2, earInner: 0xEFB9AE,
+                outline: 0x8A6A45, eye: 0x4C4034, nose: 0xE9A79E, mouth: 0xB4746A,
+                tongue: 0xF2A9A2, blush: 0xEFA79A
+            )
+        case .calico:
+            return .coat(
+                fur: 0xF5EDE0, furDark: 0xD97B3F, belly: 0xFFFFFA, earInner: 0xEFA79A,
+                outline: 0x7A5A3E, eye: 0x6B4A22, nose: 0xE8938C, mouth: 0xB06A62,
+                tongue: 0xF0A29B, blush: 0xEA8F86
+            )
+        case .siamese:
+            return .coat(
+                fur: 0xE8D6BB, furDark: 0x5A4433, belly: 0xF7EDDC, earInner: 0xD9A08F,
+                outline: 0x4A3628, eye: 0x4A6BA8, nose: 0x6B5140, mouth: 0x4E3A2E,
+                tongue: 0xD98F94, blush: 0xC98A86
+            )
+        case .grey:
+            return .coat(
+                fur: 0x9AA0A8, furDark: 0x7C828C, belly: 0xE8E9EB, earInner: 0xC9A8AC,
+                outline: 0x4A4E55, eye: 0x3C4A55, nose: 0x8A8F95, mouth: 0x5A5F66,
+                tongue: 0xC98F94, blush: 0xB08A8E
+            )
+        case .chocolate:
+            return .coat(
+                fur: 0x6B4A34, furDark: 0x523827, belly: 0xD9BFA6, earInner: 0xC99A86,
+                outline: 0x33231A, eye: 0x6A4A20, nose: 0x4A342A, mouth: 0x3E2C22,
+                tongue: 0xD98F86, blush: 0xB07A72
+            )
+        case .snow:
+            return .coat(
+                fur: 0xF7F4EE, furDark: 0xE0DAD0, belly: 0xFFFFFF, earInner: 0xF2B7B2,
+                outline: 0x8A8580, eye: 0x5A7FA8, nose: 0xED9AA0, mouth: 0xB4747A,
+                tongue: 0xF0A0A8, blush: 0xEFA0A0
+            )
+        }
+    }
+}
+
+extension CatPalette {
+    /// The default coat. `CatSkin` owns the colours; these are the conveniences
+    /// the tests and the defaults use.
+    static var tabby: CatPalette { CatSkin.tabby.palette }
+    static var midnight: CatPalette { CatSkin.midnight.palette }
 }

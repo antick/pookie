@@ -299,12 +299,15 @@ the pet.
 
 ## M8 — Multi-pet, menu-bar settings, packaging
 
-**Status: partially landed.** The menu-bar item already carries show/hide, **pet size** (small to
-extra large), mouse mode, wander, cursor tracking, perching, jumping, speech, **teleport between
-displays**, screen-sharing privacy and quit — so criterion 2 is part-way there ahead of its
-milestone. Outstanding: settings do not persist across launches (M8 owns the real store), and the
-rest of the list (opacity, quiet mode, per-producer rate limits, skill toggles, launch at login) with
-it.
+**Status: partially landed.** Criterion 1 is in for the in-process case: up to ten pets coexist, each
+with its own coat, size and behaviour engine, spawned and removed from the menu-bar item or
+`Pookie --pets N`, under one shared frame budget. The menu-bar item already carries show/hide, **pet
+size**, **add / remove a cat**, mouse mode, wander, cursor tracking, perching, jumping, speech,
+**teleport between displays**, screen-sharing privacy and quit — so criterion 2 is part-way there
+ahead of its milestone. Outstanding: settings do not persist across launches (M8 owns the real store),
+the per-pet CPU budget is a shared frame-rate ceiling rather than an accounting of who spent what, and
+the rest of the list (opacity, quiet mode, per-producer rate limits, skill toggles, launch at login)
+with it.
 
 ### Goal
 

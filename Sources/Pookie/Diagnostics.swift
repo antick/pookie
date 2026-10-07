@@ -844,6 +844,90 @@ enum Diagnostics {
         check(carried.teleportCount == 0, "she does not blink out of your hand")
 
         print("")
+        print("a colony of cats")
+        // Ten coats, all different: two identical cats on one desk read as a
+        // rendering bug rather than as two pets.
+        check(
+            CatSkin.allCases.count >= PetCohort.maximumPets,
+            "there is a coat for every pet the cap allows (\(CatSkin.allCases.count))"
+        )
+        var coats = Set<String>()
+        for skin in CatSkin.allCases {
+            let components = skin.palette.fur.components ?? []
+            coats.insert(components.map { String(format: "%.3f", $0) }.joined(separator: ","))
+        }
+        check(coats.count == CatSkin.allCases.count, "every coat is a different colour")
+        check(CatSkin.allCases.allSatisfy { !$0.name.isEmpty }, "every coat has a name for the menu")
+
+        // The cap and the budget are pure, so both can be pinned without a window
+        // server: nine cats can have a tenth, ten cannot, and the budget divides.
+        check(PetCohort.canAddPet(having: 0), "an empty desk can have a cat")
+        check(PetCohort.canAddPet(having: PetCohort.maximumPets - 1), "the last slot is still a slot")
+        check(!PetCohort.canAddPet(having: PetCohort.maximumPets), "the cap holds at \(PetCohort.maximumPets)")
+        check(PetCohort.perPetFPS(petCount: 1) == 60, "one cat is not budget-limited")
+        check(
+            PetCohort.perPetFPS(petCount: PetCohort.maximumPets) >= 8,
+            "ten cats each still get at least the sleep tier (\(String(format: "%.0f", PetCohort.perPetFPS(petCount: PetCohort.maximumPets))) fps)"
+        )
+        check(
+            PetCohort.perPetFPS(petCount: PetCohort.maximumPets) < PetCohort.perPetFPS(petCount: 2),
+            "more cats means fewer frames each"
+        )
+
+        // Two cats converging on one spot read as one buggy cat, so they step
+        // apart — positionally, so they settle instead of springing forever.
+        let colonyDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
+        let alice = PetMotion(origin: CGPoint(x: 600, y: 0), size: size, desktop: colonyDesk)
+        let bob = PetMotion(origin: CGPoint(x: 610, y: 0), size: size, desktop: colonyDesk)
+        alice.wanderEnabled = false
+        alice.followCursor = false
+        bob.wanderEnabled = false
+        bob.followCursor = false
+        for _ in 0..<600 {
+            alice.companions = [bob.origin]
+            bob.companions = [alice.origin]
+            alice.advance(dt: 1.0 / 60.0)
+            bob.advance(dt: 1.0 / 60.0)
+        }
+        let spacing = abs(alice.origin.x - bob.origin.x)
+        check(
+            spacing >= alice.personalSpace * 0.95,
+            "two cats who start on top of each other step apart (\(String(format: "%.0f", spacing))pt of \(String(format: "%.0f", alice.personalSpace))pt)"
+        )
+
+        // Playing: a bout sends her at her playmate, wearing the happy face, and
+        // it is refused whenever she is in no state to notice anyone.
+        let chaser = PetMotion(origin: CGPoint(x: 200, y: 0), size: size, desktop: colonyDesk)
+        chaser.followCursor = false
+        check(!chaser.isPlaying, "she is not playing to start with")
+        check(chaser.startPlay(3), "a bout can start")
+        check(chaser.isPlaying, "and then she is playing")
+        let startX = chaser.origin.x
+        for _ in 0..<120 {
+            chaser.companions = [CGPoint(x: 900, y: 0)]
+            chaser.advance(dt: 1.0 / 60.0)
+        }
+        check(
+            chaser.origin.x > startX + 20,
+            "she runs at her playmate (\(String(format: "%.0f", chaser.origin.x - startX))pt in two seconds)"
+        )
+        check(chaser.pose.mood == .happy, "and she looks pleased about it")
+        check(!chaser.canStretch, "a cat mid-chase does not stop to stretch")
+
+        let napper = PetMotion(origin: CGPoint(x: 200, y: 0), size: size, desktop: colonyDesk)
+        napper.followCursor = false
+        napper.sleepAfterSeconds = 1
+        run(napper, 2)
+        check(napper.isAsleep, "she is asleep")
+        check(!napper.startPlay(2), "and a sleeping cat does not get up to play")
+
+        let grabbed = PetMotion(origin: CGPoint(x: 200, y: 0), size: size, desktop: colonyDesk)
+        grabbed.followCursor = false
+        grabbed.beginDrag(at: CGPoint(x: 200, y: 0))
+        check(!grabbed.startPlay(2), "she does not start a game while you are holding her")
+        check(!grabbed.isPlaying, "and she is not playing")
+
+        print("")
         if failures.isEmpty {
             print("selftest PASSED")
             return 0
