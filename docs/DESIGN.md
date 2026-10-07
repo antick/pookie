@@ -465,6 +465,16 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   coat, and which one answers producers. The roster, the size, the switches and the teleport cadence
   persist in `UserDefaults`; launch flags are one-run overrides and deliberately do *not* write to it,
   because a debugging flag that silently rewrites the saved settings is a bug the user cannot see.
+- **Variety on the desk, and seams between displays** (`PetMotion.planJump`, `Desktop.neighbour`). The
+  jump planner used to score purely on distance with a large bonus for the frontmost app, which put her
+  on the same big window all day; it now penalises the window she is on and the last three she used,
+  spreads the landing along the ledge, and takes the highest reachable ledge about a third of the time.
+  And a display edge is a seam rather than a wall: `Desktop.neighbour` says whether anything is actually
+  attached on that side, so she walks across instead of bouncing off nothing. The same wall code covers
+  walking, jumping and being thrown, which is why the fix is one function.
+  Fixing that exposed a real solver bug: the jump aimed with a *continuous* drag integral while the
+  physics applies drag once per frame, so long jumps landed up to a fifth short. The integral now models
+  the discrete integration, and a deterministic jump lands exactly on its target.
 - **Brawls** (`PetMotion.startScuffle`, `CatPose.punch`/`impact`). Two pookies within a paw's length *for three
   seconds* brawl for 1.6–3 s: alternating thrown paws with a comic hit on each swing, leaning into each
   other. The three-second rule is what makes it provoked rather than random — the first version fired on

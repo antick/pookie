@@ -405,7 +405,22 @@ enum Diagnostics {
         )
         check(hypot(plan.velocity.dx, plan.velocity.dy) <= 2600, "the launch stays inside the physics speed cap")
 
+        // And with the spread on, she does not aim at the same spot every time.
+        let landings = (0..<24).compactMap { _ in jumper.planJump()?.target.x }
+        check(landings.count >= 20, "there is somewhere to jump, twenty-four times over")
+        check(Set(landings.map { Int($0 / 8) }).count >= 4, "and she spreads her landings along the ledge")
+        check(
+            landings.allSatisfy { $0 >= reachable.rect.minX && $0 <= reachable.rect.maxX - size.width },
+            "without ever aiming off the end of it"
+        )
+
+        // Landing accuracy is measured against a deterministic jump: the spread
+        // is what makes landings vary, and it is pinned off here.
+        jumper.jumpLandingSpread = 0
         check(jumper.requestJump(), "she starts a jump when there is somewhere to go")
+        // The landing spot is jittered per jump, so the claim is that she lands
+        // where *this* jump aimed, not where a second plan would have.
+        let aimed = jumper.jumpTarget
         check(jumper.isCrouching, "she gathers before launching")
         var reachedWindow = false
         for _ in 0..<420 {
@@ -415,8 +430,8 @@ enum Diagnostics {
         check(reachedWindow, "she lands on the window top and stays there")
         check(abs(jumper.origin.y - reachable.top) < 1.5, "her feet end up on the ledge (y=\(String(format: "%.1f", jumper.origin.y)))")
         check(
-            abs(jumper.origin.x - plan.target.x) < 12,
-            "she lands where she aimed (x=\(String(format: "%.0f", jumper.origin.x)), aimed at \(String(format: "%.0f", plan.target.x)))"
+            abs(jumper.origin.x - (aimed?.x ?? plan.target.x)) < 12,
+            "she lands where she aimed (x=\(String(format: "%.0f", jumper.origin.x)), aimed at \(String(format: "%.0f", aimed?.x ?? plan.target.x)))"
         )
         check(jumper.jumpCount == 1, "the jump is counted once")
 
@@ -1028,6 +1043,46 @@ enum Diagnostics {
         check(scrappy.facingDirection > 0, "and facing her, who is to her right")
         run(scrappy, 2)
         check(!scrappy.isScuffling, "the scrap ends on its own")
+
+        // A wall is only a wall when there is nothing on the other side of it.
+        let seamDesk = Desktop(visibleFrames: [
+            CGRect(x: 0, y: 0, width: 1440, height: 860),
+            CGRect(x: 1440, y: 0, width: 1440, height: 860),
+        ])
+        // Fling her at the seam: the same wall code carries a walk and a throw.
+        let rover = PetMotion(origin: CGPoint(x: 1380, y: 0), size: size, desktop: seamDesk)
+        rover.followCursor = false
+        rover.wanderEnabled = false
+        rover.beginDrag(at: CGPoint(x: 1400, y: 40))
+        for step in 0..<4 {
+            rover.advance(dt: 1.0 / 60.0)
+            rover.updateDrag(to: CGPoint(x: 1400 + CGFloat(step) * 14, y: 40))
+        }
+        rover.endDrag()
+        for _ in 0..<240 { rover.advance(dt: 1.0 / 60.0) }
+        check(
+            rover.origin.x > 1440 - size.width,
+            "she crosses the seam onto the next monitor (x=\(String(format: "%.0f", rover.origin.x)))"
+        )
+        check(
+            seamDesk.region(containing: rover.origin) == seamDesk.visibleFrames[1],
+            "and is standing on it"
+        )
+
+        let walled = PetMotion(origin: CGPoint(x: 1380, y: 0), size: size, desktop: scuffleDesk)
+        walled.followCursor = false
+        walled.wanderEnabled = false
+        walled.beginDrag(at: CGPoint(x: 1400, y: 40))
+        for step in 0..<4 {
+            walled.advance(dt: 1.0 / 60.0)
+            walled.updateDrag(to: CGPoint(x: 1400 + CGFloat(step) * 14, y: 40))
+        }
+        walled.endDrag()
+        for _ in 0..<240 { walled.advance(dt: 1.0 / 60.0) }
+        check(
+            walled.origin.x <= 1440 - size.width + 0.5,
+            "with no monitor on the other side she stops at the edge instead"
+        )
 
         // A brawl is provoked by company that *stays*: three seconds within
         // reach, not one frame of passing each other. This is the rule the human

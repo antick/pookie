@@ -155,6 +155,15 @@ starts with five. Five is the cap — one of each animal — and there are five 
 | **Bear** | a big round body, button ears and a broad muzzle | Cocoa |
 | **Hamster** | the smallest of them, with fat cheeks either side of the muzzle | Hazel |
 
+She **climbs onto other apps' windows** rather than only the biggest one: the ledge she picks is
+varied on purpose — a small preference for the app you are working in, a large penalty for the window
+she is already standing on and for the last three she jumped to, a little noise, and roughly a third
+of the time she goes for the *highest* thing she can reach instead of the easiest. The landing spot is
+spread along the ledge too, so jumping from the same place twice does not end in the same spot twice.
+With two displays, the edge of a screen is a **seam, not a wall**: if a monitor is attached on that
+side she walks, jumps or gets thrown onto it; she only bounces off an edge when there is nothing on
+the other side of it.
+
 **One of each animal at a time**, which is what makes the desk read as a gang rather than a
 duplicate: adding a second bunny is not offered, and a saved roster with a duplicate is repaired on
 load (the second bunny becomes the next animal nobody is, keeping its coat and name). A *coat* is
@@ -307,12 +316,15 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 288 headless checks, including:
+runs 294 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,
   its own proportions and a coat nobody else is wearing. This is what caught a panda whose body grew
   through the floor and a fox whose brush swung off the side of the world;
+- **jumps and seams**: that she spreads her landings along a ledge without aiming off the end of it,
+  that a pookie thrown at a display edge crosses onto the next monitor and one thrown at a real wall
+  stops — and that she lands where she aimed, on the flight the plan actually described;
 - **brawls**: that two seconds of company is not yet a fight and three is, that the paws alternate like
   a one-two with a comic hit on each swing, that they lean in rather than being pushed apart, that
   walking past somebody is not a fight, and that a sleeping or held animal is not drawn into one;

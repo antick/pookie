@@ -124,6 +124,27 @@ struct Desktop {
         return Desktop(visibleFrames: frames.isEmpty ? [CGRect(x: 0, y: 0, width: 1440, height: 900)] : frames)
     }
 
+    /// The display next to `frame` in `direction` (-1 left, +1 right), if one is
+    /// actually attached there.
+    ///
+    /// This is what lets a pookie walk off one monitor and onto the next instead
+    /// of hitting an invisible wall at the seam: a wall only exists where there
+    /// is nothing on the other side. Displays have to touch — a gap of a few
+    /// points is allowed for the rounding the window server does — and share some
+    /// vertical range, or she would be walking into empty space.
+    func neighbour(of frame: CGRect, direction: CGFloat) -> CGRect? {
+        let edge = direction > 0 ? frame.maxX : frame.minX
+        return visibleFrames
+            .filter { candidate in
+                guard candidate != frame else { return false }
+                let candidateEdge = direction > 0 ? candidate.minX : candidate.maxX
+                guard abs(candidateEdge - edge) <= 8 else { return false }
+                let overlap = min(candidate.maxY, frame.maxY) - max(candidate.minY, frame.minY)
+                return overlap >= 40
+            }
+            .min { abs(($0.minX + $0.maxX) / 2 - edge) < abs(($1.minX + $1.maxX) / 2 - edge) }
+    }
+
     /// The usable region containing `point`, or the region containing the point
     /// with the largest overlap, falling back to the first screen.
     func region(containing point: CGPoint) -> CGRect {

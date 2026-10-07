@@ -188,6 +188,20 @@ final class PetMotion {
     /// jumping onto a random one reads as a bug.
     var preferredPlatformOwner: String?
 
+    /// How far along a ledge she will aim from directly above her launch point,
+    /// as a fraction of the room available. Zero makes a jump deterministic,
+    /// which is what the landing-accuracy test pins it to; the default spreads
+    /// landings out so every jump from one spot does not end in the same place.
+    var jumpLandingSpread: CGFloat = 0.45
+
+    /// Where the jump in progress is heading, once one has been planned.
+    private(set) var jumpTarget: CGPoint?
+
+    /// The last few windows she jumped to. Without this she picks the same one
+    /// every time, which is the difference between a pet exploring the desk and
+    /// a pet stuck on one window.
+    private var recentJumpOwners: [String] = []
+
     /// Set by the controller while a bubble is up. Idle root-moving behaviour is
     /// suppressed during a sentence (DESIGN.md §5, rule 4).
     var isTalking = false
@@ -808,6 +822,11 @@ final class PetMotion {
         guard let plan = planJump() else { return false }
 
         pendingJump = plan.velocity
+        // Remember where this jump is going. The plan is jittered — that is what
+        // stops every jump from the same spot landing in the same place — so the
+        // flight and the test that checks it have to agree on *this* plan rather
+        // than on a second call to `planJump`.
+        jumpTarget = plan.target
         jumpWindupRemaining = jumpWindup
         isCrouching = true
         facing = plan.facing
@@ -830,7 +849,7 @@ final class PetMotion {
         // Only from solid ground, not mid-air or mid-wobble.
         guard origin.y <= ground + 0.5 else { return nil }
 
-        var best: (plan: JumpPlan, score: CGFloat)?
+        var candidates: [(plan: JumpPlan, score: CGFloat, owner: String, top: CGFloat)] = []
 
         for platform in platforms {
             let ledge = CGPoint(x: platform.rect.midX, y: platform.top)
@@ -846,7 +865,11 @@ final class PetMotion {
             let rise = platform.top - origin.y
             guard rise > 6, rise <= maxJumpRise else { continue }
 
-            let targetX = min(max(origin.x, minX), maxX)
+            // Where she lands, not just where she stands: a jump that always
+            // ends directly above the launch point is the "same spot every time"
+            // the human noticed. Spread it along the ledge, biased to nearby.
+            let spread = (maxX - minX) * jumpLandingSpread
+            let targetX = min(max(origin.x + Rand.cg(-spread...spread), minX), maxX)
             let dx = targetX - origin.x
             guard abs(dx) <= maxJumpDistance else { continue }
 
@@ -859,9 +882,13 @@ final class PetMotion {
             let vy = rise / CGFloat(flight) + 0.5 * gravity * CGFloat(flight)
             // Horizontal travel is damped by the same air resistance the physics
             // applies, so integrate the decay rather than assuming constant
-            // speed: `∫ 0.72^t dt` over the flight. Without this she lands about
-            // a fifth of the way short of every target.
-            let dragIntegral = (1 - pow(airDrag, flight)) / -log(airDrag)
+            // speed. And integrate it the way the physics *actually* does it —
+            // `v *= drag^dt` once per frame, then `x += v * dt` — rather than as a
+            // continuous curve: the two differ by a factor that grows with the
+            // flight time, which is why long jumps used to land a fifth of the
+            // way short while short ones looked fine.
+            let perFrame = pow(airDrag, 1.0 / 60.0)
+            let dragIntegral = (1.0 / 60.0) * perFrame * (1 - pow(airDrag, flight)) / (1 - perFrame)
             let vx = dx / CGFloat(dragIntegral)
             guard vy <= maxJumpSpeed, hypot(vx, vy) <= maxLaunchSpeed else { continue }
 
@@ -869,24 +896,83 @@ final class PetMotion {
             let apex = origin.y + vy * vy / (2 * gravity)
             guard apex <= region.maxY - size.height + 2 else { continue }
 
-            var score = abs(dx) + rise * 0.35
+            var score = abs(dx) + rise * 0.25
+            // The frontmost app is a *preference*, not an obsession: at -260 she
+            // spent her life on whichever window happened to be in front.
             if let preferred = preferredPlatformOwner, platform.ownerName == preferred {
-                score -= 260
+                score -= 60
             }
-            if best == nil || score < best!.score {
-                let heading: Double
-                if dx > 2 { heading = 1 } else if dx < -2 { heading = -1 } else { heading = facing }
-                best = (
-                    JumpPlan(
-                        velocity: CGVector(dx: vx, dy: vy),
-                        facing: heading,
-                        target: CGPoint(x: targetX, y: platform.top)
-                    ),
-                    score
-                )
+            // Not the window she is already standing on, and not one she has just
+            // jumped to: the same ledge every time reads as a bug, not as a pet.
+            if let standing = supportPlatform(), standing.ownerName == platform.ownerName {
+                score += 600
             }
+            if recentJumpOwners.contains(platform.ownerName) {
+                score += 180
+            }
+            // A little noise, so two equally good ledges are not always resolved
+            // the same way.
+            score += Rand.cg(-45...45)
+
+            let heading: Double
+            if dx > 2 { heading = 1 } else if dx < -2 { heading = -1 } else { heading = facing }
+            candidates.append((
+                plan: JumpPlan(
+                    velocity: CGVector(dx: vx, dy: vy),
+                    facing: heading,
+                    target: CGPoint(x: targetX, y: platform.top)
+                ),
+                score: score,
+                owner: platform.ownerName,
+                top: platform.top
+            ))
         }
-        return best?.plan
+
+        guard !candidates.isEmpty else { return nil }
+
+        // Sometimes she goes for the highest thing she can reach rather than the
+        // easiest one. That is what puts her on the tops of *other* windows
+        // instead of on the same big one all day — sometimes, not always.
+        let chosen: (plan: JumpPlan, score: CGFloat, owner: String, top: CGFloat)?
+        if Rand.bool(0.32), let highest = candidates.max(by: { $0.top < $1.top }) {
+            chosen = highest
+        } else {
+            chosen = candidates.min { $0.score < $1.score }
+        }
+
+        if let chosen {
+            recentJumpOwners.append(chosen.owner)
+            if recentJumpOwners.count > 3 { recentJumpOwners.removeFirst() }
+        }
+        return chosen?.plan
+    }
+
+    /// Keep her on a display, or let her cross onto the one next door.
+    ///
+    /// A wall is only a wall when there is nothing on the other side of it. With
+    /// a monitor attached, the edge of a display is a *seam*: she walks across it
+    /// rather than bouncing off an invisible wall, which is what she used to do
+    /// on a two-monitor desk.
+    ///
+    /// Returns true when she was stopped, so a thrown pookie still bounces off a
+    /// real wall.
+    private func crossOrBounce(_ region: CGRect) -> Bool {
+        let maxX = region.maxX - size.width
+        guard origin.x < region.minX || origin.x > maxX else { return false }
+
+        let direction: CGFloat = origin.x > maxX ? 1 : -1
+        guard let neighbour = desktop.neighbour(of: region, direction: direction) else {
+            origin.x = min(max(origin.x, region.minX), maxX)
+            return true
+        }
+
+        // Crossing at floor level lands on the neighbour's floor; crossing higher
+        // up keeps her altitude and lets gravity finish the job. Either way she
+        // has to end up inside the new display, or the next frame's region lookup
+        // would not find it.
+        if abs(origin.y - region.minY) < 3 { origin.y = neighbour.minY }
+        origin.y = min(max(origin.y, neighbour.minY), neighbour.maxY - size.height)
+        return false
     }
 
     private func integrate(_ dt: Double) {
@@ -902,14 +988,9 @@ final class PetMotion {
         origin.x += v.dx * CGFloat(dt)
         origin.y += v.dy * CGFloat(dt)
 
-        // Walls.
-        let maxX = region.maxX - size.width
-        if origin.x < region.minX {
-            origin.x = region.minX
-            v.dx = abs(v.dx) * 0.5
-        } else if origin.x > maxX {
-            origin.x = maxX
-            v.dx = -abs(v.dx) * 0.5
+        // Walls — but only where there is actually a wall.
+        if crossOrBounce(region) {
+            v.dx = (origin.x <= region.minX ? abs(v.dx) : -abs(v.dx)) * 0.5
         }
 
         // Floor, which is the desktop *or* the top edge of a window she is
