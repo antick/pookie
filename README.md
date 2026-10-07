@@ -241,7 +241,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 214 headless checks, including:
+runs 227 headless checks, including:
 
 - the `CGBitmapContext` row order, probed at runtime rather than assumed;
 - **the teleport blink**: it leaves before it moves — half way out she is part way gone and has not
