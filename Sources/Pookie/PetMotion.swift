@@ -79,6 +79,18 @@ final class PetMotion {
     var isScuffling: Bool { scuffleSeconds > 0 }
     /// Scraps had, for the heartbeat and the selftest.
     private(set) var scuffleCount = 0
+    /// Seconds left of a burst of zoomies: the sudden dash across the desk that
+    /// every cat does at eleven at night.
+    private(set) var zoomiesSeconds: Double = 0
+    private var zoomiesCountdown: Double = Rand.double(45...150)
+    /// Seconds left of a sneeze, and the little hop and head-shake that go with
+    /// it.
+    private(set) var sneezeSeconds: Double = 0
+    private var sneezeCountdown: Double = Rand.double(90...260)
+    /// Counts, for the heartbeat.
+    private(set) var zoomiesCount = 0
+    private(set) var sneezeCount = 0
+
     /// How long a rival has been within reach. A brawl is what happens to company
     /// that *stays* close: the human's rule is three seconds, and one frame of
     /// passing each other is not a fight.
@@ -143,6 +155,52 @@ final class PetMotion {
         }
     }
 
+    /// Zoomies, sneezes, and the head-bump: the small unprompted things.
+    private func updateSmallBehaviours(_ dt: Double) {
+        guard !isPaused, !isDragging, !isTalking else { return }
+
+        if zoomiesSeconds > 0 {
+            zoomiesSeconds -= dt
+            if zoomiesSeconds <= 0 { speedBoost = 1 }
+            // A dash, not a wander: the target is far and the speed is a sprint.
+            if let region = desktop.visibleFrames.first(where: { $0.contains(origin) }) {
+                wanderTargetX = Rand.cg(region.minX + 20...max(region.minX + 21, region.maxX - size.width - 20))
+            }
+            return
+        }
+
+        if sneezeSeconds > 0 { sneezeSeconds -= dt }
+
+        guard !isAirborne, !isAsleep, !isCrouching, !isScuffling else { return }
+
+        zoomiesCountdown -= dt
+        if zoomiesCountdown <= 0 {
+            zoomiesCountdown = Rand.double(60...200)
+            // Only from a standstill: a cat does not interrupt a nap to do this.
+            if wanderTargetX == nil, !isResting, !isPlaying {
+                zoomiesSeconds = Rand.double(0.9...1.8)
+                zoomiesCount += 1
+                speedBoost = 2.1
+            }
+        }
+
+        sneezeCountdown -= dt
+        if sneezeCountdown <= 0 {
+            sneezeCountdown = Rand.double(120...300)
+            sneeze()
+        }
+    }
+
+    /// A sneeze: a hop, a head shake and one small noise.
+    @discardableResult
+    func sneeze() -> Bool {
+        guard !isDragging, !isAirborne, !isAsleep, sneezeSeconds <= 0 else { return false }
+        sneezeSeconds = 0.45
+        sneezeCount += 1
+        pendingSneezeLine = true
+        return true
+    }
+
     /// Count how long anybody has been within reach, and forget it the moment
     /// they are not.
     private func updateNearbyClock(_ dt: Double) {
@@ -196,6 +254,18 @@ final class PetMotion {
     /// which is what the landing-accuracy test pins it to; the default spreads
     /// landings out so every jump from one spot does not end in the same place.
     var jumpLandingSpread: CGFloat = 0.45
+
+    /// Set when a sneeze wants to say something, read and cleared by the shell.
+    private var pendingSneezeLine = false
+
+    /// Consume the "she just sneezed" flag, for the line that goes with it.
+    func takeSneezeLine() -> Bool {
+        defer { pendingSneezeLine = false }
+        return pendingSneezeLine
+    }
+
+    /// A multiplier on her walk and trot speeds, used by the zoomies.
+    private var speedBoost: Double = 1
 
     /// Where the jump in progress is heading, once one has been planned.
     private(set) var jumpTarget: CGPoint?
@@ -472,6 +542,7 @@ final class PetMotion {
             applyDragDeformation()
         }
 
+        updateSmallBehaviours(dt)
         updatePlay(dt)
         updateScuffle(dt)
         updateTeleport(dt)
@@ -532,7 +603,12 @@ final class PetMotion {
             // Two animals in a brawl lean into each other, so the space they keep
             // is smaller — otherwise the rule that stops them stacking also stops
             // them ever touching.
-            let space = isScuffling ? personalSpace * 0.62 : personalSpace
+            // Resting company piles up: two loafing pookies are allowed to lean
+            // on each other, which is the whole charm of a pile of cats.
+            let piling = isResting && abs(velocity.dx) < 4
+            let space = isScuffling
+                ? personalSpace * 0.62
+                : (piling ? personalSpace * 0.72 : personalSpace)
             guard abs(gap) < space else { continue }
             let ease = (space - abs(gap)) * CGFloat(dt) * 1.6
             origin.x += (gap >= 0 ? 1 : -1) * min(ease, 0.75)
@@ -1103,7 +1179,7 @@ final class PetMotion {
                 wanderTargetX = nil
                 wanderCountdown = Rand.double(7...18)
             } else {
-                let speed = abs(delta) > trotThreshold ? trotSpeed : walkSpeed
+                let speed = (abs(delta) > trotThreshold ? trotSpeed : walkSpeed) * CGFloat(speedBoost)
                 velocity.dx = (delta > 0 ? 1 : -1) * min(speed, abs(delta) * 1.6)
                 facing = delta > 0 ? 1 : -1
             }
@@ -1271,6 +1347,34 @@ final class PetMotion {
         // The scrap is applied last, on purpose: it is the one thing she does
         // that has to override the walk cycle and the mouth decay rather than be
         // composed with them.
+        // A sneeze is a hop, a shake and a squint, over in half a second.
+        if sneezeSeconds > 0 {
+            let peak = sin((1 - sneezeSeconds / 0.45) * .pi)
+            pose.hopOffset = max(pose.hopOffset, peak * 2.2)
+            pose.earTwitch = max(pose.earTwitch, peak * 0.5)
+            pose.blink = max(pose.blink, peak * 0.8)
+        }
+
+        // Kneading: settled on something, happy, pressing her paws in a rhythm.
+        // Drawn with the punch channel, because a knead *is* a small punch.
+        if isResting, supportPlatform() != nil, !isAsleep, !isScuffling {
+            let press = sin(time * 4.2)
+            pose.punch = max(pose.punch, press * 0.28)
+            pose.mouthOpen = max(pose.mouthOpen, 0.08)
+        }
+
+        // A head-bump: when the pointer is close, lean into it. Unprompted
+        // affection is the thing a desktop pet is for.
+        if let cursor, !isDragging, !isAirborne, sneezeSeconds <= 0 {
+            let mine = screenPoint(designX: CatGeometry.design / 2, designY: pose.anatomy.headCenter.y)
+            let gap = hypot(cursor.x - mine.x, cursor.y - mine.y)
+            if gap < 90 {
+                let lean = (1 - gap / 90) * 0.55
+                pose.tilt = max(pose.tilt, lean * (cursor.x > mine.x ? 1 : -1) * 0.12)
+                if gap < 46 { pose.hopOffset = max(pose.hopOffset, 0.8) }
+            }
+        }
+
         if isScuffling {
             // A one-two: the paws alternate about twice a second, with a hop
             // under each punch and the mouth open between them, so it reads as a

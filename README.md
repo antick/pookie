@@ -182,6 +182,18 @@ the other side of it.
 one animation at two amplitudes: a flutter as it waddles, a full flap in the air, and — for the penguin
 — a **belly slide** past a walk, which is the lying shape moving rather than new art.
 
+### Small unprompted things
+
+Five more, all of them things she does on her own:
+
+| Action | When | What it looks like |
+|---|---|---|
+| **Zoomies** | every 1–3 minutes, from a standstill | a sudden dash across the desk at twice her trot, then back to normal |
+| **A sneeze** | every 2–5 minutes | a hop, a head shake, a squint, and `achoo!` |
+| **Kneading** | settled on a ledge, awake | both paws pressing in a slow rhythm, which is the punch channel at a fifth of the swing |
+| **A head-bump** | when the pointer comes within 90pt | she leans into it, and hops if it comes closer |
+| **Sleeping in a pile** | two settled pookies side by side | the space they keep shrinks by a third, so they lean instead of shoving |
+
 **Markings go over any coat.** Nine of them — none, an eye patch, one white sock, a heart, a raccoon
 mask, a ringed tail, rosettes, tiny stars, and a pale winter coat — chosen per pookie from **Markings**
 in its submenu, and free of both the species and the colour, so every combination of animal, coat and
@@ -361,7 +373,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 306 headless checks, including:
+runs 362 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,

@@ -395,6 +395,12 @@ final class PetWindowController {
 
         updateFrameTier(elapsed)
 
+        // A sneeze is the one thing she says without being asked, so it goes
+        // through the same rate limiter as everything else.
+        if motion.takeSneezeLine() {
+            say(PetChatter.sneeze(), duration: 1.0)
+        }
+
         // How late the pump actually ran, as a multiple of the interval it was
         // aiming for. The average frame rate hides a hitch and the draw cost
         // (1-2 ms, measured) does not include the window server's work, so this
@@ -606,6 +612,8 @@ final class PetWindowController {
             + "hops=\(motion.teleportCount) "
             + "plays=\(motion.playCount) "
             + "scraps=\(motion.scuffleCount) "
+            + "zoomies=\(motion.zoomiesCount) "
+            + "sneezes=\(motion.sneezeCount) "
             + "bubble=\(speech.bubble == nil ? "no" : "yes") "
             + "paused=\(motion.isPaused) "
             + "overCat=\(view.isPointerOverPet)"

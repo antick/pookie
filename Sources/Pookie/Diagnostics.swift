@@ -1022,6 +1022,41 @@ enum Diagnostics {
         )
 
         print("")
+        print("the small things")
+        let quietDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
+        // A sneeze: a hop, a head shake, and one noise.
+        let sneezy = PetMotion(origin: CGPoint(x: 400, y: 0), size: size, desktop: quietDesk)
+        sneezy.followCursor = false
+        check(sneezy.sneeze(), "she can sneeze")
+        check(sneezy.sneeze() == false, "and not twice in a row")
+        var sneezeHop = false
+        var sneezeShake = false
+        for _ in 0..<40 {
+            sneezy.advance(dt: 1.0 / 60.0)
+            if sneezy.pose.hopOffset > 0.8 { sneezeHop = true }
+            if sneezy.pose.earTwitch > 0.15 { sneezeShake = true }
+        }
+        check(sneezeHop, "with a hop")
+        check(sneezeShake, "and a head shake")
+        check(sneezy.sneezeCount == 1, "and it is counted")
+
+        // Sleeping in a pile: a settled neighbour may lean, not shove.
+        let napping = PetMotion(origin: CGPoint(x: 400, y: 0), size: size, desktop: quietDesk)
+        napping.followCursor = false
+        napping.wanderEnabled = false
+        napping.sitAfterSeconds = 0.5
+        napping.sleepAfterSeconds = 2
+        run(napping, 3)
+        check(napping.isResting, "she settles down to nap")
+        let close = CGPoint(x: napping.origin.x + napping.personalSpace * 0.8, y: napping.origin.y)
+        napping.companions = [close]
+        let settledAt = napping.origin.x
+        run(napping, 1)
+        check(
+            abs(napping.origin.x - settledAt) < napping.personalSpace * 0.35,
+            "and a neighbour does not shove her across the desk"
+        )
+
         print("scuffles")
         let scuffleDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
         // The close-quarters version of playing: two animals who are already next
