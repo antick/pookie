@@ -943,6 +943,27 @@ enum Diagnostics {
             "more cats means fewer frames each"
         )
 
+        // Where a new cat appears. This rule used to override `--at x,y` silently,
+        // which is exactly the kind of bug a pure function makes impossible.
+        let desk = CGRect(x: 0, y: 62, width: 1440, height: 1528)
+        let petSize = CatGeometry.preferredWindowSize
+        let chosen = CGPoint(x: 800, y: 300)
+        let first = PetCohort.homeOrigin(slot: 0, region: desk, size: petSize, start: chosen)
+        let second = PetCohort.homeOrigin(slot: 1, region: desk, size: petSize, start: chosen)
+        check(first == chosen, "the first cat of a colony starts exactly where --at put her")
+        check(second.x > first.x && second.y == first.y, "and the next one lines up beside her")
+        for slot in 0..<PetCohort.maximumPets {
+            let origin = PetCohort.homeOrigin(slot: slot, region: desk, size: petSize, start: nil)
+            check(
+                origin.x >= desk.minX && origin.x + petSize.width <= desk.maxX && origin.y == desk.minY,
+                "cat \(slot + 1) of an unplaced colony starts on the desk (\(Int(origin.x)))"
+            )
+        }
+        let crowded = (0..<PetCohort.maximumPets).map {
+            PetCohort.homeOrigin(slot: $0, region: desk, size: petSize, start: nil).x
+        }
+        check(Set(crowded).count == PetCohort.maximumPets, "ten cats arrive in ten different places")
+
         // Two cats converging on one spot read as one buggy cat, so they step
         // apart — positionally, so they settle instead of springing forever.
         let colonyDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])

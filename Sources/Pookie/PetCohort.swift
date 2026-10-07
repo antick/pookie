@@ -81,21 +81,40 @@ final class PetCohort {
             ?? CatSkin.allCases[pets.count % CatSkin.allCases.count]
     }
 
-    /// Where a new pet appears: along the bottom of the primary display, spaced
-    /// out, so a litter arrives in a row rather than stacked on one spot.
+    /// Where a new pet appears, given the desk and the user's chosen start point.
     ///
-    /// `--at x,y` (or a configured start point) is the user naming a spot, so the
-    /// first pet goes exactly there and the rest line up to the right of her.
-    private func homeOrigin(slot: Int) -> CGPoint {
-        let region = NSScreen.screens.first?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = AppConfig.shared.petSize
-        if let start = AppConfig.shared.startOrigin {
+    /// Pure, so the rule can be checked without a window server — and it is worth
+    /// checking, because the first version of it silently overrode `--at x,y`.
+    ///
+    /// With a start point, the first pet goes exactly there and the rest line up
+    /// to her right. Without one, they arrive in a row along the bottom of the
+    /// display, spaced out rather than stacked.
+    static func homeOrigin(
+        slot: Int,
+        region: CGRect,
+        size: CGSize,
+        start: CGPoint?,
+        jitter: CGFloat = 0
+    ) -> CGPoint {
+        if let start {
             return CGPoint(x: start.x + CGFloat(slot) * (size.width + 24), y: start.y)
         }
         let width = max(1, region.width - size.width - 80)
-        let step = width / CGFloat(Self.maximumPets)
-        let x = region.minX + 40 + CGFloat(min(slot, Self.maximumPets - 1)) * step
-        return CGPoint(x: x + Rand.cg(-24...24), y: region.minY)
+        let step = width / CGFloat(maximumPets)
+        let x = region.minX + 40 + CGFloat(min(slot, maximumPets - 1)) * step
+        return CGPoint(x: x + jitter, y: region.minY)
+    }
+
+    /// The user naming a spot wins; otherwise the row along the bottom.
+    private func homeOrigin(slot: Int) -> CGPoint {
+        let region = NSScreen.screens.first?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+        return Self.homeOrigin(
+            slot: slot,
+            region: region,
+            size: AppConfig.shared.petSize,
+            start: AppConfig.shared.startOrigin,
+            jitter: Rand.cg(-24...24)
+        )
     }
 
     /// Everything a population change implies: who may stand on whom, and how
