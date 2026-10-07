@@ -1029,6 +1029,59 @@ enum Diagnostics {
         run(scrappy, 2)
         check(!scrappy.isScuffling, "the scrap ends on its own")
 
+        // A brawl is provoked by company that *stays*: three seconds within
+        // reach, not one frame of passing each other. This is the rule the human
+        // asked for, and the reason they never saw a fight before it.
+        let company = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        company.followCursor = false
+        company.wanderEnabled = false
+        let neighbour = CGPoint(x: company.origin.x + company.personalSpace * 1.1, y: company.origin.y)
+        company.companions = [neighbour]
+        run(company, 2.4)
+        check(!company.isBrawlReady, "two seconds of company is not yet a fight")
+        run(company, 1)
+        check(company.isBrawlReady, "three seconds of it is")
+        check(company.startScuffle(2.5), "and then somebody throws a paw")
+
+        var sawPunch = false
+        var sawImpact = false
+        var sides = Set<Int>()
+        for _ in 0..<150 {
+            company.companions = [neighbour]
+            company.advance(dt: 1.0 / 60.0)
+            if abs(company.pose.punch) > 0.4 {
+                sawPunch = true
+                sides.insert(company.pose.punch > 0 ? 1 : -1)
+            }
+            if company.pose.impact > 0.5 { sawImpact = true }
+        }
+        check(sawPunch, "she throws a paw at the other one")
+        check(sides.count == 2, "and alternates paws, like a one-two")
+        check(sawImpact, "with a comic hit at the end of the swing")
+
+        // And a brawl holds them closer than the rule that keeps them apart.
+        let brawler = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        brawler.followCursor = false
+        brawler.wanderEnabled = false
+        let tight = CGPoint(x: brawler.origin.x + brawler.personalSpace * 0.5, y: brawler.origin.y)
+        brawler.companions = [tight]
+        run(brawler, 2)
+        let apart = brawler.origin.x
+        brawler.startScuffle(3)
+        run(brawler, 2)
+        check(brawler.origin.x > apart - 1, "in a brawl they lean in rather than being pushed apart")
+
+        // Walking past somebody is not a fight.
+        let passer = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        passer.followCursor = false
+        passer.wanderEnabled = false
+        let outOfReach = CGPoint(x: passer.origin.x + passer.personalSpace * 4, y: passer.origin.y)
+        passer.companions = [neighbour]
+        run(passer, 1.5)
+        passer.companions = [outOfReach]
+        run(passer, 1.5)
+        check(!passer.isBrawlReady, "and walking past somebody is not a fight either")
+
         let dozing = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
         dozing.followCursor = false
         dozing.sleepAfterSeconds = 1
@@ -1694,8 +1747,8 @@ enum Diagnostics {
     /// to check it is to look at all of them together.
     static func renderSpeciesPNG(to path: String) -> Int32 {
         let columns = PetSpecies.allCases.count
-        let rows = 3
-        let cell = 200
+        let rows = 4
+        let cell = 190
         let width = columns * cell
         let height = rows * cell
 
@@ -1736,6 +1789,21 @@ enum Diagnostics {
             PetSpecies.allCases.map { species in
                 .cat({ var pose = CatPose(); pose.species = species; pose.mood = .happy; pose.tailPhase = 1.1; pose.gazeX = 0.4; return pose }())
             },
+            // The swing: what a brawl looks like on each animal, with the bird
+            // flapping its wings instead.
+            PetSpecies.allCases.map { species in
+                .cat({
+                    var pose = CatPose()
+                    pose.species = species
+                    pose.shape = .only(.stand)
+                    pose.flap = species.traits.wings ? 1.0 : 0
+                    pose.hopOffset = species.traits.wings ? 2 : 0
+                    pose.punch = 1
+                    pose.impact = 1
+                    pose.mood = .alarmed
+                    return pose
+                }())
+            },
         ]
 
         for (rowIndex, row) in grid.enumerated() {
@@ -1771,8 +1839,9 @@ enum Diagnostics {
 
         print("wrote \(width)x\(height) species sheet to \(path)")
         print("row 1: " + PetSpecies.allCases.map { "\($0.name) in \($0.defaultCoat.name)" }.joined(separator: " | "))
-        print("row 2: the same five, loafing")
-        print("row 3: the same five, pleased")
+        print("row 2: the same eight, loafing")
+        print("row 3: the same eight, pleased")
+        print("row 4: throwing a paw (and the duckling's wings up)")
         return 0
     }
 

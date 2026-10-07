@@ -76,12 +76,24 @@ final class PetMotion {
     var isScuffling: Bool { scuffleSeconds > 0 }
     /// Scraps had, for the heartbeat and the selftest.
     private(set) var scuffleCount = 0
+    /// How long a rival has been within reach. A brawl is what happens to company
+    /// that *stays* close: the human's rule is three seconds, and one frame of
+    /// passing each other is not a fight.
+    private(set) var nearSeconds: Double = 0
+    /// Close enough to have a go at each other, before the three-second clock.
+    var brawlRange: CGFloat { personalSpace * 1.35 }
+    /// How long company has to stay close before somebody throws a paw.
+    var brawlAfterSeconds: Double = 3
+    var isBrawlReady: Bool { nearSeconds >= brawlAfterSeconds }
 
     /// A scrap is allowed in more situations than a chase: the whole point is
     /// that it happens between neighbours, including two who were already
     /// chasing each other a moment ago.
     var canScuffle: Bool {
-        wanderEnabled && !isDragging && !isAirborne && !isCrouching && !isTalking
+        // Deliberately not gated on `wanderEnabled`: that switch is about walking
+        // off on her own, and two pookies who end up sitting next to each other
+        // will have a go at each other whether or not wandering is allowed.
+        !isDragging && !isAirborne && !isCrouching && !isTalking
             && !isAsleep && !isScuffling && !isTeleporting
     }
 
@@ -89,7 +101,12 @@ final class PetMotion {
     @discardableResult
     func startScuffle(_ seconds: Double) -> Bool {
         guard canScuffle else { return false }
-        if scuffleSeconds <= 0 { scuffleCount += 1 }
+        if scuffleSeconds <= 0 {
+            scuffleCount += 1
+            // The clock restarts, so one brawl is not instantly followed by the
+            // next the moment this one ends.
+            nearSeconds = 0
+        }
         scuffleSeconds = max(scuffleSeconds, seconds)
         // The chase, if there was one, is over: this is the contact version.
         playSeconds = 0
@@ -97,19 +114,45 @@ final class PetMotion {
         return true
     }
 
-    /// A scrap, on the beat: a hop, a hiss, and a fast tail, with the two of them
-    /// holding their ground a paw's length apart. Driven straight off the timer,
-    /// so there is no second animation clock to keep in sync.
+    /// The brawl, and the clock that decides when one starts.
+    ///
+    /// Close company used to trigger a scrap on the frame it was detected, which
+    /// meant two animals wandering past each other never quite managed one. Now
+    /// the proximity has to *last*: three seconds of being within reach and
+    /// somebody throws a paw.
     private func updateScuffle(_ dt: Double) {
+        updateNearbyClock(dt)
+
         guard scuffleSeconds > 0 else { return }
         scuffleSeconds -= dt
         guard scuffleSeconds > 0 else { return }
 
-        if let rival = nearestCompanion() {
-            let mine = origin.x + size.width / 2
-            let theirs = rival.x + size.width / 2
-            facing = theirs >= mine ? 1 : -1
+        guard let rival = nearestCompanion() else { return }
+        let mine = origin.x + size.width / 2
+        let theirs = rival.x + size.width / 2
+        facing = theirs >= mine ? 1 : -1
+
+        // Close the gap: a brawl happens at arm's length, and the separation
+        // below is what usually keeps them a body apart.
+        let gap = theirs - mine
+        if abs(gap) > size.width * 0.62 {
+            origin.x += (gap > 0 ? 1 : -1) * min(abs(gap) * CGFloat(dt) * 1.4, 1.2)
         }
+    }
+
+    /// Count how long anybody has been within reach, and forget it the moment
+    /// they are not.
+    private func updateNearbyClock(_ dt: Double) {
+        guard !isDragging, !isAirborne, !isAsleep, !isTalking else {
+            nearSeconds = 0
+            return
+        }
+        let mine = origin.x + size.width / 2
+        let close = companions.contains { companion in
+            abs(origin.y - companion.y) < size.height * 0.6
+                && abs(companion.x + size.width / 2 - mine) < brawlRange
+        }
+        nearSeconds = close ? nearSeconds + dt : 0
     }
 
     /// Every pet who is in a state to notice another one. The cohort picks its
@@ -469,8 +512,12 @@ final class PetMotion {
             // window ledge and one on the floor are not stacked.
             guard abs(origin.y - companion.y) < size.height * 0.6 else { continue }
             let gap = centre - (companion.x + size.width / 2)
-            guard abs(gap) < personalSpace else { continue }
-            let ease = (personalSpace - abs(gap)) * CGFloat(dt) * 1.6
+            // Two animals in a brawl lean into each other, so the space they keep
+            // is smaller — otherwise the rule that stops them stacking also stops
+            // them ever touching.
+            let space = isScuffling ? personalSpace * 0.62 : personalSpace
+            guard abs(gap) < space else { continue }
+            let ease = (space - abs(gap)) * CGFloat(dt) * 1.6
             origin.x += (gap >= 0 ? 1 : -1) * min(ease, 0.75)
         }
         origin.x = min(max(origin.x, region.minX - 30), region.maxX - size.width + 30)
@@ -1134,11 +1181,16 @@ final class PetMotion {
         // that has to override the walk cycle and the mouth decay rather than be
         // composed with them.
         if isScuffling {
-            // Two beats a second: up on the hop, mouth open on the way down, which
-            // is a cat batting at someone rather than a seizure.
-            let beat = sin(scuffleSeconds * 12)
-            pose.hopOffset = max(pose.hopOffset, CGFloat(max(0, beat)) * 2.4)
-            pose.mouthOpen = max(pose.mouthOpen, CGFloat(max(0, -beat)) * 0.9)
+            // A one-two: the paws alternate about twice a second, with a hop
+            // under each punch and the mouth open between them, so it reads as a
+            // scrap rather than as a seizure.
+            let beat = sin(scuffleSeconds * 13)
+            let swing = sin(scuffleSeconds * 6.5)
+            pose.hopOffset = max(pose.hopOffset, CGFloat(max(0, beat)) * 2.6)
+            pose.mouthOpen = max(pose.mouthOpen, CGFloat(max(0, -beat)) * 0.85)
+            pose.punch = swing * 1.15
+            // The burst lands on the way through, not at the top of the swing.
+            pose.impact = max(0, 1 - abs(swing) * 2.4)
         }
 
         pose.mood = resolveMood(sleepy: sleepy, airborne: airborne, walking: walking)

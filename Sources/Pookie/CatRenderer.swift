@@ -213,6 +213,8 @@ struct CatRenderer: PetRenderer {
         // Wings sit on the flank, so they go over the body and under the head.
         drawWings(in: context, pose: pose, anatomy: anatomy)
         drawPaws(in: context, pose: pose, anatomy: anatomy)
+        // Over the paws: a thrown foreleg is in front of the body, not behind it.
+        if pose.punch != 0 { drawPunch(in: context, pose: pose, anatomy: anatomy) }
         drawEars(in: context, pose: pose, anatomy: anatomy)
         drawHead(in: context, pose: pose, anatomy: anatomy)
         if pose.species.traits.cheekRuff { drawCheekRuff(in: context, anatomy: anatomy) }
@@ -552,6 +554,74 @@ struct CatRenderer: PetRenderer {
                 }
             }
         }
+    }
+
+    /// A foreleg thrown at somebody, and the comic hit where it lands.
+    ///
+    /// The paw is drawn out in front of the shoulder and the burst just beyond
+    /// it, on the side she is facing — so a brawl reads as two animals swinging
+    /// at each other even at this size, where a lean and a hop on their own read
+    /// as a stumble.
+    private func drawPunch(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let punch = CGFloat(max(-1, min(1, pose.punch)))
+        let amount = abs(punch)
+        guard amount > 0.05 else { return }
+        let near = punch >= 0 ? CGFloat(1) : CGFloat(-1)
+
+        let shoulder = CGPoint(
+            x: anatomy.bodyCenter.x + near * anatomy.bodyRadii.width * 0.55,
+            y: anatomy.bodyCenter.y + anatomy.bodyRadii.height * 0.35
+        )
+        let reach = (anatomy.bodyRadii.width * 0.5 + anatomy.pawRadii.width * 1.6) * amount
+        let paw = CGPoint(
+            x: shoulder.x + near * reach * 0.8,
+            y: shoulder.y + reach * 0.55
+        )
+
+        // The arm, then the paw on the end of it.
+        let arm = CGMutablePath()
+        arm.move(to: shoulder)
+        arm.addQuadCurve(
+            to: paw,
+            control: CGPoint(x: shoulder.x + near * reach * 0.35, y: shoulder.y + reach * 0.75)
+        )
+        stroke(context, path: arm, color: palette.outline, width: anatomy.pawRadii.width * 1.5)
+        stroke(context, path: arm, color: palette.fur, width: anatomy.pawRadii.width * 1.5 - outlineWidth)
+        fillStroke(
+            context,
+            path: CGPath(ellipseIn: CGRect(
+                x: paw.x - anatomy.pawRadii.width * 0.85,
+                y: paw.y - anatomy.pawRadii.width * 0.85,
+                width: anatomy.pawRadii.width * 1.7,
+                height: anatomy.pawRadii.width * 1.7
+            ), transform: nil),
+            fill: palette.belly,
+            stroke: palette.outline,
+            width: outlineWidth * 0.8
+        )
+
+        // The hit: five short lines and a star, drawn past the paw. Cheap, and it
+        // is what makes the swing read as a *punch* rather than a wave.
+        let impact = CGFloat(max(0, min(1, pose.impact)))
+        guard impact > 0.05 else { return }
+        let centre = CGPoint(x: paw.x + near * anatomy.pawRadii.width * 1.5, y: paw.y + anatomy.pawRadii.width * 0.6)
+        let radius = anatomy.pawRadii.width * (0.9 + 0.9 * impact)
+        for index in 0..<5 {
+            let angle = Double(index) / 5 * 2 * .pi + 0.4
+            let inner = CGPoint(x: centre.x + cos(angle) * radius * 0.35, y: centre.y + sin(angle) * radius * 0.35)
+            let outer = CGPoint(x: centre.x + cos(angle) * radius, y: centre.y + sin(angle) * radius)
+            let spike = CGMutablePath()
+            spike.move(to: inner)
+            spike.addLine(to: outer)
+            stroke(context, path: spike, color: palette.furDark, width: outlineWidth * 0.8)
+        }
+        context.setFillColor(palette.belly)
+        context.fillEllipse(in: CGRect(
+            x: centre.x - radius * 0.28,
+            y: centre.y - radius * 0.28,
+            width: radius * 0.56,
+            height: radius * 0.56
+        ))
     }
 
     /// A duckling's wing, folded at rest and lifted as `flap` rises.

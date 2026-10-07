@@ -195,13 +195,15 @@ enum PetChatter {
     /// them.
     static func scuffling() -> String {
         [
+            "POW!",
+            "*bap bap*",
             "mrrp!!",
+            "biff!",
+            "*thump*",
+            "hey!!",
             "hsss!",
-            "*bap*",
-            "hey!",
             "!!",
-            "hisss",
-        ].randomElement() ?? "mrrp!!"
+        ].randomElement() ?? "POW!"
     }
 
     /// Mid-chase. One line per bout, not one per cat: two bubbles at once is the

@@ -172,11 +172,16 @@ cadence. Launch flags (`--no-wander`, `--scale`, …) are overrides for one run 
 you saved.
 
 They all have everything the first cat has — perching, jumping, teleporting, loafing, stretching — and
-they know where each other are. Two who end up on the same spot step apart rather than stacking. When
-two of them get close, they **have a go at each other**: a 1.4–2.6 second scrap with flattened ears,
-wide eyes, a hop, a hiss on the way down and one indignant bubble. When they are further apart one
-**chases** the other instead — a 2.5–5 second bout at a run, wearing the happy face — and a chase that
-closes the distance turns into a scrap. No animal perches on another animal.
+they know where each other are. Two who end up on the same spot step apart rather than stacking. When two of them **stay within a paw's length for three seconds**, they have a **brawl**: 1.6–3
+seconds of flattened ears, wide eyes, a hop under each swing, and a **one-two of thrown paws** —
+alternating, with a comic burst of lines where each lands and a bubble that says `POW!` or `*bap bap*`.
+They lean into each other while it lasts (the rule that normally keeps them a body apart is relaxed, or
+they could never touch), and they close the gap first if they are just out of reach. It takes three
+seconds of company on purpose: two animals who happen to walk past each other are not fighting.
+
+When they are further apart, one **chases** the other instead — a 2.5–5 second bout at a run, wearing
+the happy face — and a chase that closes the distance turns into a brawl. No animal perches on another
+animal.
 
 Five pookies are real work. They share one frame budget — 120 drawn frames per second between them, so
 one pet is unaffected and five get 24 fps each — and an occluded pet stops entirely. The honest numbers
@@ -302,14 +307,15 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 275 headless checks, including:
+runs 288 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,
   its own proportions and a coat nobody else is wearing. This is what caught a panda whose body grew
   through the floor and a fox whose brush swung off the side of the world;
-- **scuffles**: that a scrap hops, hisses, faces the rival and wears the flattened-ear face, that it
-  ends on its own, and that a sleeping or held animal will not be drawn into one;
+- **brawls**: that two seconds of company is not yet a fight and three is, that the paws alternate like
+  a one-two with a comic hit on each swing, that they lean in rather than being pushed apart, that
+  walking past somebody is not a fight, and that a sleeping or held animal is not drawn into one;
 - **the settings**: the teleport cadence offers minutes and lands where it says, and the roster
   survives being written to the settings store and read back — including dropping a corrupt entry
   rather than guessing at it;

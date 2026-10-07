@@ -214,7 +214,7 @@ the `idle` state, each with its own cooldown and randomization:
 | Look-at-cursor | when idle, cursor within a radius | Reuses `lookAt`; includes a small head-lead bias |
 | Wander | every 20–60 s | `moveTo` a waypoint inside the current screen's edge band. Suppressed while she is settled into a rest shape, so the sit before sleep is not interrupted by a stroll |
 | Teleport to another display | a jittered 1–30 minutes (a setting), when there is more than one display and the setting is on | The only way a pet on a two-monitor desk ever uses the second monitor. **Staged in two halves**: she spins down into a poof of light and her own fur (0.5 s), the hop happens while she is off screen, and she spins back in with a landing squash (0.5 s). She arrives *from above*, so a window top under her becomes the ground she lands on rather than something she appears in front of. Suppressed while you are holding her, mid-air, mid-sentence, asleep or mid-chase — and grabbing her mid-blink cancels it, because the user's hand outranks an effect in progress |
-| Scrap | when two pets are within a paw's length, every 8–20 s | The close-quarters version of playing: flattened ears, a hop, a hiss on the way down, one indignant bubble, 1.4–2.6 s. A chase that closes the distance becomes one, which is what makes "they fight a little when they are close" fall out of the same rule as the chase rather than being a third scheduler |
+| Brawl | three seconds within a paw's length, every 6–16 s | The close-quarters version of playing: flattened ears, a hop under each swing, a **one-two of thrown paws** (`CatPose.punch`, alternating sign) with a comic burst where each lands (`CatPose.impact`), one bubble, 1.6–3 s. The proximity has to *last* — the rule is the human's "close for more than three seconds" — and while it lasts the separation rule relaxes, because two animals a body apart cannot touch. A chase that closes the distance becomes one, so "they fight when they are close" falls out of the same rule as the chase rather than being a third scheduler |
 | Company | continuous, when other pets are near | Two cats converging on one pixel read as one buggy cat, so each steps out of the other's way. The push is positional and decays to zero at one personal space, so they settle apart instead of springing at each other forever, and it only applies between cats on the same footing — one on a ledge and one on the floor are not stacked |
 | Play | every 20–50 s, when two cats are awake on the same display | A jittered 2–5 s chase: aim at the playmate through the ordinary wander channel, re-aimed every 0.3 s, wearing the happy face. Refused while asleep, held, mid-air or mid-sentence, and behind the same "Wander around" switch as any other unprompted walking. One cat of the pair says a line, not both |
 | Perch | on landing above a window top | One-way platform: a window top is a floor only if she is already above it. She rides a dragged window and falls off the end |
@@ -465,10 +465,10 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   coat, and which one answers producers. The roster, the size, the switches and the teleport cadence
   persist in `UserDefaults`; launch flags are one-run overrides and deliberately do *not* write to it,
   because a debugging flag that silently rewrites the saved settings is a bug the user cannot see.
-- **Scuffles** (`PetMotion.startScuffle`). Two pets within a paw's length have a 1.4–2.6 second scrap
-  — flattened ears, a hop, a hiss, one bubble — and because the trigger is "close", a chase that closes
-  the distance turns into one for free. It is the same separation rule keeping them a paw apart while
-  they bat at each other.
+- **Brawls** (`PetMotion.startScuffle`, `CatPose.punch`/`impact`). Two pookies within a paw's length *for three
+  seconds* brawl for 1.6–3 s: alternating thrown paws with a comic hit on each swing, leaning into each
+  other. The three-second rule is what makes it provoked rather than random — the first version fired on
+  the frame two animals happened to be close, which is why it was almost never seen.
 - **The teleport has an effect** (`CatPose.vanish`, `CatGeometry.vanishTransform`). Leaving and
   arriving are separate animations rather than one teleport mark on the position: she spins down to
   nothing in a poof of light and fur, the hop happens off screen, and she spins back in. The whole

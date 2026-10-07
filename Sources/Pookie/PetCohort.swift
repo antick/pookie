@@ -219,12 +219,18 @@ final class PetCohort {
                 let a = ready[i].motion
                 let b = ready[j].motion
                 guard abs(a.origin.y - b.origin.y) < a.size.height * 0.6 else { continue }
-                guard abs(a.origin.x - b.origin.x) < a.personalSpace * 1.35 else { continue }
+                guard abs(a.origin.x - b.origin.x) < a.brawlRange else { continue }
+                // Close is not enough: they have to have *been* close for a
+                // while, which is what makes a brawl look provoked rather than
+                // random.
+                guard a.isBrawlReady && b.isBrawlReady else { continue }
 
-                let bout = Rand.double(1.4...2.6)
+                let bout = Rand.double(1.6...3.0)
                 guard a.startScuffle(bout) else { continue }
                 b.startScuffle(bout * Rand.double(0.8...1.2))
-                scuffleCooldown = Rand.double(8...20)
+                // Long enough that a brawl is an event, short enough that two
+                // neighbours who stay put will have another one.
+                scuffleCooldown = Rand.double(6...16)
                 // One of them says something, once.
                 if AppConfig.shared.chatty, Rand.bool(0.7) {
                     ready[i].say(PetChatter.scuffling(), duration: 1.3)

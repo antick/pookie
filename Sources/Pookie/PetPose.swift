@@ -165,6 +165,13 @@ struct CatPose {
     /// species is a value change rather than a different code path everywhere.
     var species: PetSpecies = .cat
 
+    /// The foreleg thrown at a rival, -1 (the far paw) to 1 (the near one). A
+    /// signed value because a brawl is a one-two: the paws alternate, and the
+    /// sign is which one is out.
+    var punch: Double = 0
+    /// A comic hit, 0 to 1: the burst of lines drawn where a paw lands.
+    var impact: Double = 0
+
     /// Wing flap, 0 (folded) to 1 (up). A bird walks with a little flutter and
     /// flies with a full flap; for everyone else this stays at zero and nothing
     /// is drawn.
