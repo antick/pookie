@@ -102,6 +102,8 @@ Global hotkeys, **no Accessibility or Input Monitoring permission required**:
 
 ### Settings
 
+![Pookie settings](shots/settings.png)
+
 **Pookies ▸ Settings…** (or ⌘,) opens a settings window: three tabs — **General** (size, blinking
 between displays and how often), **Behaviour** (wander, watch the cursor, perch, jump, chatty,
 privacy, float above full-screen apps) and **Pookies**. The menu bar keeps only what you reach for

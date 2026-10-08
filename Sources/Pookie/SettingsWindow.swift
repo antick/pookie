@@ -12,6 +12,14 @@ final class SettingsWindowController: NSWindowController {
     /// Called after anything changes, so the menu and the pets catch up.
     private let onChange: () -> Void
 
+    /// The tab you were last on. Landing back where you left off is the whole
+    /// reason a settings window remembers anything.
+    private var selectedTab: Int {
+        get { UserDefaults.standard.integer(forKey: "settingsTab") }
+        set { UserDefaults.standard.set(newValue, forKey: "settingsTab") }
+    }
+
+    private var tabs: NSTabView?
     private var generalTab: NSView!
     private var behaviourTab: NSView!
     private var pookiesTab: NSView!
@@ -48,6 +56,9 @@ final class SettingsWindowController: NSWindowController {
     /// Bring the window up, refreshing it from the current settings.
     func present() {
         Log.info("settings window up")
+        if let tabs, let index = tabs.tabViewItems.firstIndex(of: tabs.selectedTabViewItem ?? NSTabViewItem()) {
+            selectedTab = index
+        }
         reload()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
@@ -72,6 +83,8 @@ final class SettingsWindowController: NSWindowController {
             tabs.addTabViewItem(item)
         }
 
+        self.tabs = tabs
+        tabs.selectTabViewItem(at: min(max(selectedTab, 0), tabs.numberOfTabViewItems - 1))
         guard let content = window?.contentView else { return }
         content.addSubview(tabs)
         NSLayoutConstraint.activate([
