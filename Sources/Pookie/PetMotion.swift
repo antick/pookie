@@ -83,6 +83,19 @@ final class PetMotion {
     /// every cat does at eleven at night.
     private(set) var zoomiesSeconds: Double = 0
     private var zoomiesCountdown: Double = Rand.double(45...150)
+    /// Grooming: a paw up to the face, washing behind it.
+    private(set) var groomSeconds: Double = 0
+    private var groomCountdown: Double = Rand.double(60...180)
+    private(set) var groomCount = 0
+    /// A tail-chase: she turns on the spot after her own tail.
+    private(set) var spinSeconds: Double = 0
+    private var spinCountdown: Double = Rand.double(90...260)
+    private(set) var spinCount = 0
+    /// Peering over the edge of whatever she is standing on.
+    private(set) var peekSeconds: Double = 0
+    /// A stretch up, after a nap.
+    private(set) var reachSeconds: Double = 0
+
     /// Seconds left of a flinch: the face and the stagger after being hit.
     private(set) var hurtSeconds: Double = 0
     /// Which way the blow pushed her, so the head snaps away from it.
@@ -227,6 +240,10 @@ final class PetMotion {
         }
 
         if sneezeSeconds > 0 { sneezeSeconds -= dt }
+        if groomSeconds > 0 { groomSeconds -= dt }
+        if spinSeconds > 0 { spinSeconds -= dt }
+        if peekSeconds > 0 { peekSeconds -= dt }
+        if reachSeconds > 0 { reachSeconds -= dt }
 
         guard !isAirborne, !isAsleep, !isCrouching, !isScuffling else { return }
 
@@ -246,6 +263,57 @@ final class PetMotion {
             sneezeCountdown = Rand.double(120...300)
             sneeze()
         }
+
+        // Grooming: while awake and not doing anything else, wash.
+        groomCountdown -= dt
+        if groomCountdown <= 0 {
+            groomCountdown = Rand.double(70...200)
+            if wanderTargetX == nil, !isScuffling, !isPlaying {
+                groom()
+            }
+        }
+
+        // A tail-chase: the one thing a cat does purely for its own amusement.
+        spinCountdown -= dt
+        if spinCountdown <= 0 {
+            spinCountdown = Rand.double(120...320)
+            if wanderTargetX == nil, !isScuffling, !isPlaying {
+                startTailChase()
+            }
+        }
+
+        // Peering over the edge of a perch, now and then, when nothing else is
+        // happening.
+        // Rare, and only once she has settled: a peering pookie should be a
+        // surprise, not the pose she spends the afternoon in.
+        if supportPlatform() != nil, wanderTargetX == nil, !isScuffling, !isPlaying,
+           peekSeconds <= 0, idleSeconds > loafAfterSeconds, Rand.bool(0.0006) {
+            peekSeconds = Rand.double(1.6...3.0)
+        }
+    }
+
+    /// Wash a paw, on demand — which is also how the selftest drives it without
+    /// waiting two minutes for the mood to strike.
+    @discardableResult
+    func groom() -> Bool {
+        guard !isDragging, !isAirborne, !isAsleep, groomSeconds <= 0 else { return false }
+        groomSeconds = Rand.double(1.4...2.6)
+        groomCount += 1
+        return true
+    }
+
+    /// Chase her own tail, on demand.
+    @discardableResult
+    func startTailChase() -> Bool {
+        guard !isDragging, !isAirborne, !isAsleep, spinSeconds <= 0 else { return false }
+        spinSeconds = Rand.double(1.0...1.8)
+        spinCount += 1
+        return true
+    }
+
+    /// A stretch up after a nap: the shape, held for a moment.
+    private func noteWaking() {
+        reachSeconds = Rand.double(1.2...2.2)
     }
 
     /// A sneeze: a hop, a head shake and one small noise.
@@ -425,8 +493,8 @@ final class PetMotion {
     /// the stretch would be the moment she stood up and wandered off.
     var isResting: Bool {
         switch restingShape {
-        case .sit, .loaf, .lie: return !isChangingShape
-        case .stand, .stretch: return false
+        case .sit, .loaf, .lie, .curl, .peek: return !isChangingShape
+        case .stand, .stretch, .reachUp: return false
         }
     }
     /// Seconds she has been still on her current perch. The loaf's trigger.
@@ -865,6 +933,8 @@ final class PetMotion {
         guard canStretch else { return false }
         isStretching = true
         stretchTime = 0
+        // A nap that ends in a bow usually ends in a stretch *up*, too.
+        noteWaking()
         return true
     }
 
@@ -899,7 +969,11 @@ final class PetMotion {
             return .lie
         }
         if wanderTargetX != nil || isPlaying || isTeleporting || isScuffling { return .stand }
-        if isAsleep { return .lie }
+        // The ladder ends curled: a donut is what a long nap looks like, and it
+        // is the shape that reads as "gone" rather than "dozing".
+        if isAsleep { return idleSeconds > sleepAfterSeconds + 20 ? .curl : .lie }
+        if reachSeconds > 0 { return .reachUp }
+        if peekSeconds > 0 { return .peek }
         if idleSeconds >= sitAfterSeconds { return .sit }
         if perchSeconds >= loafAfterSeconds, perchSeconds < loafAfterSeconds + loafHoldSeconds {
             return .loaf
@@ -1414,6 +1488,19 @@ final class PetMotion {
             pose.mouthOpen = max(pose.mouthOpen, 0.95 * fade)
             pose.tilt = pose.tilt + Double(hurtDirection) * 0.14 * Double(fade)
             pose.hopOffset = max(pose.hopOffset, 1.3 * fade)
+        }
+
+        // Grooming: a foreleg comes up to the muzzle and she washes behind it.
+        if groomSeconds > 0 {
+            let progress = 1 - groomSeconds / 2.0
+            pose.groom = min(1, max(0, sin(progress * .pi) * 1.6))
+        }
+
+        // A tail-chase: the whole body turns on the spot, one way then back,
+        // with the tail whipping after it.
+        if spinSeconds > 0 {
+            let progress = 1 - spinSeconds / 1.4
+            pose.spin = sin(progress * 2 * .pi) * 0.55
         }
 
         // A sneeze is a hop, a shake and a squint, over in half a second.

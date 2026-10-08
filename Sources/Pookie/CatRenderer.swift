@@ -206,6 +206,16 @@ struct CatRenderer: PetRenderer {
         drawBlinkEffect(in: context, pose: pose)
 
         applyPose(pose, to: context)
+        // A tail-chase turns the whole animal on the spot. Applied here rather
+        // than in `poseTransform` because it is a transient channel: she cannot
+        // chase her tail and stretch at once, so it is swept against the stage on
+        // its own.
+        if pose.spin != 0 {
+            let pivot = pose.anatomy.bodyCenter
+            context.translateBy(x: pivot.x, y: pivot.y)
+            context.rotate(by: CGFloat(pose.spin))
+            context.translateBy(x: -pivot.x, y: -pivot.y)
+        }
         context.concatenate(CatGeometry.vanishTransform(pose))
 
         drawTail(in: context, pose: pose, anatomy: anatomy)
@@ -224,6 +234,10 @@ struct CatRenderer: PetRenderer {
         if pose.species.traits.cheekRuff { drawCheekRuff(in: context, anatomy: anatomy) }
         if pose.species.traits.cheeks { drawCheeks(in: context, anatomy: anatomy) }
         drawFace(in: context, pose: pose, anatomy: anatomy)
+        // Grooming goes last: it is a foreleg *in front of* the face, and drawn
+        // with the body it ends up behind the head — the same mistake the eye
+        // patch made.
+        if pose.groom != 0 { drawGroom(in: context, pose: pose, anatomy: anatomy) }
         drawHeadStripes(in: context, pose: pose, anatomy: anatomy)
     }
 
@@ -992,6 +1006,64 @@ struct CatRenderer: PetRenderer {
             bar.addLine(to: CGPoint(x: point.x + half * 0.5, y: point.y + half))
             stroke(context, path: bar, color: colour, width: width)
         }
+    }
+
+    /// Grooming: a foreleg up to the muzzle, and a tongue behind it.
+    ///
+    /// The pose channel is one number, and this reads it as three things at once
+    /// — the paw's height, the head's lean and how much tongue is showing — which
+    /// is what makes a wash read as a wash rather than as a wave.
+    private func drawGroom(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let amount = CGFloat(max(0, min(1, pose.groom)))
+        guard amount > 0.05 else { return }
+
+        let near: CGFloat = 1
+        let shoulder = CGPoint(
+            x: anatomy.bodyCenter.x + near * anatomy.bodyRadii.width * 0.5,
+            y: anatomy.bodyCenter.y + anatomy.bodyRadii.height * 0.5
+        )
+        let muzzle = CGPoint(
+            x: anatomy.muzzleCenter.x + near * anatomy.muzzleRadii.width * 0.5,
+            y: anatomy.muzzleCenter.y + anatomy.muzzleRadii.height * 0.6
+        )
+        // Up to the face as the channel rises.
+        let paw = CGPoint(
+            x: shoulder.x + (muzzle.x - shoulder.x) * amount,
+            y: shoulder.y + (muzzle.y - shoulder.y) * amount
+        )
+
+        let arm = CGMutablePath()
+        arm.move(to: shoulder)
+        arm.addQuadCurve(
+            to: paw,
+            control: CGPoint(x: shoulder.x + near * 8, y: (shoulder.y + paw.y) / 2)
+        )
+        stroke(context, path: arm, color: palette.outline, width: anatomy.pawRadii.width * 1.5)
+        stroke(context, path: arm, color: palette.fur, width: anatomy.pawRadii.width * 1.5 - outlineWidth)
+        fillStroke(
+            context,
+            path: CGPath(ellipseIn: CGRect(
+                x: paw.x - anatomy.pawRadii.width * 0.9,
+                y: paw.y - anatomy.pawRadii.width * 0.9,
+                width: anatomy.pawRadii.width * 1.8,
+                height: anatomy.pawRadii.width * 1.8
+            ), transform: nil),
+            fill: palette.belly,
+            stroke: palette.outline,
+            width: outlineWidth * 0.8
+        )
+
+        // The tongue, which is the part that says "washing" rather than "holding
+        // a paw to its face".
+        guard amount > 0.55 else { return }
+        let tongue = CGRect(
+            x: paw.x + near * anatomy.pawRadii.width * 0.2,
+            y: paw.y - anatomy.muzzleRadii.height * 0.9,
+            width: anatomy.muzzleRadii.width * 0.7,
+            height: anatomy.muzzleRadii.height * 0.55
+        )
+        context.setFillColor(palette.tongue)
+        context.fillEllipse(in: tongue)
     }
 
     /// A hedgehog's back: one row of triangles along the spine, in the dark half

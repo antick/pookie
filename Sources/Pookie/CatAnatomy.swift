@@ -163,6 +163,9 @@ struct CatAnatomy {
         case .sit: return .sit
         case .loaf: return .loaf
         case .lie: return .lie
+        case .curl: return .curl
+        case .reachUp: return .reachUp
+        case .peek: return .peek
         case .stretch: return .stretch
         }
     }
@@ -282,6 +285,78 @@ extension CatAnatomy {
         tailWidth: 11.5,
         tailSway: 0.3,
         leanScale: 0.30
+    )
+
+    /// Curled into a donut: nose to tail, tail wrapped over the nose. The
+    /// deepest sleep, and the shape the rest ladder ends on.
+    static let curl = CatAnatomy(
+        bodyCenter: CGPoint(x: 52, y: 20),
+        bodyRadii: CGSize(width: 25, height: 16),
+        headCenter: CGPoint(x: 38, y: 25),
+        headRadius: 18,
+        muzzleCenter: CGPoint(x: 33, y: 18),
+        muzzleRadii: CGSize(width: 8.6, height: 5.8),
+        eyeY: 29,
+        eyeOffsetX: 7.6,
+        eyeRadius: 4.4,
+        pawCenterY: 8,
+        pawOffsetX: 8,
+        pawRadii: CGSize(width: 6.8, height: 4.2),
+        tailBase: CGPoint(x: 34, y: 11),
+        tailControl1: CGPoint(x: 14, y: 14),
+        tailControl2: CGPoint(x: 18, y: 34),
+        tailTip: CGPoint(x: 46, y: 35),
+        tailWidth: 10.5,
+        tailSway: 0.2,
+        leanScale: 0.22
+    )
+
+    /// Stretched up something: tall, front paws high, head tipped back. What a
+    /// cat does to a doorframe, and what a pookie does to a window edge.
+    static let reachUp = CatAnatomy(
+        bodyCenter: CGPoint(x: 50, y: 32),
+        bodyRadii: CGSize(width: 20, height: 28),
+        headCenter: CGPoint(x: 50, y: 78),
+        headRadius: 22,
+        muzzleCenter: CGPoint(x: 50, y: 70),
+        muzzleRadii: CGSize(width: 10, height: 7),
+        eyeY: 83,
+        eyeOffsetX: 9,
+        eyeRadius: 5.2,
+        pawCenterY: 9,
+        pawOffsetX: 14,
+        pawRadii: CGSize(width: 7.5, height: 5),
+        tailBase: CGPoint(x: 34, y: 24),
+        tailControl1: CGPoint(x: 16, y: 20),
+        tailControl2: CGPoint(x: 10, y: 10),
+        tailTip: CGPoint(x: 26, y: 5),
+        tailWidth: 12,
+        tailSway: 0.35,
+        leanScale: 0.5
+    )
+
+    /// Peering over an edge: the body up behind, the head low and forward, the
+    /// front paws hooked over the lip.
+    static let peek = CatAnatomy(
+        bodyCenter: CGPoint(x: 58, y: 42),
+        bodyRadii: CGSize(width: 24, height: 22),
+        headCenter: CGPoint(x: 40, y: 22),
+        headRadius: 21,
+        muzzleCenter: CGPoint(x: 37, y: 14),
+        muzzleRadii: CGSize(width: 9.6, height: 6.6),
+        eyeY: 26,
+        eyeOffsetX: 8.6,
+        eyeRadius: 5.2,
+        pawCenterY: 9,
+        pawOffsetX: 12,
+        pawRadii: CGSize(width: 7.4, height: 5),
+        tailBase: CGPoint(x: 44, y: 32),
+        tailControl1: CGPoint(x: 24, y: 38),
+        tailControl2: CGPoint(x: 12, y: 24),
+        tailTip: CGPoint(x: 22, y: 12),
+        tailWidth: 11.5,
+        tailSway: 0.3,
+        leanScale: 0.4
     )
 
     /// Asleep: flatter than the loaf, head down and forward, eyes shut, tail

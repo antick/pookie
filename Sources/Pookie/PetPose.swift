@@ -24,6 +24,13 @@ enum CatShape: String, CaseIterable {
     case loaf
     case lie
     case stretch
+    /// Asleep and curled into a donut, nose to tail. The deepest sleep.
+    case curl
+    /// Stretched up a window edge: tall, front paws high, head back.
+    case reachUp
+    /// Peering over the edge of whatever she is standing on: head low and
+    /// forward, body up behind it.
+    case peek
 }
 
 /// How much of each shape she is currently wearing.
@@ -40,6 +47,9 @@ struct CatShapeWeights: Equatable {
     var loaf: Double = 0
     var lie: Double = 0
     var stretch: Double = 0
+    var curl: Double = 0
+    var reachUp: Double = 0
+    var peek: Double = 0
 
     subscript(shape: CatShape) -> Double {
         get {
@@ -49,6 +59,9 @@ struct CatShapeWeights: Equatable {
             case .loaf: return loaf
             case .lie: return lie
             case .stretch: return stretch
+            case .curl: return curl
+            case .reachUp: return reachUp
+            case .peek: return peek
             }
         }
         set {
@@ -58,6 +71,9 @@ struct CatShapeWeights: Equatable {
             case .loaf: loaf = newValue
             case .lie: lie = newValue
             case .stretch: stretch = newValue
+            case .curl: curl = newValue
+            case .reachUp: reachUp = newValue
+            case .peek: peek = newValue
             }
         }
     }
@@ -205,6 +221,13 @@ struct CatPose {
     /// What kind of animal she is. The renderer draws whatever this names, so a
     /// species is a value change rather than a different code path everywhere.
     var species: PetSpecies = .cat
+
+    /// Grooming, 0 (nothing) to 1 (paw at the face, tongue out). A foreleg comes
+    /// up to the muzzle and she washes behind it.
+    var groom: Double = 0
+    /// A tail-chase, in radians: the whole body turned on the spot. Transient,
+    /// like a thrown paw — she cannot chase her tail and stretch at once.
+    var spin: Double = 0
 
     /// The foreleg thrown at a rival, -1 (the far paw) to 1 (the near one). A
     /// signed value because a brawl is a one-two: the paws alternate, and the

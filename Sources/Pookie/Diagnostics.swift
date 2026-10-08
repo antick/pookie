@@ -1057,7 +1057,52 @@ enum Diagnostics {
             "and a neighbour does not shove her across the desk"
         )
 
-        print("scuffles")
+        print("the rest of the repertoire")
+        let idleOne = PetMotion(origin: CGPoint(x: 400, y: 0), size: size, desktop: quietDesk)
+        idleOne.followCursor = false
+        idleOne.wanderEnabled = false
+        // The ladder ends curled: a long nap is a donut, a short one is a lie.
+        idleOne.sleepAfterSeconds = 1
+        run(idleOne, 3)
+        check(idleOne.shape == .lie, "a short nap lies down")
+        run(idleOne, 25)
+        check(idleOne.shape == .curl, "and a long one curls into a donut")
+
+        let waking = PetMotion(origin: CGPoint(x: 400, y: 0), size: size, desktop: quietDesk)
+        waking.followCursor = false
+        waking.wanderEnabled = false
+        check(waking.beginStretch(), "she can stretch")
+        check(waking.reachSeconds > 0, "and a stretch up follows the yawn")
+
+        // Grooming and the tail-chase are channels, and they hold the pose.
+        // Driven directly here, because waiting for the mood to strike is a
+        // two-minute test; that they fire unprompted is checked above by running
+        // the clock long enough.
+        let washing = PetMotion(origin: CGPoint(x: 400, y: 0), size: size, desktop: quietDesk)
+        washing.followCursor = false
+        washing.wanderEnabled = false
+        check(washing.groom(), "she can wash her face")
+        var washed = false
+        for _ in 0..<200 {
+            washing.advance(dt: 1.0 / 60.0)
+            if washing.pose.groom > 0.5 { washed = true }
+        }
+        check(washed, "and the paw goes up to the muzzle")
+        check(washing.groomCount == 1, "grooming is counted")
+
+        let tailChaser = PetMotion(origin: CGPoint(x: 400, y: 0), size: size, desktop: quietDesk)
+        tailChaser.followCursor = false
+        tailChaser.wanderEnabled = false
+        check(tailChaser.startTailChase(), "and she can chase her tail")
+        var spun = false
+        for _ in 0..<200 {
+            tailChaser.advance(dt: 1.0 / 60.0)
+            if abs(tailChaser.pose.spin) > 0.3 { spun = true }
+        }
+        check(spun, "and the body turns on the spot")
+        check(tailChaser.spinCount == 1, "tail-chases are counted")
+
+print("scuffles")
         let scuffleDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
         // The close-quarters version of playing: two animals who are already next
         // to each other bat at each other instead of chasing.
@@ -1847,7 +1892,7 @@ enum Diagnostics {
 
     static func renderPNG(to path: String) -> Int32 {
         let columns = 4
-        let rows = 6
+        let rows = 7
         let cell = 200
         let width = columns * cell
         let height = rows * cell
@@ -1931,6 +1976,14 @@ enum Diagnostics {
                 .cat({ var p = CatPose(); p.vanish = 0.88; p.tailPhase = 1.0; return p }()),
                 .cat({ var p = CatPose(); p.vanish = 0.5; p.tailPhase = 1.0; return p }()),
             ],
+            // The rest of the repertoire: a donut, a stretch up, a peer over the
+            // edge, and washing a paw.
+            [
+                .cat({ var p = CatPose(); p.shape = .only(.curl); p.mood = .sleepy; p.blink = 0.05; p.tailPhase = 0.7; return p }()),
+                .cat({ var p = CatPose(); p.shape = .only(.reachUp); p.tailPhase = 1.2; return p }()),
+                .cat({ var p = CatPose(); p.shape = .only(.peek); p.tailPhase = 1.5; return p }()),
+                .cat({ var p = CatPose(); p.groom = 0.95; p.tailPhase = 1.0; return p }()),
+            ],
         ]
 
         for (rowIndex, row) in grid.enumerated() {
@@ -1974,6 +2027,7 @@ enum Diagnostics {
         print("row 4:      sitting | loafing | lying asleep | waking stretch")
         print("row 5:      settling stand->sit | sit->loaf | loaf->lie | lie->stretch")
         print("row 6:      blinking out 30% | 60% | 90% | and back in")
+        print("row 7:      curled asleep | stretching up | peering over | washing a paw")
         return 0
     }
 
@@ -2318,6 +2372,14 @@ enum ArtSweep {
             pose.pattern = pattern
             poses.append(pose)
         }
+        for spin in [CGFloat(0.55), -0.55] {
+            var pose = CatPose()
+            pose.spin = Double(spin)
+            poses.append(pose)
+        }
+        var washing = CatPose()
+        washing.groom = 1
+        poses.append(washing)
         return poses
     }
 
@@ -2453,6 +2515,17 @@ enum ArtSweep {
         // The blink, which is the one pose parameter the deformation limits do
         // not cover: it has to reach zero.
         poses.append(contentsOf: blinkPoses())
+
+        // The newest repertoire: the three shapes a long nap, a stretch and a
+        // peer need, and the grooming channel.
+        for shape in [CatShape.curl, .reachUp, .peek] {
+            var pose = CatPose()
+            pose.shape = .only(shape)
+            poses.append(pose)
+        }
+        var washing = CatPose()
+        washing.groom = 0.9
+        poses.append(washing)
         return poses
     }
 

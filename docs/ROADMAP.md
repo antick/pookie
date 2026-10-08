@@ -306,7 +306,9 @@ frame budget, with a persisted roster. The menu-bar item already carries show/hi
 **add / remove a pookie**, per-pet kind and coat, the spokespet, mouse mode, wander, cursor tracking,
 perching, jumping, speech, **teleport between displays and its cadence**, per-pet visibility and
 removal from a right-click on the pet itself, screen-sharing privacy and quit — so criterion 2 is
-largely there ahead of its milestone. Outstanding: opacity, quiet mode,
+largely there ahead of its milestone. The settings window and the persisted
+collection landed ahead of the milestone: a real window (General / Behaviour / Pookies), a roster that
+holds every animal with a desk flag, and the frame budget. Outstanding: opacity, quiet mode,
 per-producer rate limits, skill toggles, launch at login, and the per-pet CPU budget is still a shared
 frame-rate ceiling rather than an accounting of who spent what.
 

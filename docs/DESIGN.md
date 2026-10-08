@@ -218,6 +218,11 @@ the `idle` state, each with its own cooldown and randomization:
 | Sneeze | every 2–5 minutes | A hop, a head shake, a squint and one line — the only thing she says without being asked, so it goes through the same rate limiter as everything else |
 | Kneading | settled on a ledge and awake | The punch channel at a fifth of the swing, on a 4 Hz rhythm. Reusing a channel rather than adding one is the point: a knead *is* a small punch |
 | Head-bump | the pointer within 90pt | A lean toward it, proportional to how close, and a hop within 46pt. Unprompted affection is what a desktop pet is for |
+| Grooming | every 70–200 s, awake and idle | A foreleg up to the muzzle and a tongue behind it. One channel read as three things at once — the paw's height, the head's lean, how much tongue — which is what makes a wash read as a wash and not as a wave |
+| Tail-chase | every 2–5 minutes | `CatPose.spin` turns the body on the spot, one way and back, with the tail whipping after it |
+| Donut | a nap past `sleepAfterSeconds + 20` | The ladder ends on a new shape: curled, nose to tail. A long nap should look *gone*, not dozing |
+| Stretch up | on waking | A new shape, held for a second or two. The anatomy has one paw anchor, so she stretches *tall* with her front paws down rather than floating — a shape that floats fails the ground-line contract |
+| Peering over | rarely, once settled on a perch | A new shape: head low and forward over the lip, body up behind it |
 | Sleeping in a pile | two settled pookies | The separation rule shrinks by a third when both are resting, so they lean on each other instead of being pushed apart |
 | Brawl | contact, or three seconds within a paw's length, every 6–16 s | The close-quarters version of playing: flattened ears, a hop under each swing, a **one-two of thrown paws** (`CatPose.punch`, alternating sign) with a comic burst where each lands (`CatPose.impact`), one bubble, 1.6–3 s. Two who *touch* start one on the spot; three seconds of nearness is for pookies who sit down near each other. The separation rule relaxes to half, so their bodies overlap — at the first distance they were close enough to look like dancing, which is exactly what the human reported. A landed swing is signalled (`takePendingHit`) and handed to the other pookie, who flinches: squint, open mouth, head snapping away, stagger, one bubble. A chase that closes the distance becomes one, so "they fight when they are close" falls out of the same rule as the chase rather than being a third scheduler |
 | Company | continuous, when other pets are near | Two cats converging on one pixel read as one buggy cat, so each steps out of the other's way. The push is positional and decays to zero at one personal space, so they settle apart instead of springing at each other forever, and it only applies between cats on the same footing — one on a ledge and one on the floor are not stacked |
@@ -286,6 +291,14 @@ mouth and the squint are the renderer's reading of that weight, so there is no s
 to keep in sync with the body. This is also the piece of M1's "explicit animation state machine"
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
+
+**Three more shapes, and two more channels.** `CatShape` grew `curl`, `reachUp` and `peek`, which cost
+three anatomy keyframes each and nothing else — the renderer draws whatever the blend says, so a new
+pose is data. `groom` and `spin` are *transient channels* like the punch: applied in the renderer rather
+than in `poseTransform`, and swept against the stage on their own, because she cannot chase her tail and
+stretch at once. Both were caught by the existing contracts rather than by taste: every new shape had to
+be moved until its ink rested on the ground line, and the grooming foreleg had to be drawn *after* the
+face — drawn with the body it ends up behind the head, which is the same mistake the eye patch made.
 
 **A species is a table as well** (`PetSpecies`, `SpeciesTraits`). Seventeen animals share one skeleton:
 each species supplies proportions (scaled about the ground line, so nobody floats) and appendages —

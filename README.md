@@ -17,6 +17,7 @@ row 3: sleepy  | walking | alarmed | talking
 row 4: sitting | loafing | lying asleep | waking stretch
 row 5: settling stand->sit | sit->loaf | loaf->lie | lie->stretch
 row 6: blinking out 30% | 60% | 90% | and back in
+row 7: curled asleep | stretching up | peering over | washing a paw
 ```
 
 Rows 4 and 5 are the posture work: four resting shapes and the mid-settle frames between them. They
@@ -208,6 +209,11 @@ Five more, all of them things she does on her own:
 | **Kneading** | settled on a ledge, awake | both paws pressing in a slow rhythm, which is the punch channel at a fifth of the swing |
 | **A head-bump** | when the pointer comes within 90pt | she leans into it, and hops if it comes closer |
 | **Sleeping in a pile** | two settled pookies side by side | the space they keep shrinks by a third, so they lean instead of shoving |
+| **Grooming** | every 1–3 minutes, awake and idle | a foreleg comes up to the muzzle and she washes behind it, tongue out |
+| **A tail-chase** | every 2–5 minutes | the whole body turns on the spot after her own tail, then back |
+| **A donut** | a nap longer than ~20 seconds | the rest ladder ends *curled*: nose to tail, which reads as gone rather than dozing |
+| **A stretch up** | after a nap | the stretch-up shape, held for a second or two |
+| **Peering over the edge** | rarely, once settled on a perch | head low and forward over the lip, body up behind it |
 
 **Markings go over any coat.** Nine of them, and they are *bold* — none, an eye patch, one white sock, a heart, a raccoon
 mask, a ringed tail, rosettes, tiny stars, and a pale winter coat — chosen per pookie from **Markings**
@@ -388,7 +394,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 381 headless checks, including:
+runs 394 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,
