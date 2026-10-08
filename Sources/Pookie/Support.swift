@@ -147,9 +147,21 @@ struct Desktop {
 
     /// The usable region containing `point`, or the region containing the point
     /// with the largest overlap, falling back to the first screen.
-    func region(containing point: CGPoint) -> CGRect {
+    /// The usable region containing `point`.
+    ///
+    /// A point in the *gap* between two displays — and the window server leaves
+    /// gaps, because visible frames exclude the menu bar — matches no screen. The
+    /// old fallback picked the nearest by centre, which for a pookie crossing a
+    /// seam could be the display she just left: she would be pushed back across it
+    /// and bounce at the boundary. `preferring` is the region she was in a frame
+    /// ago, and sticking with it while she is in a gap is what keeps a crossing
+    /// monotonic.
+    func region(containing point: CGPoint, preferring previous: CGRect? = nil) -> CGRect {
         if let exact = visibleFrames.first(where: { $0.contains(point) }) {
             return exact
+        }
+        if let previous, visibleFrames.contains(previous) {
+            return previous
         }
         let best = visibleFrames.max { a, b in
             let da = hypot(a.midX - point.x, a.midY - point.y)

@@ -84,8 +84,10 @@ preemption order) is in for postures: four resting shapes she blends between rat
 a rest ladder — loaf after a long perch, sit before sleep, lie asleep, stretch and yawn on waking or
 after a long idle — with `--selftest` proving the blend is continuous and that retargeting mid-settle
 cannot pop. Criteria 4, 5 and 6 (spring locomotion, gravity and restitution, frame tiers with
-hysteresis) landed in M0's fix pass. Outstanding: the SpriteKit renderer behind `PetRenderer`
-(criterion 1), cached geometry, and the few micro-behaviours not yet on a jittered scheduler.
+hysteresis) landed in M0's fix pass. Every unprompted behaviour now sits on a jittered scheduler —
+zoomies, grooming, the tail-chase, the sneeze, the peer, the wander clock, the play and brawl cooldowns,
+and all four rest thresholds. Outstanding: the layer-backed renderer behind `PetRenderer` (criterion 1),
+and the interim cached-geometry lever if that slips.
 
 ### Goal
 

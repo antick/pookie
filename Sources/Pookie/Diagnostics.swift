@@ -1219,6 +1219,35 @@ print("scuffles")
             "and is standing on it"
         )
 
+        // A point in the gap between two displays matches neither. Preferring the
+        // region she was already in keeps a crossing monotonic; nearest-by-centre
+        // could hand her back the display she just left, which reads as a bounce.
+        // Visible frames leave gaps — they exclude the menu bar, and two displays
+        // are rarely the same height — so a point can genuinely be on neither.
+        let gapDesk = Desktop(visibleFrames: [
+            CGRect(x: 0, y: 0, width: 1440, height: 860),
+            CGRect(x: 1448, y: 120, width: 1440, height: 740),
+        ])
+        let gapPoint = CGPoint(x: 1444, y: 400)
+        check(
+            gapDesk.visibleFrames.allSatisfy { !$0.contains(gapPoint) },
+            "a point can fall between two displays"
+        )
+        check(
+            gapDesk.region(containing: gapPoint, preferring: gapDesk.visibleFrames[0])
+                == gapDesk.visibleFrames[0],
+            "and the display she came from wins over nearest-by-centre"
+        )
+        check(
+            gapDesk.region(containing: gapPoint, preferring: gapDesk.visibleFrames[1])
+                == gapDesk.visibleFrames[1],
+            "whichever side she is crossing from"
+        )
+        check(
+            gapDesk.neighbour(of: gapDesk.visibleFrames[0], direction: 1) == gapDesk.visibleFrames[1],
+            "and an eight-point gap still counts as attached"
+        )
+
         let walled = PetMotion(origin: CGPoint(x: 1380, y: 0), size: size, desktop: scuffleDesk)
         walled.followCursor = false
         walled.wanderEnabled = false

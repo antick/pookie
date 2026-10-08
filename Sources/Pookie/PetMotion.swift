@@ -381,6 +381,10 @@ final class PetMotion {
     /// jumping onto a random one reads as a bug.
     var preferredPlatformOwner: String?
 
+    /// The display she was last resolved to. Kept so a pookie in the seam gap
+    /// between two monitors stays on the one she is crossing towards.
+    private var lastRegion: CGRect?
+
     /// How far along a ledge she will aim from directly above her launch point,
     /// as a fraction of the room available. Zero makes a jump deterministic,
     /// which is what the landing-accuracy test pins it to; the default spreads
@@ -1200,7 +1204,10 @@ final class PetMotion {
     }
 
     private func integrate(_ dt: Double) {
-        let region = desktop.region(containing: origin)
+        // Prefer the region she was already in: a point in the seam gap between
+        // two displays matches neither, and falling back to nearest-by-centre can
+        // pick the one she just left, which reads as a bounce at the boundary.
+        let region = desktop.region(containing: origin, preferring: lastRegion)
         var v = velocity
         let previousY = origin.y
 
@@ -1212,6 +1219,7 @@ final class PetMotion {
         origin.x += v.dx * CGFloat(dt)
         origin.y += v.dy * CGFloat(dt)
 
+        lastRegion = region
         // Walls — but only where there is actually a wall.
         if crossOrBounce(region) {
             v.dx = (origin.x <= region.minX ? abs(v.dx) : -abs(v.dx)) * 0.5

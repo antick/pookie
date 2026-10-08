@@ -4,9 +4,10 @@ What is left, in the order I would do it. `docs/ROADMAP.md` has the milestone
 detail and the acceptance criteria; this file is the working list — the things
 that are *not* done, why they are not done, and what "done" means.
 
-Last audited: after the settings window, the collection, the brawl fix and the
-per-producer budget. Anything not listed here is either finished or not worth
-doing; `git log` is the history.
+Last audited: against the roadmap's "Outstanding" lines, `M0-FINDINGS.md`'s
+uncertainty register and `MACOS-CONSTRAINTS.md` §11 — the first version of this
+file missed three of those, which is why the audit is written down. Anything not
+listed here is either finished or not worth doing; `git log` is the history.
 
 ## 1. Asked for, not built
 
@@ -88,6 +89,29 @@ All four need M3's transport to be meaningful:
       *Then re-check:* global hotkey registration, the `--say` distributed
       notification bridge, and permission behaviour. M0's findings call the
       bridge the most likely casualty of sandboxing.
+
+## 6b. Open questions from the uncertainty register
+
+`docs/MACOS-CONSTRAINTS.md` §11 is the register; these are its entries that are
+still open, and they are here because a register nobody reads is a register nobody
+closes.
+
+- [ ] **Item 7 — the fullscreen-geometry heuristic.** Whether detecting "a
+      full-screen app is in front" by window geometry gives acceptable false
+      positives is unanswered, because the heuristic was never implemented. Keep it
+      configurable and default off if it is.
+- [ ] **Item 8 — MCP notifications.** Whether an MCP server can push notifications
+      to Codex and Claude Code is untested; assume a `pookie_poll_events` tool is
+      required until it is tested. Belongs with M4.
+- [ ] **Item 4 — capture exclusion.** `sharingType = .none` has never met a real
+      screen-share client. Listed under §7 as a check for a human.
+- [ ] **Item 5 — the hotkey in a notarized, sandboxed build.** Carbon
+      `RegisterEventHotKey` works with zero prompts in a dev build; re-check after
+      notarization. Listed under §6.
+- [x] **Item 11 — `Desktop.region(containing:)` near a display seam.** Closed: a
+      point in the gap between two displays now prefers the region the pookie was
+      already in, instead of nearest-by-centre, which could hand her back the
+      display she just left and read as a bounce at the boundary.
 
 ## 7. Verified by hand, not yet by a test
 

@@ -154,7 +154,7 @@ everything, and `defaults delete com.pookie.pet` is a factory reset). It holds t
 coat and name for each pookie — plus the pookie boss, the size, the teleport cadence and every
 switch in the menu. Nothing else is stored anywhere: there is no database, no cache directory and no
 file in `Application Support`. Positions, moods and everything else about the moment are deliberately
-not saved; M8 owns the full preferences store.
+not saved; the settings window is the store, and it covers everything worth keeping.
 
 **Right-click any pookie** for a menu about *that* one: bring it home, make it the one that answers for
 Pookie, **hide it** (or show it again), or remove it from the desk. Hiding is per pet — the animal you
