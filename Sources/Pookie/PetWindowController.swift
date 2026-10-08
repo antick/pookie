@@ -642,6 +642,8 @@ final class PetWindowController {
             + "hits=\(motion.hitsLanded)/\(motion.hitsTaken) "
             + "bubble=\(speech.bubble == nil ? "no" : "yes") "
             + "paused=\(motion.isPaused) "
+            + "alpha=\(String(format: "%.2f", window.alphaValue)) "
+            + "quiet=\(AppConfig.shared.quietMode) "
             + "overCat=\(view.isPointerOverPet)"
         )
         heartbeatElapsed = 0
