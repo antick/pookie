@@ -129,6 +129,16 @@ a refusal is logged (`producer ci rate limited for 1.4s`) so "why did my script 
 answer. Her *own* reactions — the sneeze, the yelp, the greeting — are not a producer and are never the
 thing that gets rate limited.
 
+### Uninstalling
+
+1. Quit Pookie from the menu bar (the app has no daemons and no background helpers).
+2. If you ticked **Start Pookie when I log in**, untick it first — otherwise macOS keeps a login item
+   pointing at an app that is no longer there. (`Pookie --launch-at-login off` does the same thing.)
+3. Drag `Pookie.app` to the Trash.
+4. `defaults delete com.pookie.pet` removes the settings, and that is all of them — there is no
+   Application Support directory, no cache, no socket, and no database. Nothing else on disk knows
+   Pookie exists.
+
 ### Where your settings live
 
 In `~/Library/Preferences/com.pookie.pet.plist` — the standard macOS preferences file for the app's

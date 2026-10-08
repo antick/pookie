@@ -123,6 +123,13 @@ final class SpeechEngine {
             state.lastSpokeAt = now
             state.recent.append(now)
             producers[producer] = state
+            // Forget producers whose window has fully expired, so a script that
+            // generates a fresh name per line cannot grow this dictionary without
+            // bound. Cheap, and the alternative is a leak in an app that is meant
+            // to run all day.
+            if producers.count > 32 {
+                producers = producers.filter { now - $0.value.lastSpokeAt < producerWindow }
+            }
         }
 
         var outcome: SpeechOutcome = .started

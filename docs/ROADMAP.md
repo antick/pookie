@@ -299,7 +299,7 @@ the pet.
 
 ## M8 — Multi-pet, menu-bar settings, packaging
 
-**Status: partially landed.** Criterion 1 is in for the in-process case — and then some: up to ten
+**Status: nearly landed.** Criterion 1 is in for the in-process case — and then some: up to ten
 pets coexist, one of each species (cat, bunny, puppy, fox, panda), each with its own coat, size and
 behaviour engine, spawned and removed from the menu-bar item or `Pookie --pets N`, under one shared
 frame budget, with a persisted roster. The menu-bar item already carries show/hide, **pet size**,
@@ -310,11 +310,14 @@ largely there ahead of its milestone. The settings window and the persisted
 collection landed ahead of the milestone: a real window (General / Behaviour / Pookies), a roster that
 holds every animal with a desk flag, and the frame budget. **Opacity** and **quiet mode** have since landed too — a slider with a floor of a
 third, and a switch that suppresses the *unprompted* lines while leaving a producer's intact.
-**Per-producer rate limits** and **launch at login** have since landed too.
+Criteria 2, 3, 5 and 8 are met; the first-run line (6) and the uninstall notes (7) landed with the
+last pass. **Per-producer rate limits** and **launch at login** have since landed too.
 The per-pet CPU budget landed too: it is now a
 **time** budget divided by each pet's measured draw cost rather than a flat frame count split evenly, so
-a sleeping pookie frees frames for a running one. Criterion 2 is met for the in-process case; what is
-left of M8 is the parts that need other milestones (a skill registry, the wire protocol).
+a sleeping pookie frees frames for a running one. The one criterion left is 4 — **a signed, notarized DMG** — which needs an Apple
+Developer certificate and a release process, not code: `make bundle` produces an unsigned app, and
+Gatekeeper will warn on a clean machine until somebody with a certificate signs it. Nothing else in M8
+is code-shaped.
 
 ### Goal
 

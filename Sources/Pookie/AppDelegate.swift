@@ -30,6 +30,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if AppConfig.shared.openSettingsAtLaunch {
             openSettings()
         }
+
+        // First run: say the one thing a new user cannot guess. Once, and never
+        // again — a pet that explains itself every launch is a nag.
+        if !AppConfig.shared.hasOnboarded {
+            AppConfig.shared.hasOnboarded = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+                self?.cohort?.say("psst — control-option-H hides me. Right-click me for the rest.")
+            }
+        }
         installStatusItem()
         installHotKeys()
         installSayBridge()
@@ -158,10 +167,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // One of each animal: a kind that is already on the desk is offered
             // but disabled, with the reason in the tooltip. A missing item looks
             // like a bug; a greyed one looks like a rule.
-            let taken = cohort?.pets.contains { $0.pookie.species == species } ?? false
-            item.isEnabled = !taken && (cohort?.count ?? 0) < PetCohort.maximumPets
-            item.toolTip = taken
-                ? "There is already a \(species.name) here — give that one a different coat instead"
+            // The collection, not the desk: an animal you already own but have
+            // switched off is not something "Add" can add, and an item that does
+            // nothing when clicked reads as a bug.
+            let owned = cohort?.collection.contains { $0.species == species } ?? false
+            item.isEnabled = !owned && (cohort?.count ?? 0) < PetCohort.maximumPets
+            item.toolTip = owned
+                ? "\(species.name) is already in your collection — switch it on in Pookies"
                 : nil
             addMenu.addItem(item)
         }

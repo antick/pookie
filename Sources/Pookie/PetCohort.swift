@@ -21,8 +21,9 @@ final class PetCohort {
     /// measured cost, so nothing got slower.
     static let drawBudgetMillisecondsPerSecond: Double = 200
 
-    /// Kept for the flag help and the old tests: the frame count the budget works
-    /// out to when every pet is nominal.
+    /// The frame count the budget works out to when every pet costs the nominal
+    /// figure. No longer what the colony uses — `frameRates` is — but it is the
+    /// number the tests state the floor and ceiling against.
     static let totalFrameBudget: Double = 120
 
     /// Pure, so the cap is checkable without a window server.

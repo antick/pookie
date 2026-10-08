@@ -308,6 +308,10 @@ final class AppConfig {
     var quietMode = false {
         didSet { store(quietMode, .quiet) }
     }
+    /// Whether the one-off first-run line has been said.
+    var hasOnboarded = false {
+        didSet { store(hasOnboarded, .onboarded) }
+    }
     /// Whether to open the settings window at launch.
     var openSettingsAtLaunch = false
     /// Start Pookie when you log in. The real switch lives in the system's login
@@ -336,6 +340,7 @@ final class AppConfig {
         case opacity = "petOpacity"
         case quiet = "quietMode"
         case launchAtLogin = "launchAtLogin"
+        case onboarded = "hasOnboarded"
     }
 
     private init(defaults: UserDefaults = .standard) {
@@ -379,6 +384,7 @@ final class AppConfig {
             : min(max(defaults.double(forKey: Key.opacity.rawValue), 0.35), 1)
         quietMode = defaults.bool(or: false, Key.quiet.rawValue)
         launchAtLogin = defaults.bool(or: false, Key.launchAtLogin.rawValue)
+        hasOnboarded = defaults.bool(or: false, Key.onboarded.rawValue)
 
         // A repair is a one-time thing, so write it back rather than redoing it on
         // every launch.
