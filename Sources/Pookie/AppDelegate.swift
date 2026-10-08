@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static let sayNotification = Notification.Name("com.pookie.pet.say")
 
     private var cohort: PetCohort?
+    private var settingsWindow: SettingsWindowController?
     private var statusItem: NSStatusItem?
     private var hotKeys: [GlobalHotKey] = []
     private var sayObserver: NSObjectProtocol?
@@ -20,11 +21,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let colony = PetCohort()
         colony.contextMenuBuilder = { [weak self] pet in self?.petMenu(for: pet) }
         cohort = colony
-        // The saved roster is what loads; `--pets N` overrides the headcount for
-        // one run without touching it.
-        let wanted = AppConfig.shared.startPets ?? AppConfig.shared.roster.count
-        for _ in 0..<max(1, min(PetCohort.maximumPets, wanted)) {
-            colony.spawn(announce: false)
+        // The collection loads: everything the roster says belongs on the desk,
+        // in order, up to the cap. `--pets N` overrides the headcount for one run
+        // without touching the roster.
+        colony.spawnFromRoster()
+
+        if AppConfig.shared.openSettingsAtLaunch {
+            openSettings()
         }
         installStatusItem()
         installHotKeys()
@@ -159,117 +162,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(addItem)
 
 
-        // Who is on the desk, and what each of them is. This is the answer to
-        // "which pookie do I want loaded, and how should it look".
-        let defaultIndex = AppConfig.shared.boss
+        // The desk at a glance, and the way into the real settings window. The
+        // per-pookie submenus used to live here; a menu with seventeen animals and
+        // four submenus each is a menu pretending to be a settings screen, so the
+        // configuration moved to Settings and this stayed a summary.
         let pookiesItem = NSMenuItem(title: "Pookies", action: nil, keyEquivalent: "")
         let pookiesMenu = NSMenu()
-        for (index, pet) in (cohort?.pets ?? []).enumerated() {
-            let title = "\(index + 1). \(pet.pookie.name) · \(pet.pookie.species.name) · \(pet.pookie.coat.name)"
-                + (index == defaultIndex ? "  (pookie boss)" : "")
-                + (pet.isHiddenByUser ? "  (hidden)" : "")
-            let entry = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            let submenu = NSMenu()
-
-            let speciesHeader = NSMenuItem(title: "Kind", action: nil, keyEquivalent: "")
-            speciesHeader.isEnabled = false
-            submenu.addItem(speciesHeader)
-            for species in PetSpecies.allCases {
-                let item = NSMenuItem(title: species.name, action: #selector(selectSpecies(_:)), keyEquivalent: "")
-                item.target = self
-                item.tag = index
-                item.representedObject = species.rawValue
-                item.state = pet.pookie.species == species ? .on : .off
-                item.indentationLevel = 1
-                // Somebody else already being this animal is the one reason the
-                // change is refused, so say so rather than failing silently.
-                let takenByAnother = (cohort?.pets ?? []).enumerated().contains { other, candidate in
-                    other != index && candidate.pookie.species == species
-                }
-                item.isEnabled = !takenByAnother
-                item.toolTip = takenByAnother
-                    ? "\(species.name) is already here — one of each animal"
-                    : nil
-                submenu.addItem(item)
-            }
-
-            submenu.addItem(.separator())
-            let coatHeader = NSMenuItem(title: "Coat", action: nil, keyEquivalent: "")
-            coatHeader.isEnabled = false
-            submenu.addItem(coatHeader)
-            for coat in CatSkin.allCases {
-                let item = NSMenuItem(title: coat.name, action: #selector(selectCoat(_:)), keyEquivalent: "")
-                item.target = self
-                item.tag = index
-                item.representedObject = coat.rawValue
-                item.state = pet.pookie.coat == coat ? .on : .off
-                item.indentationLevel = 1
-                submenu.addItem(item)
-            }
-
-            submenu.addItem(.separator())
-            let markingsHeader = NSMenuItem(title: "Markings", action: nil, keyEquivalent: "")
-            markingsHeader.isEnabled = false
-            submenu.addItem(markingsHeader)
-            for pattern in PookiePattern.allCases {
-                let item = NSMenuItem(title: pattern.name, action: #selector(selectPattern(_:)), keyEquivalent: "")
-                item.target = self
-                item.tag = index
-                item.representedObject = pattern.rawValue
-                item.state = pet.pookie.pattern == pattern ? .on : .off
-                item.indentationLevel = 1
-                submenu.addItem(item)
-            }
-
-            submenu.addItem(.separator())
-            let rename = NSMenuItem(title: "Rename…", action: #selector(renamePookie(_:)), keyEquivalent: "")
-            rename.target = self
-            rename.tag = index
-            submenu.addItem(rename)
-
-            let makeBoss = NSMenuItem(
-                title: "Make Pookie Boss",
-                action: #selector(makePookieBoss(_:)),
+        let collection = cohort?.collection ?? []
+        let onDesk = cohort?.count ?? 0
+        let summary = NSMenuItem(
+            title: "\(onDesk) on the desk · \(collection.count) in the collection",
+            action: nil,
+            keyEquivalent: ""
+        )
+        summary.isEnabled = false
+        pookiesMenu.addItem(summary)
+        for entry in collection {
+            let marker = entry.onDesk ? "●" : "○"
+            let boss = AppConfig.shared.roster.firstIndex(of: entry) == AppConfig.shared.boss ? "  (boss)" : ""
+            let item = NSMenuItem(
+                title: "\(marker) \(entry.name) · \(entry.species.name) · \(entry.coat.name)\(boss)",
+                action: #selector(toggleSpeciesOnDesk(_:)),
                 keyEquivalent: ""
             )
-            makeBoss.target = self
-            makeBoss.tag = index
-            makeBoss.state = index == defaultIndex ? .on : .off
-            makeBoss.toolTip = "The pookie boss speaks when a producer sends her a line"
-            submenu.addItem(makeBoss)
-
-            submenu.addItem(.separator())
-            let home = NSMenuItem(
-                title: "Bring this one home",
-                action: #selector(bringHomePet(_:)),
-                keyEquivalent: ""
-            )
-            home.target = self
-            home.tag = index
-            submenu.addItem(home)
-
-            let hide = NSMenuItem(
-                title: pet.isHiddenByUser ? "Show this pookie" : "Hide this pookie",
-                action: #selector(togglePetHidden(_:)),
-                keyEquivalent: ""
-            )
-            hide.target = self
-            hide.tag = index
-            submenu.addItem(hide)
-
-            let remove = NSMenuItem(
-                title: "Remove this pookie",
-                action: #selector(removePookie(_:)),
-                keyEquivalent: ""
-            )
-            remove.target = self
-            remove.tag = index
-            remove.isEnabled = pets > 1
-            submenu.addItem(remove)
-
-            entry.submenu = submenu
-            pookiesMenu.addItem(entry)
+            item.target = self
+            item.representedObject = entry.species.rawValue
+            item.state = entry.onDesk ? .on : .off
+            item.toolTip = entry.onDesk ? "On the desk — click to take it off" : "In the collection — click to put it on the desk"
+            pookiesMenu.addItem(item)
         }
+        pookiesMenu.addItem(.separator())
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        pookiesMenu.addItem(settingsItem)
         pookiesItem.submenu = pookiesMenu
         menu.addItem(pookiesItem)
 
@@ -557,6 +486,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Open (or raise) the settings window.
+    @objc private func openSettings() {
+        if settingsWindow == nil {
+            settingsWindow = SettingsWindowController(cohort: cohort ?? PetCohort()) { [weak self] in
+                self?.rebuildMenu()
+            }
+        }
+        settingsWindow?.present()
+    }
+
+    /// Put one animal on the desk, or take it off — from the Pookies summary.
+    @objc private func toggleSpeciesOnDesk(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let species = PetSpecies(rawValue: raw) else { return }
+        let entry = cohort?.collection.first { $0.species == species }
+        let wanted = !(entry?.onDesk ?? false)
+        if cohort?.setOnDesk(wanted, species: species) != true {
+            NSSound.beep()
+        }
+        rebuildMenu()
+    }
+
     @objc private func addPookie(_ sender: NSMenuItem) {
         let raw = sender.representedObject as? String ?? ""
         cohort?.spawn(species: PetSpecies(rawValue: raw))
@@ -678,7 +629,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleRaised() {
         guard let cohort else { return }
-        cohort.setRaisedAboveEverything(!cohort.isRaisedAboveEverything)
+        cohort.isRaisedAboveEverything.toggle()
+        cohort.applyRaisedAboveEverything()
         rebuildMenu()
     }
 

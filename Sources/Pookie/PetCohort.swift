@@ -43,7 +43,6 @@ final class PetCohort {
     /// How many are actually being drawn. A hidden pet costs nothing, so it should
     /// not be holding a share of the frame budget either.
     var visibleCount: Int { pets.filter { !$0.isHiddenByUser }.count }
-    var isRaisedAboveEverything: Bool { pets.first?.isRaisedAboveEverything ?? false }
     /// The pet a producer talks through when it does not name one: the one the
     /// menu marks as the default.
     var spokespet: PetWindowController? {
@@ -63,31 +62,14 @@ final class PetCohort {
 
     // MARK: - Population
 
+    /// Put one roster entry on the desk.
     @discardableResult
-    func spawn(species: PetSpecies? = nil, announce: Bool = true) -> PetWindowController? {
+    private func spawn(entry: PookieConfig, announce: Bool = true) -> PetWindowController? {
         guard Self.canAddPet(having: pets.count) else { return nil }
-
-        let config = AppConfig.shared
-        // The saved roster decides what is on the desk; anything past the end of
-        // it is the next animal nobody has yet, which is what makes
-        // `Pookie --pets 5` hand you one of each.
-        let pookie: PookieConfig
-        if let species {
-            guard canAdd(species: species) else {
-                Log.info("there is already a \(species.name) on the desk")
-                return nil
-            }
-            pookie = PookieConfig(species)
-            config.roster.append(pookie)
-        } else if pets.count < config.roster.count {
-            pookie = config.roster[pets.count]
-        } else {
-            pookie = nextPookie()
-            config.roster.append(pookie)
-        }
+        guard !pets.contains(where: { $0.pookie.species == entry.species }) else { return nil }
 
         let pet = PetWindowController(
-            pookie: pookie,
+            pookie: entry,
             personalScale: Rand.double(0.88...1.12),
             startOrigin: homeOrigin(slot: pets.count)
         )
@@ -95,10 +77,101 @@ final class PetCohort {
         pets.append(pet)
         applyColonySettings()
 
-        if announce, config.chatty {
+        if announce, AppConfig.shared.chatty {
             pet.say(PetChatter.arrived(), duration: 1.6)
         }
-        Log.info("pet \(pets.count)/\(Self.maximumPets) up: \(pookie.name) the \(pookie.species.name) in \(pookie.coat.name)")
+        Log.info("desk \(pets.count)/\(Self.maximumPets): \(entry.name) the \(entry.species.name) in \(entry.coat.name)")
+        return pet
+    }
+
+    /// Put the collection on the desk: everything the roster says belongs there,
+    /// in order, up to the cap.
+    ///
+    /// `--pets N` overrides how many come out for one run without touching the
+    /// roster — which is what makes a headless run predictable.
+    func spawnFromRoster() {
+        let wanted = AppConfig.shared.startPets
+        for (index, entry) in AppConfig.shared.roster.enumerated() {
+            guard Self.canAddPet(having: pets.count) else { break }
+            guard entry.onDesk else { continue }
+            if let wanted, pets.count >= wanted { break }
+            _ = index
+            spawn(entry: entry, announce: false)
+        }
+        // `--pets N` may ask for more than the roster has on the desk: fill from
+        // the collection, in order.
+        if let wanted {
+            for entry in AppConfig.shared.roster where pets.count < wanted {
+                guard Self.canAddPet(having: pets.count) else { break }
+                guard !pets.contains(where: { $0.pookie.species == entry.species }) else { continue }
+                spawn(entry: entry, announce: false)
+            }
+        }
+    }
+
+    /// The whole collection: every animal configured, on the desk or not.
+    var collection: [PookieConfig] { AppConfig.shared.roster }
+
+    /// Add an animal to the collection. On the desk if there is room, otherwise
+    /// kept and switched off — which is the point of a collection.
+    @discardableResult
+    func addToCollection(species: PetSpecies) -> Bool {
+        guard !AppConfig.shared.roster.contains(where: { $0.species == species }) else { return false }
+        let room = Self.canAddPet(having: pets.count)
+        let entry = PookieConfig(species, onDesk: room)
+        AppConfig.shared.roster.append(entry)
+        if room { spawn(entry: entry) }
+        applyColonySettings()
+        return true
+    }
+
+    /// Take an animal out of the collection entirely.
+    @discardableResult
+    func removeFromCollection(species: PetSpecies) -> Bool {
+        if let index = pets.firstIndex(where: { $0.pookie.species == species }) {
+            guard pets.count > 1 else { return false }
+            let pet = pets.remove(at: index)
+            pet.close()
+        }
+        AppConfig.shared.roster.removeAll { $0.species == species }
+        AppConfig.shared.boss = min(AppConfig.shared.boss, max(0, pets.count - 1))
+        applyColonySettings()
+        return true
+    }
+
+    /// Show one animal on the desk, or take it off without forgetting it.
+    @discardableResult
+    func setOnDesk(_ on: Bool, species: PetSpecies) -> Bool {
+        guard let index = AppConfig.shared.roster.firstIndex(where: { $0.species == species }) else {
+            return false
+        }
+        if on {
+            guard Self.canAddPet(having: pets.count) else { return false }
+            guard !pets.contains(where: { $0.pookie.species == species }) else { return true }
+            AppConfig.shared.roster[index].onDesk = true
+            return spawn(entry: AppConfig.shared.roster[index]) != nil
+        }
+        AppConfig.shared.roster[index].onDesk = false
+        guard let petIndex = pets.firstIndex(where: { $0.pookie.species == species }) else { return true }
+        guard pets.count > 1 else { return false }
+        let pet = pets.remove(at: petIndex)
+        pet.close()
+        AppConfig.shared.boss = min(AppConfig.shared.boss, max(0, pets.count - 1))
+        applyColonySettings()
+        return true
+    }
+
+    /// Add an animal straight to the desk, which is what the menu's Add does.
+    @discardableResult
+    func spawn(species: PetSpecies? = nil, announce: Bool = true) -> PetWindowController? {
+        let wanted = species ?? PetSpecies.allCases.first { candidate in
+            !AppConfig.shared.roster.contains { $0.species == candidate }
+        } ?? .cat
+        guard addToCollection(species: wanted) else { return nil }
+        guard let pet = pets.first(where: { $0.pookie.species == wanted }) else { return nil }
+        if announce, AppConfig.shared.chatty {
+            pet.say(PetChatter.arrived(), duration: 1.6)
+        }
         return pet
     }
 
@@ -350,6 +423,23 @@ final class PetCohort {
         PetSpecies.allCases.filter { canAdd(species: $0) }
     }
 
+    /// Chattiness is a colony-wide setting, so it fans out.
+    func applyChattiness() {
+        for pet in pets { pet.setChatty(AppConfig.shared.chatty) }
+    }
+
+    func applyPrivacy() {
+        for pet in pets { pet.applySharingPrivacy() }
+    }
+
+    /// Raise every pet over full-screen apps, and remember it for the ones that
+    /// come later.
+    var isRaisedAboveEverything = false
+
+    func applyRaisedAboveEverything() {
+        for pet in pets { pet.setRaisedAboveEverything(isRaisedAboveEverything) }
+    }
+
     /// Change one pookie's markings. Free of everything else: any pattern on any
     /// animal in any coat.
     func setPattern(_ pattern: PookiePattern, at index: Int) {
@@ -360,6 +450,48 @@ final class PetCohort {
         if AppConfig.shared.roster.indices.contains(index) {
             AppConfig.shared.roster[index] = config
         }
+    }
+
+    /// Change one pookie, addressed by the animal it is. Species are unique in a
+    /// collection, so the species *is* the key — which is what lets the settings
+    /// window and the menu talk about the same pookie without sharing indices.
+    private func update(species: PetSpecies, _ edit: (inout PookieConfig) -> Void) {
+        guard let index = AppConfig.shared.roster.firstIndex(where: { $0.species == species }) else { return }
+        var entry = AppConfig.shared.roster[index]
+        edit(&entry)
+        AppConfig.shared.roster[index] = entry
+        if let pet = pets.first(where: { $0.pookie.species == species }) {
+            pet.apply(pookie: entry)
+        }
+    }
+
+    func rename(species: PetSpecies, to name: String) {
+        update(species: species) { $0.name = PookieConfig.clean(name) }
+    }
+
+    /// Change what an animal *is*. Refused when somebody else is already that
+    /// animal, because the collection keeps one of each.
+    @discardableResult
+    func changeSpecies(of species: PetSpecies, to newSpecies: PetSpecies) -> Bool {
+        guard newSpecies != species else { return true }
+        guard !AppConfig.shared.roster.contains(where: { $0.species == newSpecies }) else { return false }
+        guard let index = AppConfig.shared.roster.firstIndex(where: { $0.species == species }) else {
+            return false
+        }
+        AppConfig.shared.roster[index].species = newSpecies
+        // The name and coat come with it: it is still the same pookie.
+        if let pet = pets.first(where: { $0.pookie.species == species }) {
+            pet.apply(pookie: AppConfig.shared.roster[index])
+        }
+        return true
+    }
+
+    func setCoat(_ coat: CatSkin, species: PetSpecies) {
+        update(species: species) { $0.coat = coat }
+    }
+
+    func setPattern(_ pattern: PookiePattern, species: PetSpecies) {
+        update(species: species) { $0.pattern = pattern }
     }
 
     /// Rename one pookie. The name is the human's, so nothing else keys off it.
@@ -376,19 +508,8 @@ final class PetCohort {
     /// Take one pet off the desk, whichever one it is — not just the newest.
     @discardableResult
     func removePet(at index: Int) -> Bool {
-        guard pets.count > 1, pets.indices.contains(index) else { return false }
-        let pet = pets.remove(at: index)
-        pet.close()
-        if AppConfig.shared.roster.indices.contains(index) {
-            AppConfig.shared.roster.remove(at: index)
-        }
-        AppConfig.shared.boss = min(
-            AppConfig.shared.boss,
-            max(0, AppConfig.shared.roster.count - 1)
-        )
-        applyColonySettings()
-        Log.info("pet removed from the middle, \(pets.count)/\(Self.maximumPets) left")
-        return true
+        guard pets.indices.contains(index) else { return false }
+        return removeFromCollection(species: pets[index].pookie.species)
     }
 
     /// The frame rate each pet gets, given how many are on screen. Pure, because
@@ -433,10 +554,6 @@ final class PetCohort {
 
     func applyScreenSharePrivacy() {
         for pet in pets { pet.applyScreenSharePrivacy() }
-    }
-
-    func setRaisedAboveEverything(_ raised: Bool) {
-        for pet in pets { pet.setRaisedAboveEverything(raised) }
     }
 
     func refreshScreens() {

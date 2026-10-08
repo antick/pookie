@@ -36,6 +36,15 @@ enum CatScale: String, CaseIterable {
     case large
     case huge
 
+    var name: String {
+        switch self {
+        case .small: return "Small"
+        case .medium: return "Medium"
+        case .large: return "Large"
+        case .huge: return "Extra large"
+        }
+    }
+
     var factor: CGFloat {
         switch self {
         case .small: return 0.7
@@ -103,17 +112,28 @@ struct PookieConfig: Equatable {
     /// Markings over the coat. Free of both the species and the coat, so every
     /// combination of animal, colour and pattern is available.
     var pattern: PookiePattern
+    /// Whether this one is on the desk. The collection holds every animal you have
+    /// configured; the desk holds at most `PetCohort.maximumPets` of them, because
+    /// that is the part with a cost.
+    var onDesk: Bool
 
-    init(species: PetSpecies, coat: CatSkin, name: String? = nil, pattern: PookiePattern = .plain) {
+    init(
+        species: PetSpecies,
+        coat: CatSkin,
+        name: String? = nil,
+        pattern: PookiePattern = .plain,
+        onDesk: Bool = true
+    ) {
         self.species = species
         self.coat = coat
         self.name = PookieConfig.clean(name ?? species.defaultName)
         self.pattern = pattern
+        self.onDesk = onDesk
     }
 
     /// A new animal wearing the coat that makes it look like itself.
-    init(_ species: PetSpecies) {
-        self.init(species: species, coat: species.defaultCoat)
+    init(_ species: PetSpecies, onDesk: Bool = true) {
+        self.init(species: species, coat: species.defaultCoat, onDesk: onDesk)
     }
 
     static let tabbyCat = PookieConfig(species: .cat, coat: .tabby)
@@ -138,7 +158,12 @@ struct PookieConfig: Equatable {
             }
             seen.insert(spare)
             Log.info("roster: a second \(entry.species.name) became \(spare.name)")
-            unique.append(PookieConfig(species: spare, coat: spare.defaultCoat, name: entry.name))
+            unique.append(PookieConfig(
+                species: spare,
+                coat: spare.defaultCoat,
+                name: entry.name,
+                onDesk: entry.onDesk
+            ))
         }
         return unique
     }
@@ -157,11 +182,12 @@ struct PookieConfig: Equatable {
     /// The name is optional on the way in, because the first version of this
     /// wrote `species:coat` and a saved roster is not something to invalidate.
     var encoded: String {
-        "\(species.rawValue):\(coat.rawValue):\(name):\(pattern.rawValue)"
+        let desk = onDesk ? "1" : "0"
+        return "\(species.rawValue):\(coat.rawValue):\(name):\(pattern.rawValue):\(desk)"
     }
 
     init?(encoded: String) {
-        let parts = encoded.split(separator: ":", maxSplits: 3, omittingEmptySubsequences: false)
+        let parts = encoded.split(separator: ":", maxSplits: 4, omittingEmptySubsequences: false)
         guard parts.count >= 2,
               let species = PetSpecies(rawValue: String(parts[0])),
               let coat = CatSkin(rawValue: String(parts[1]))
@@ -170,7 +196,10 @@ struct PookieConfig: Equatable {
             species: species,
             coat: coat,
             name: parts.count > 2 ? String(parts[2]) : nil,
-            pattern: parts.count > 3 ? (PookiePattern(rawValue: String(parts[3])) ?? .plain) : .plain
+            pattern: parts.count > 3 ? (PookiePattern(rawValue: String(parts[3])) ?? .plain) : .plain,
+            // A roster saved before the collection existed had everything on the
+            // desk, which is what "on" means here.
+            onDesk: parts.count > 4 ? String(parts[4]) == "1" : true
         )
     }
 }
@@ -268,6 +297,8 @@ final class AppConfig {
     /// bottom-right corner.
     var startOrigin: CGPoint?
     var verboseLogging = false
+    /// `--settings` asks for the settings window at launch.
+    var openSettingsAtLaunch = false
 
     private enum Key: String {
         case clickThrough = "clickThroughMode"

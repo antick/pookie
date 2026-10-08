@@ -311,6 +311,13 @@ final class PetWindowController {
         view.syncWindowOrigin()
     }
 
+    /// Re-apply the screen-sharing setting, after it changed in the settings
+    /// window.
+    func applySharingPrivacy() {
+        window.sharingType = AppConfig.shared.hideFromScreenShare ? .none : .readWrite
+        bubbleWindow.sharingType = window.sharingType
+    }
+
     func setChatty(_ enabled: Bool) {
         speech.enabled = enabled
         if !enabled { hideBubble() }

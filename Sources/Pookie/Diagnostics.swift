@@ -1294,6 +1294,30 @@ enum Diagnostics {
             "and a pet's next blink lands inside the cadence it was given"
         )
 
+        // The collection: a roster that can hold every animal, each with a desk
+        // flag, and a desk that holds at most the cap.
+        let collection = [
+            PookieConfig(species: .cat, coat: .tabby, name: "Pookie", onDesk: true),
+            PookieConfig(species: .owl, coat: .cocoa, name: "Sage", onDesk: false),
+        ]
+        let reread = collection.map(\.encoded).compactMap(PookieConfig.init(encoded:))
+        check(reread == collection, "an animal in the collection keeps its desk flag")
+        check(reread[1].onDesk == false, "including one that is not on the desk")
+        check(
+            PookieConfig(encoded: "cat:tabby")?.onDesk == true,
+            "and a roster saved before the collection existed is all on the desk"
+        )
+        check(PetCohort.maximumPets == 10, "the desk holds ten (\(PetCohort.maximumPets))")
+        check(
+            PetCohort.canAddPet(having: PetCohort.maximumPets) == false
+                && PetCohort.canAddPet(having: PetCohort.maximumPets - 1),
+            "and the cap is enforced in code"
+        )
+        check(
+            PetSpecies.allCases.count > PetCohort.maximumPets,
+            "there are more animals to collect than fit on the desk (\(PetSpecies.allCases.count) > \(PetCohort.maximumPets))"
+        )
+
         // Markings are independent of both the species and the coat, which is
         // what makes every combination available.
         let patterned = PookieConfig(species: .panda, coat: .midnight, name: "Ink", pattern: .stars)

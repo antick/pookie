@@ -470,6 +470,15 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   A punch and a marking are *transient* channels: they are swept against the stage on their own rather
   than through the deformation corners, because a brawl happens standing and grounded and multiplying a
   thrown paw by a full stretch would be testing a pose that cannot happen.
+- **A collection, and a desk** (`PookieConfig.onDesk`, `PetCohort.spawnFromRoster`). The roster is the
+  *collection*: up to one entry per animal, each with a name, a coat, markings and a flag for whether it
+  is on the desk. The desk is capped at ten, because that is the part with a cost; the collection is not
+  capped at all. Pookies are keyed by species — unique in a collection — which is what lets the settings
+  window, the menu and the behaviour layer talk about the same pookie without sharing indices.
+- **A settings window** (`SettingsWindowController`). Three tabs, built in code, floating, and joining
+  every Space so it is reachable from wherever the pookies are. It replaced the per-pookie menu
+  submenus: a menu of seventeen animals with four submenus each is a menu pretending to be a settings
+  screen. The menu bar keeps the verbs you use while they are running.
 - **Names, a boss, and one of each animal** (`PookieConfig`, `PetSpecies`). Every pookie carries a
   name the human chose; the *pookie boss* is the one that answers producers, and any pookie can be
   promoted. The desk keeps one of each kind — a duplicate in a saved roster is repaired on load by

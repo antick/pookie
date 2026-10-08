@@ -99,6 +99,21 @@ Global hotkeys, **no Accessibility or Input Monitoring permission required**:
 | `control-option-T` | Say hello (test the speech bubble) |
 | `control-option-M` | Mute / unmute her reactions |
 
+### Settings
+
+**Pookies ▸ Settings…** (or ⌘,) opens a settings window: three tabs — **General** (size, blinking
+between displays and how often), **Behaviour** (wander, watch the cursor, perch, jump, chatty,
+privacy, float above full-screen apps) and **Pookies**. The menu bar keeps only what you reach for
+while the pookies are running: hide, show, add, and a one-line summary of the desk. A menu of
+seventeen animals with four submenus each was a menu pretending to be a settings screen.
+
+The **Pookies** tab is the whole collection, not just the desk: every animal you have configured, with
+a tick for whether it is *on the desk*, its name, its kind, its coat and its markings. Tick one to put
+it out, untick it to take it back into the collection without forgetting it — a name, a coat and a
+marking are worth keeping even when the animal is not on screen. The desk holds **ten** at a time
+(`PetCohort.maximumPets`), because the desk is the part that costs; the collection holds all
+seventeen. `Pookie --settings` opens the window at launch.
+
 ### Where your settings live
 
 In `~/Library/Preferences/com.pookie.pet.plist` — the standard macOS preferences file for the app's
@@ -373,7 +388,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 366 headless checks, including:
+runs 381 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,

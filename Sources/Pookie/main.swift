@@ -49,6 +49,12 @@ if overridesSettings {
     AppConfig.shared.persistsChanges = false
 }
 
+// Open the settings window at launch, which is how it gets tested and
+// screenshotted without a human clicking the menu bar.
+if arguments.contains("--settings") {
+    AppConfig.shared.openSettingsAtLaunch = true
+}
+
 // Useful for taking a clean energy reading without the cat ambling around.
 if arguments.contains("--no-wander") {
     AppConfig.shared.wanderEnabled = false
