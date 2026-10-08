@@ -122,6 +122,7 @@ final class PetWindowController {
         view.onTap = { [weak self] in self?.handleTap() }
         view.makeContextMenu = { [weak self] in self?.contextMenu() }
 
+        applyOpacity()
         configureWindow()
         configureBubbleWindow()
         observeEnvironment()
@@ -311,6 +312,14 @@ final class PetWindowController {
         view.syncWindowOrigin()
     }
 
+    /// How solid she is drawn. Applied to both windows, so a bubble is as solid
+    /// as the pookie saying it.
+    func applyOpacity() {
+        let alpha = CGFloat(AppConfig.shared.petOpacity)
+        window.alphaValue = alpha
+        bubbleWindow.alphaValue = alpha
+    }
+
     /// Re-apply the screen-sharing setting, after it changed in the settings
     /// window.
     func applySharingPrivacy() {
@@ -404,11 +413,17 @@ final class PetWindowController {
 
         // A sneeze is the one thing she says without being asked, so it goes
         // through the same rate limiter as everything else.
-        if motion.takeSneezeLine() {
-            say(PetChatter.sneeze(), duration: 1.0)
-        }
-        if motion.takeYelp() {
-            say(PetChatter.hit(), duration: 0.9)
+        // Unprompted lines: quiet mode is about these, not about the producer's.
+        if !AppConfig.shared.quietMode {
+            if motion.takeSneezeLine() {
+                say(PetChatter.sneeze(), duration: 1.0)
+            }
+            if motion.takeYelp() {
+                say(PetChatter.hit(), duration: 0.9)
+            }
+        } else {
+            _ = motion.takeSneezeLine()
+            _ = motion.takeYelp()
         }
 
         // How late the pump actually ran, as a multiple of the interval it was

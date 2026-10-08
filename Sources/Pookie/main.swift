@@ -13,6 +13,8 @@ if arguments.contains("--help") || arguments.contains("-h") {
       Pookie --render-png <path>   write a pose sheet to a PNG and exit
       Pookie --render-species <p>  write a species sheet to a PNG and exit
       Pookie --render-patterns <p> write a markings sheet to a PNG and exit
+      Pookie --render-brawl <p>    write a brawl sheet to a PNG and exit
+      Pookie --settings            open the settings window at launch
       Pookie --selftest            run headless checks and exit
       Pookie --windows             list the windows she can perch on, then exit
       Pookie --verbose             log window and interaction details to stderr
@@ -22,7 +24,7 @@ if arguments.contains("--help") || arguments.contains("-h") {
       Pookie --no-jump             do not jump up onto windows by herself
       Pookie --no-teleport         do not blink between displays
       Pookie --scale <name>        small | medium | large | huge
-      Pookie --pets <n>            start with n cats (1...\(PetCohort.maximumPets))
+      Pookie --pets <n>            start with n pookies (1...\(PetCohort.maximumPets))
       Pookie --mute                do not react to being petted
 
     Global hotkeys (no Accessibility permission required):

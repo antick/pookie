@@ -1339,6 +1339,15 @@ print("scuffles")
             "and a pet's next blink lands inside the cadence it was given"
         )
 
+        // Opacity and quiet mode are settings like any other, and both have a
+        // floor: a pookie below a third stops reading as an animal.
+        check(
+            AppConfig.shared.petOpacity >= 0.35 && AppConfig.shared.petOpacity <= 1,
+            "opacity stays in a range where she still reads as an animal"
+        )
+        let quiet = AppConfig.shared.quietMode
+        check(quiet == false || quiet == true, "quiet mode is a switch")
+
         // The collection: a roster that can hold every animal, each with a desk
         // flag, and a desk that holds at most the cap.
         let collection = [

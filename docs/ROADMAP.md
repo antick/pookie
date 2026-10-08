@@ -308,9 +308,10 @@ perching, jumping, speech, **teleport between displays and its cadence**, per-pe
 removal from a right-click on the pet itself, screen-sharing privacy and quit — so criterion 2 is
 largely there ahead of its milestone. The settings window and the persisted
 collection landed ahead of the milestone: a real window (General / Behaviour / Pookies), a roster that
-holds every animal with a desk flag, and the frame budget. Outstanding: opacity, quiet mode,
-per-producer rate limits, skill toggles, launch at login, and the per-pet CPU budget is still a shared
-frame-rate ceiling rather than an accounting of who spent what.
+holds every animal with a desk flag, and the frame budget. **Opacity** and **quiet mode** have since landed too — a slider with a floor of a
+third, and a switch that suppresses the *unprompted* lines while leaving a producer's intact.
+Outstanding: per-producer rate limits (they need M2's producer protocol), launch at login, and the
+per-pet CPU budget is still a shared frame-rate ceiling rather than an accounting of who spent what.
 
 ### Goal
 

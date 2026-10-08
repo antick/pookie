@@ -104,9 +104,9 @@ Global hotkeys, **no Accessibility or Input Monitoring permission required**:
 
 ![Pookie settings](shots/settings.png)
 
-**Pookies ▸ Settings…** (or ⌘,) opens a settings window: three tabs — **General** (size, blinking
-between displays and how often), **Behaviour** (wander, watch the cursor, perch, jump, chatty,
-privacy, float above full-screen apps) and **Pookies**. The menu bar keeps only what you reach for
+**Pookies ▸ Settings…** (or ⌘,) opens a settings window: three tabs — **General** (size, opacity, blinking
+between displays and how often), **Behaviour** (wander, watch the cursor, perch, jump, quiet mode,
+chatty, privacy, float above full-screen apps) and **Pookies**. The menu bar keeps only what you reach for
 while the pookies are running: hide, show, add, and a one-line summary of the desk. A menu of
 seventeen animals with four submenus each was a menu pretending to be a settings screen.
 
@@ -399,7 +399,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 394 headless checks, including:
+runs 396 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,

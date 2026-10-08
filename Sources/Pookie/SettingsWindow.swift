@@ -147,6 +147,12 @@ final class SettingsWindowController: NSWindowController {
         )
         teleport.state = config.teleportEnabled ? .on : .off
 
+        let opacity = NSSlider(value: config.petOpacity, minValue: 0.35, maxValue: 1, target: self, action: #selector(opacityChanged(_:)))
+        opacity.widthAnchor.constraint(equalToConstant: 200).isActive = true
+        let opacityRow = NSStackView(views: [NSTextField(labelWithString: "Opacity"), opacity])
+        opacityRow.orientation = .horizontal
+        opacityRow.spacing = 12
+
         let sizeRow = NSStackView(views: [NSTextField(labelWithString: "Size"), sizePopup])
         sizeRow.orientation = .horizontal
         sizeRow.spacing = 12
@@ -157,6 +163,7 @@ final class SettingsWindowController: NSWindowController {
         let stack = section([
             heading("The desk"),
             sizeRow,
+            opacityRow,
             teleport,
             cadenceRow,
             caption("A bigger pookie is a real size change: the window, the drawing and the behaviour geometry all scale together, so she still fits the ledge she jumps to."),
@@ -183,6 +190,8 @@ final class SettingsWindowController: NSWindowController {
                 "Land on the top edges of other apps' windows instead of falling past them"),
             row("Jump up onto them by themselves", #selector(toggleJump(_:)), config.jumpEnabled,
                 "Off means they only perch when you drop them there"),
+            row("Quiet mode", #selector(toggleQuiet(_:)), config.quietMode,
+                "No unprompted lines: no greeting, no yelp, no achoo. A producer asking her to speak still works"),
             row("Chatty", #selector(toggleChatty(_:)), config.chatty,
                 "React to being petted, thrown and perched on. Off means they only speak when a producer tells them to"),
             heading("Privacy"),
@@ -344,6 +353,17 @@ final class SettingsWindowController: NSWindowController {
     @objc private func toggleJump(_ sender: NSButton) {
         AppConfig.shared.jumpEnabled = sender.state == .on
         for pet in cohort?.pets ?? [] { pet.motion.jumpEnabled = AppConfig.shared.jumpEnabled }
+        changed()
+    }
+
+    @objc private func opacityChanged(_ sender: NSSlider) {
+        AppConfig.shared.petOpacity = sender.doubleValue
+        cohort?.applyOpacity()
+        changed()
+    }
+
+    @objc private func toggleQuiet(_ sender: NSButton) {
+        AppConfig.shared.quietMode = sender.state == .on
         changed()
     }
 

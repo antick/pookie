@@ -77,7 +77,7 @@ final class PetCohort {
         pets.append(pet)
         applyColonySettings()
 
-        if announce, AppConfig.shared.chatty {
+        if announce, AppConfig.shared.chatty, !AppConfig.shared.quietMode {
             pet.say(PetChatter.arrived(), duration: 1.6)
         }
         Log.info("desk \(pets.count)/\(Self.maximumPets): \(entry.name) the \(entry.species.name) in \(entry.coat.name)")
@@ -169,7 +169,7 @@ final class PetCohort {
         } ?? .cat
         guard addToCollection(species: wanted) else { return nil }
         guard let pet = pets.first(where: { $0.pookie.species == wanted }) else { return nil }
-        if announce, AppConfig.shared.chatty {
+        if announce, AppConfig.shared.chatty, !AppConfig.shared.quietMode {
             pet.say(PetChatter.arrived(), duration: 1.6)
         }
         return pet
@@ -293,7 +293,7 @@ final class PetCohort {
                 // neighbours who stay put will have another one.
                 scuffleCooldown = Rand.double(6...16)
                 // One of them says something, once.
-                if AppConfig.shared.chatty, Rand.bool(0.7) {
+                if AppConfig.shared.chatty, !AppConfig.shared.quietMode, Rand.bool(0.7) {
                     ready[i].say(PetChatter.scuffling(), duration: 1.3)
                 }
                 Log.debug("scuffle between \(ready[i].pookie.species.rawValue) and \(ready[j].pookie.species.rawValue)")
@@ -331,7 +331,9 @@ final class PetCohort {
         // One of them says something, if she is allowed to talk at all: two
         // bubbles at once is exactly the noise the speech rules exist to stop.
         if AppConfig.shared.chatty, Rand.bool(0.5) {
-            pair.0.say(PetChatter.playing(), duration: 1.4)
+            if !AppConfig.shared.quietMode {
+                pair.0.say(PetChatter.playing(), duration: 1.4)
+            }
         }
     }
 
@@ -398,6 +400,11 @@ final class PetCohort {
     /// Chattiness is a colony-wide setting, so it fans out.
     func applyChattiness() {
         for pet in pets { pet.setChatty(AppConfig.shared.chatty) }
+    }
+
+    /// Opacity and quiet mode are colony-wide, like everything else.
+    func applyOpacity() {
+        for pet in pets { pet.applyOpacity() }
     }
 
     func applyPrivacy() {

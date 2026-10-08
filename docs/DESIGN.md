@@ -487,6 +487,10 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   is on the desk. The desk is capped at ten, because that is the part with a cost; the collection is not
   capped at all. Pookies are keyed by species — unique in a collection — which is what lets the settings
   window, the menu and the behaviour layer talk about the same pookie without sharing indices.
+- **Opacity and quiet mode** (`AppConfig.petOpacity`, `.quietMode`). Opacity is clamped at a third —
+  below that a pookie stops reading as an animal — and applied to the bubble as well as the body.
+  Quiet mode suppresses the *unprompted* lines (greeting, yelp, `achoo!`, the brawl bubbles) and leaves
+  a producer's line alone, which is the difference between quiet and muted.
 - **A settings window** (`SettingsWindowController`). Three tabs, built in code, floating, and joining
   every Space so it is reachable from wherever the pookies are. It replaced the per-pookie menu
   submenus: a menu of seventeen animals with four submenus each is a menu pretending to be a settings

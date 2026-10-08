@@ -297,6 +297,17 @@ final class AppConfig {
     /// bottom-right corner.
     var startOrigin: CGPoint?
     var verboseLogging = false
+    /// How solid the pookies are drawn, 0.35 to 1. Below about a third they stop
+    /// reading as animals.
+    var petOpacity: Double = 1 {
+        didSet { store(petOpacity, .opacity) }
+    }
+    /// No *unprompted* lines: no greeting, no yelp, no `achoo!`. A producer asking
+    /// her to say something still works, which is the difference between quiet and
+    /// muted.
+    var quietMode = false {
+        didSet { store(quietMode, .quiet) }
+    }
     /// `--settings` asks for the settings window at launch.
     var openSettingsAtLaunch = false
 
@@ -316,6 +327,8 @@ final class AppConfig {
         /// What this key was called before the word for these animals settled on
         /// "pookie". Reading it keeps a desk that already has a boss intact.
         case legacyBoss = "defaultCritter"
+        case opacity = "petOpacity"
+        case quiet = "quietMode"
     }
 
     private init(defaults: UserDefaults = .standard) {
@@ -354,6 +367,10 @@ final class AppConfig {
             ? defaults.integer(forKey: Key.legacyBoss.rawValue)
             : defaults.integer(forKey: Key.boss.rawValue)
         boss = min(max(bossRaw, 0), max(0, roster.count - 1))
+        petOpacity = defaults.object(forKey: Key.opacity.rawValue) == nil
+            ? 1
+            : min(max(defaults.double(forKey: Key.opacity.rawValue), 0.35), 1)
+        quietMode = defaults.bool(or: false, Key.quiet.rawValue)
 
         // A repair is a one-time thing, so write it back rather than redoing it on
         // every launch.
