@@ -244,6 +244,7 @@ final class SettingsWindowController: NSWindowController {
         guard let cohort, let rows = pookieRows else { return }
         for view in rows.arrangedSubviews { rows.removeArrangedSubview(view); view.removeFromSuperview() }
 
+        Log.info("settings: \(cohort.collection.count) in the collection, \(cohort.count) on the desk")
         for (index, entry) in cohort.collection.enumerated() {
             let onDesk = NSButton(checkboxWithTitle: "", target: self, action: #selector(toggleOnDesk(_:)))
             onDesk.state = entry.onDesk ? .on : .off

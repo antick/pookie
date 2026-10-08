@@ -379,11 +379,10 @@ transparent always-on-top window moving every frame, twice as often while airbor
 what M1's layer-backed renderer replaces with one compositor-moved surface. Those three numbers are the
 regression metric for that work.
 
-**Many pets share one budget.** The population is capped at five (`PetCohort`) — one of each species,
-which is the number that reads as a little gang rather than as a crowd — and the frame rates are
-divided rather than multiplied: `totalFrameBudget` is 120 drawn frames per second for the whole
-colony, so a single pet is unaffected by it and five get 24 fps each, the tier a walking cat already
-uses. An occluded pet pauses outright, so a colony behind a fullscreen app costs nothing. Measured on
+**Many pets share one budget.** The *desk* is capped at ten (`PetCohort.maximumPets`) while the
+*collection* is not, because the desk is the part that costs; the frame rates are divided rather than
+multiplied: `totalFrameBudget` is 120 drawn frames per second for the whole colony, so a single pet is
+unaffected by it and ten get 12 fps each, the tier a sleeping cat already used. An occluded pet pauses outright, so a colony behind a fullscreen app costs nothing. Measured on
 a 3840x1620 display while idle: one pet ≈ 7% CPU / 52 MB, three ≈ 13% / 56 MB, five ≈ 17% / 60 MB.
 Five therefore cost about 2.4x one rather than 5x — and the remaining absolute cost is the software
 rasterisation M1 exists to remove, multiplied by five. This is the honest reason the cap is a cap.

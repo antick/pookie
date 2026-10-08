@@ -175,31 +175,8 @@ final class PetCohort {
         return pet
     }
 
-    /// Send the newest pet home.
-    ///
-    /// Kept as the M8 `despawn` verb, but it is no longer what the menu calls:
-    /// the colony is addressed by position now, so you can take out the one you
-    /// are pointing at rather than peeling them off the top. The last one stays
-    /// either way — quitting is how you get rid of the pet you cannot quit.
-    @discardableResult
-    func despawn() -> Bool {
-        removePet(at: pets.count - 1)
-    }
-
-    /// The first animal nobody is, in the coat that makes it look like itself —
     /// so adding a pet adds a *different* pet. Past the five species it falls
     /// back to the first coat nobody is wearing.
-    private func nextPookie() -> PookieConfig {
-        let speciesInUse = Set(pets.map(\.pookie.species))
-        if let species = PetSpecies.allCases.first(where: { !speciesInUse.contains($0) }) {
-            return PookieConfig(species)
-        }
-        let coatsInUse = Set(pets.map(\.pookie.coat))
-        let coat = CatSkin.allCases.first { !coatsInUse.contains($0) }
-            ?? CatSkin.allCases[pets.count % CatSkin.allCases.count]
-        return PookieConfig(species: .cat, coat: coat)
-    }
-
     /// Where a new pet appears, given the desk and the user's chosen start point.
     ///
     /// Pure, so the rule can be checked without a window server — and it is worth
@@ -416,11 +393,6 @@ final class PetCohort {
     /// is what the coat menu is for.
     func canAdd(species: PetSpecies) -> Bool {
         Self.canAddPet(having: pets.count) && !pets.contains { $0.pookie.species == species }
-    }
-
-    /// The animals that could join right now.
-    var availableSpecies: [PetSpecies] {
-        PetSpecies.allCases.filter { canAdd(species: $0) }
     }
 
     /// Chattiness is a colony-wide setting, so it fans out.

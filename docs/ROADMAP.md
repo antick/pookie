@@ -299,7 +299,7 @@ the pet.
 
 ## M8 — Multi-pet, menu-bar settings, packaging
 
-**Status: partially landed.** Criterion 1 is in for the in-process case — and then some: up to five
+**Status: partially landed.** Criterion 1 is in for the in-process case — and then some: up to ten
 pets coexist, one of each species (cat, bunny, puppy, fox, panda), each with its own coat, size and
 behaviour engine, spawned and removed from the menu-bar item or `Pookie --pets N`, under one shared
 frame budget, with a persisted roster. The menu-bar item already carries show/hide, **pet size**,

@@ -53,10 +53,11 @@ relevant one before changing behaviour in its area.
   wrong is a bug that looks like a rendering glitch: eyes aiming away from the pointer.
 - **Silence by default, one bubble at a time.** Attention is rate-limited inside `SpeechEngine`; a
   pet never volunteers a line.
-- **Pets share a budget.** `PetCohort` caps the population and hands out per-pet frame rates; five
-  pets may not cost five times one pet, and the cap is enforced in code rather than in prose.
+- **Pets share a budget.** `PetCohort` caps the *desk* (the collection is uncapped) and hands out
+  per-pet frame rates; ten pets may not cost ten times one pet, and the cap is enforced in code rather
+  than in prose.
 - **A species is a table, not a renderer.** `PetSpecies` gives an animal proportions and appendages;
-  the skeleton, the animations and the behaviour are shared. Adding a sixth animal is a `SpeciesTraits`
+  the skeleton, the animations and the behaviour are shared. Adding an animal is a `SpeciesTraits`
   entry plus whatever new ear or tail shape it needs — never a parallel draw path or a second behaviour
   engine.
 - **One of each animal.** `PetCohort` refuses a second pookie of a kind somebody already is, and a

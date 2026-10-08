@@ -338,25 +338,29 @@ extension CatAnatomy {
     /// Peering over an edge: the body up behind, the head low and forward, the
     /// front paws hooked over the lip.
     static let peek = CatAnatomy(
-        bodyCenter: CGPoint(x: 58, y: 42),
-        bodyRadii: CGSize(width: 24, height: 22),
-        headCenter: CGPoint(x: 40, y: 22),
-        headRadius: 21,
-        muzzleCenter: CGPoint(x: 37, y: 14),
-        muzzleRadii: CGSize(width: 9.6, height: 6.6),
-        eyeY: 26,
-        eyeOffsetX: 8.6,
+        // The body is high and back, the head is low, forward and *below* the
+        // body's top, and the paws are hooked over the lip at the front. The
+        // first version had the head only slightly lower than a stand, which read
+        // as a normal cat with a small lean.
+        bodyCenter: CGPoint(x: 64, y: 50),
+        bodyRadii: CGSize(width: 21, height: 18),
+        headCenter: CGPoint(x: 34, y: 26),
+        headRadius: 18.5,
+        muzzleCenter: CGPoint(x: 31, y: 19),
+        muzzleRadii: CGSize(width: 9.2, height: 6.4),
+        eyeY: 30,
+        eyeOffsetX: 8.2,
         eyeRadius: 5.2,
         pawCenterY: 9,
-        pawOffsetX: 12,
-        pawRadii: CGSize(width: 7.4, height: 5),
-        tailBase: CGPoint(x: 44, y: 32),
-        tailControl1: CGPoint(x: 24, y: 38),
-        tailControl2: CGPoint(x: 12, y: 24),
-        tailTip: CGPoint(x: 22, y: 12),
+        pawOffsetX: 13,
+        pawRadii: CGSize(width: 7.6, height: 5),
+        tailBase: CGPoint(x: 50, y: 36),
+        tailControl1: CGPoint(x: 28, y: 44),
+        tailControl2: CGPoint(x: 12, y: 30),
+        tailTip: CGPoint(x: 20, y: 16),
         tailWidth: 11.5,
         tailSway: 0.3,
-        leanScale: 0.4
+        leanScale: 0.45
     )
 
     /// Asleep: flatter than the loaf, head down and forward, eyes shut, tail

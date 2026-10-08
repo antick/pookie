@@ -160,7 +160,8 @@ in the gaps around her body, so she never blocks a click on the window behind.
 ## More than one pookie
 
 The menu bar has **Add a pookie ▸** (pick the animal) and **Remove a pookie**, and `Pookie --pets 5`
-starts with five. Five is the cap — one of each animal — and there are five to choose from:
+starts with five. The **desk** holds ten at a time and the **collection** holds all seventeen, one of
+    each animal, with a tick per pookie in Settings:
 
 | Animal | What makes it read | Its coat |
 |---|---|---|
@@ -227,6 +228,8 @@ sock invisible on a snow bunny — the first version drew eight invisible markin
 
 ![Pookie markings](shots/patterns.png)
 
+![Pookies on the desktop](shots/colony.png)
+
 **One of each animal at a time**, which is what makes the desk read as a gang rather than a
 duplicate: adding a second bunny is not offered, and a saved roster with a duplicate is repaired on
 load (the second bunny becomes the next animal nobody is, keeping its coat and name). A *coat* is
@@ -285,7 +288,7 @@ on this renderer (software Core Graphics, a 3840x1620 display):
 That is 2.4x the cost of one pet rather than 5x, and the remaining cost is the same M1 problem the
 first cat already had: the fix is the SpriteKit renderer, not a smaller cap. Idle is the number that
 matters for a desktop pet, but for the record: five of them awake, wandering and scrapping measure
-around 25%.
+around 25% — and ten at the idle tier measure the same as the old ten cats did.
 
 Five is also a *default you can change*, not a floor. If the menagerie is more company than you want,
 **Remove a pookie** takes it down to one, and the choice persists.
@@ -296,7 +299,7 @@ Off with one display, and nothing happens unless you leave it on. With two or mo
 jittered interval — **Teleport every** in the menu sets the cadence to 1, 2, 5, 10 or 30 minutes — then
 spins down into a small poof of warm light and its own fur, and reappears somewhere on another display.
 Leaving and arriving are separate animations, with the hop itself happening while the animal is not on
-screen to see it. The jitter is what stops five of them blinking in unison.
+screen to see it. The jitter is what stops ten of them blinking in unison.
 
 ## Talking to her
 
@@ -493,7 +496,7 @@ now smoothed in screen space and converted once on the way into the pose, which 
 on the pointer *through* a turn instead of sweeping across it. The selftest drives both halves: the
 behaviour, and the renderer's mirror.
 
-And there is **more than one of her** — in fact more than one *animal*. Up to five pookies live
+And there is **more than one of her** — in fact more than one *animal*. Up to ten pookies live
 under one shared budget: a cat, a bunny, a puppy, a fox and a panda, each with its own coat and size,
 each with every capability the first cat has, stepping out of each other's way, chasing each other
 across a display and having the occasional scrap when they get close. What is on the desk, what each
