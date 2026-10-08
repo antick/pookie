@@ -310,8 +310,10 @@ largely there ahead of its milestone. The settings window and the persisted
 collection landed ahead of the milestone: a real window (General / Behaviour / Pookies), a roster that
 holds every animal with a desk flag, and the frame budget. **Opacity** and **quiet mode** have since landed too — a slider with a floor of a
 third, and a switch that suppresses the *unprompted* lines while leaving a producer's intact.
-Outstanding: per-producer rate limits (they need M2's producer protocol), launch at login, and the
-per-pet CPU budget is still a shared frame-rate ceiling rather than an accounting of who spent what.
+**Per-producer rate limits** and **launch at login** have since landed too.
+The last thing outstanding from criterion 2 is the per-pet CPU budget: it is still a shared frame-rate
+ceiling rather than an accounting of who spent what, and doing it properly means measuring each pet's
+drawn cost rather than dividing a total.
 
 ### Goal
 

@@ -27,7 +27,9 @@ Concretely, that constraint compiles down to rules:
    desktop pets become unusable.
 2. **Never block work.** The pet lives in screen edges and perches. It does not float over the
    centre of the screen unless explicitly told to.
-3. **Silence by default.** With no producers connected, Pookie idles and says nothing. It has no
+3. **Silence by default, and a budget per producer.** With no producers connected, Pookie idles and
+   says nothing; each producer that does connect gets its own allowance, so one chatty app cannot use
+   up the pet that everybody shares. It has no
    opinions to volunteer.
 4. **Attention is rate-limited.** Producers cannot exceed a budget of ambient interruptions.
    Excess intents are queued, coalesced, or dropped — never stacked into a pile of bubbles.
@@ -487,7 +489,18 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   is on the desk. The desk is capped at ten, because that is the part with a cost; the collection is not
   capped at all. Pookies are keyed by species — unique in a collection — which is what lets the settings
   window, the menu and the behaviour layer talk about the same pookie without sharing indices.
-- **Opacity and quiet mode** (`AppConfig.petOpacity`, `.quietMode`). Opacity is clamped at a third —
+- **A budget per producer** (`SpeechEngine.producers`). The shared `minimumGap` stops the screen
+strobing; a *per-producer* budget stops one chatty app using up the pet everybody shares. The producer
+names itself (`--producer`, or `POOKIE_PRODUCER`), because the notification bridge has no sender
+identity — which is honest about what M3's protocol will have to carry. Her own reactions are exempt:
+a pet that cannot sneeze because an app talked too much is a bug.
+
+**Launch at login** (`SMAppService.mainApp`, `AppDelegate.setLaunchAtLogin`). The supported API, no
+permission prompt, and it needs a real bundle — so the debug binary reports the refusal instead of
+showing a checkbox that lies. One code path, shared by the settings checkbox and `--launch-at-login`,
+so the same thing can be exercised from a script.
+
+**Opacity and quiet mode** (`AppConfig.petOpacity`, `.quietMode`). Opacity is clamped at a third —
   below that a pookie stops reading as an animal — and applied to the bubble as well as the body.
   Quiet mode suppresses the *unprompted* lines (greeting, yelp, `achoo!`, the brawl bubbles) and leaves
   a producer's line alone, which is the difference between quiet and muted.
