@@ -39,7 +39,9 @@ enum SpeechOutcome: Equatable {
 /// 2. **One bubble at a time.** A new utterance replaces the current one, it
 ///    does not stack next to it.
 /// 3. **Rate limited.** A bubble younger than `minimumGap` refuses to be
-///    replaced, so a chatty producer cannot strobe the screen.
+///    replaced, so a chatty producer cannot strobe the screen — and *each
+///    producer* has its own budget on top of that, so one chatty app cannot
+///    monopolise a pet that three apps are talking to.
 ///
 /// M3 will decode the wire protocol into these calls; the M5 brain is just
 /// another producer calling `say`. Nothing here knows about AppKit.
@@ -51,6 +53,34 @@ final class SpeechEngine {
 
     /// Minimum age before a visible bubble may be replaced.
     var minimumGap: Double = 1.2
+    /// How many lines one producer may show in a `producerWindow`, and how long
+    /// that window is. A per-producer budget rather than a global one: the point
+    /// is that one noisy producer cannot use up the pet that everybody shares.
+    var producerBudget: Int = 6
+    var producerWindow: Double = 60
+    /// The shortest gap between two lines from the *same* producer, so a single
+    /// app cannot fill its budget in one burst.
+    var producerGap: Double = 2.5
+
+    /// Per-producer history: when each last spoke, and how many times in the
+    /// window that has not expired yet.
+    private struct ProducerState {
+        var lastSpokeAt: Double = -.infinity
+        var recent: [Double] = []
+    }
+    private var producers: [String: ProducerState] = [:]
+
+    /// Who is asking. `pookie` is this pet's own reactions; anything else is a
+    /// producer, and the name is what the budget is keyed on.
+    static let ownProducer = "pookie"
+
+    /// How many lines a producer has left in the current window, for the
+    /// heartbeat and for tests.
+    func remainingBudget(for producer: String, now: Double) -> Int {
+        let state = producers[producer] ?? ProducerState()
+        let live = state.recent.filter { now - $0 < producerWindow }
+        return max(0, producerBudget - live.count)
+    }
     /// Master switch. The menu item flips this to make her mute.
     var enabled = true
 
@@ -69,11 +99,31 @@ final class SpeechEngine {
         duration: Double? = nil,
         streaming: Bool = false,
         sticky: Bool = false,
+        from producer: String = SpeechEngine.ownProducer,
         now: Double
     ) -> SpeechOutcome {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .rejected("empty_text") }
         guard enabled else { return .rejected("muted") }
+
+        // This producer's own budget, before the shared gap: her own reactions are
+        // exempt, because they are already governed by the behaviour that
+        // triggers them and a pet that cannot sneeze because an app talked too
+        // much is a bug.
+        if producer != Self.ownProducer {
+            var state = producers[producer] ?? ProducerState()
+            state.recent = state.recent.filter { now - $0 < producerWindow }
+            if now - state.lastSpokeAt < producerGap {
+                return .rateLimited(retryAfter: producerGap - (now - state.lastSpokeAt))
+            }
+            if state.recent.count >= producerBudget {
+                let oldest = state.recent.min() ?? now
+                return .rateLimited(retryAfter: producerWindow - (now - oldest))
+            }
+            state.lastSpokeAt = now
+            state.recent.append(now)
+            producers[producer] = state
+        }
 
         var outcome: SpeechOutcome = .started
         if let current = bubble {

@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 
 /// Pookie runs as an `.accessory` app: no Dock icon, no menu bar of its own.
 /// The status item is the only UI, because a pet you cannot easily quit is a
@@ -52,7 +53,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] note in
             guard let text = note.userInfo?["text"] as? String else { return }
             let style = (note.userInfo?["style"] as? String).flatMap(BubbleStyle.init(rawValue:)) ?? .plain
-            self?.cohort?.say(text, style: style)
+            let producer = (note.userInfo?["producer"] as? String) ?? "unknown"
+            let outcome = self?.cohort?.say(text, style: style, from: producer)
+            // A refusal is invisible from the sender's side, so it is logged here:
+            // "why did my script stop talking" has to have an answer.
+            if case .rateLimited(let retryAfter) = outcome {
+                Log.info("producer \(producer) rate limited for \(String(format: "%.1f", retryAfter))s")
+            }
         }
     }
 
@@ -483,6 +490,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if pet.isHiddenByUser {
             cohort?.setHidden(false, at: sender.tag)
             rebuildMenu()
+        }
+    }
+
+    /// Add or remove the login item, reporting rather than assuming. Shared by the
+    /// settings checkbox and `--launch-at-login`, so both take the same path.
+    @discardableResult
+    static func setLaunchAtLogin(_ wanted: Bool) -> Bool {
+        do {
+            if wanted {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+            AppConfig.shared.launchAtLogin = wanted
+            print("launch at login: \(wanted ? "on" : "off") (\(SMAppService.mainApp.status == .enabled ? "enabled" : "not enabled"))")
+            return true
+        } catch {
+            print("launch at login refused: \(error.localizedDescription)")
+            return false
         }
     }
 

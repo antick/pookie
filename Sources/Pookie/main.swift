@@ -10,6 +10,8 @@ if arguments.contains("--help") || arguments.contains("-h") {
     Usage:
       Pookie                       run the pet
       Pookie --say "text"          make a running Pookie say something, then exit
+      Pookie --producer <name>     name the sender, for the per-producer budget
+      Pookie --launch-at-login <on|off>  add or remove Pookie from your login items
       Pookie --render-png <path>   write a pose sheet to a PNG and exit
       Pookie --render-species <p>  write a species sheet to a PNG and exit
       Pookie --render-patterns <p> write a markings sheet to a PNG and exit
@@ -140,15 +142,33 @@ if let index = arguments.firstIndex(of: "--render-png") {
 // a socket, by posting a distributed notification. This is the stand-in for the
 // M3 loopback control plane; the receiving end calls the same
 // `PetWindowController.say(_:)` the real protocol will.
+// Unlike every other flag, this one changes the system: it adds or removes Pookie
+// from your login items. It is a flag rather than only a checkbox so the same code
+// path can be exercised from a script.
+if let index = arguments.firstIndex(of: "--launch-at-login") {
+    let wanted = index + 1 < arguments.count ? arguments[index + 1] : "on"
+    exit(AppDelegate.setLaunchAtLogin(wanted == "on" || wanted == "1") ? 0 : 1)
+}
+
 if let index = arguments.firstIndex(of: "--say") {
     let text = index + 1 < arguments.count ? arguments[index + 1] : "hello"
+    // Who is asking. The protocol has no sender identity of its own yet, so the
+    // producer names itself — `--producer` if given, else the environment, else
+    // "cli". This is what the per-producer budget is keyed on, and it is why one
+    // chatty script cannot use up a pet that three scripts are talking to.
+    var producer = "cli"
+    if let index = arguments.firstIndex(of: "--producer"), index + 1 < arguments.count {
+        producer = arguments[index + 1]
+    } else if let named = ProcessInfo.processInfo.environment["POOKIE_PRODUCER"], !named.isEmpty {
+        producer = named
+    }
     DistributedNotificationCenter.default().postNotificationName(
         AppDelegate.sayNotification,
         object: nil,
-        userInfo: ["text": text],
+        userInfo: ["text": text, "producer": producer],
         deliverImmediately: true
     )
-    print("pookie says: \(text)")
+    print("pookie says: \(text) (from \(producer))")
     exit(0)
 }
 

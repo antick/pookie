@@ -550,9 +550,13 @@ final class PetCohort {
     /// Talk through the spokespet. Naming a pet is M4's problem; today a producer
     /// talks to the colony and the first cat answers.
     @discardableResult
-    func say(_ text: String, style: BubbleStyle = .plain) -> SpeechOutcome {
+    func say(
+        _ text: String,
+        style: BubbleStyle = .plain,
+        from producer: String = SpeechEngine.ownProducer
+    ) -> SpeechOutcome {
         guard let pet = spokespet else { return .rejected("no_pet") }
-        return pet.say(text, style: style)
+        return pet.say(text, style: style, from: producer)
     }
 
     func hideBubble() {

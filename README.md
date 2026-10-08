@@ -106,7 +106,9 @@ Global hotkeys, **no Accessibility or Input Monitoring permission required**:
 
 **Pookies ▸ Settings…** (or ⌘,) opens a settings window: three tabs — **General** (size, opacity, blinking
 between displays and how often), **Behaviour** (wander, watch the cursor, perch, jump, quiet mode,
-chatty, privacy, float above full-screen apps) and **Pookies**. The menu bar keeps only what you reach for
+chatty, privacy, float above full-screen apps) and **Pookies**. General also has **Start Pookie when
+I log in**, which goes through `SMAppService` — the supported API, no permission prompt, and it needs
+the app bundle, so the debug binary says so instead of pretending. The menu bar keeps only what you reach for
 while the pookies are running: hide, show, add, and a one-line summary of the desk. A menu of
 seventeen animals with four submenus each was a menu pretending to be a settings screen.
 
@@ -116,6 +118,16 @@ it out, untick it to take it back into the collection without forgetting it — 
 marking are worth keeping even when the animal is not on screen. The desk holds **ten** at a time
 (`PetCohort.maximumPets`), because the desk is the part that costs; the collection holds all
 seventeen. `Pookie --settings` opens the window at launch.
+
+### Who gets to talk
+
+A producer names itself: `Pookie --say "build finished" --producer ci` (or the `POOKIE_PRODUCER`
+environment variable). The name matters because **each producer has its own budget** — six lines a
+minute each, with a 2.5 second gap between one producer's own lines, on top of the one-bubble-at-a-time
+rule everybody shares. One chatty script cannot use up a pookie that three scripts are talking to, and
+a refusal is logged (`producer ci rate limited for 1.4s`) so "why did my script stop talking" has an
+answer. Her *own* reactions — the sneeze, the yelp, the greeting — are not a producer and are never the
+thing that gets rate limited.
 
 ### Where your settings live
 
@@ -399,7 +411,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 396 headless checks, including:
+runs 407 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,

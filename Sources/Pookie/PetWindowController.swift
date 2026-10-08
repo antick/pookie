@@ -340,9 +340,17 @@ final class PetWindowController {
         _ text: String,
         style: BubbleStyle = .plain,
         duration: Double? = nil,
-        streaming: Bool = false
+        streaming: Bool = false,
+        from producer: String = SpeechEngine.ownProducer
     ) -> SpeechOutcome {
-        speech.say(text, style: style, duration: duration, streaming: streaming, now: CACurrentMediaTime())
+        speech.say(
+            text,
+            style: style,
+            duration: duration,
+            streaming: streaming,
+            from: producer,
+            now: CACurrentMediaTime()
+        )
     }
 
     /// `bubble.append`: stream a delta into the open bubble.

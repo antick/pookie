@@ -308,8 +308,14 @@ final class AppConfig {
     var quietMode = false {
         didSet { store(quietMode, .quiet) }
     }
-    /// `--settings` asks for the settings window at launch.
+    /// Whether to open the settings window at launch.
     var openSettingsAtLaunch = false
+    /// Start Pookie when you log in. The real switch lives in the system's login
+    /// items; this mirrors what the user asked for, so the checkbox can show a
+    /// refusal instead of lying.
+    var launchAtLogin = false {
+        didSet { store(launchAtLogin, .launchAtLogin) }
+    }
 
     private enum Key: String {
         case clickThrough = "clickThroughMode"
@@ -329,6 +335,7 @@ final class AppConfig {
         case legacyBoss = "defaultCritter"
         case opacity = "petOpacity"
         case quiet = "quietMode"
+        case launchAtLogin = "launchAtLogin"
     }
 
     private init(defaults: UserDefaults = .standard) {
@@ -371,6 +378,7 @@ final class AppConfig {
             ? 1
             : min(max(defaults.double(forKey: Key.opacity.rawValue), 0.35), 1)
         quietMode = defaults.bool(or: false, Key.quiet.rawValue)
+        launchAtLogin = defaults.bool(or: false, Key.launchAtLogin.rawValue)
 
         // A repair is a one-time thing, so write it back rather than redoing it on
         // every launch.

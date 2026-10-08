@@ -1339,6 +1339,57 @@ print("scuffles")
             "and a pet's next blink lands inside the cadence it was given"
         )
 
+        // Per-producer rate limits: one chatty producer cannot use up the pet
+        // that everybody shares, and her own reactions are exempt.
+        //
+        // "Accepted" rather than "started": a second line *replaces* the first,
+        // which is the one-bubble-at-a-time rule, so the outcome that matters here
+        // is only whether it was refused.
+        func accepted(_ outcome: SpeechOutcome) -> Bool {
+            if case .rateLimited = outcome { return false }
+            return true
+        }
+
+        let engine = SpeechEngine()
+        engine.minimumGap = 0
+        engine.producerGap = 0
+        engine.producerBudget = 3
+        engine.producerWindow = 60
+        var now = 0.0
+        for index in 0..<3 {
+            now += 1
+            check(accepted(engine.say("from a", from: "appA", now: now)), "producer A gets its line \(index + 1)")
+        }
+        now += 1
+        check(
+            !accepted(engine.say("from a", from: "appA", now: now)),
+            "and is refused its fourth inside the window"
+        )
+        check(accepted(engine.say("from b", from: "appB", now: now)), "while producer B is unaffected")
+        check(engine.remainingBudget(for: "appA", now: now) == 0, "A's budget is spent")
+        check(engine.remainingBudget(for: "appB", now: now) == 2, "and B's is not")
+        now += 61
+        check(
+            accepted(engine.say("from a", from: "appA", now: now)),
+            "the window rolls over and A may speak again"
+        )
+
+        // Her own reactions are not a producer: a pet that cannot sneeze because
+        // an app talked too much is a bug.
+        let own = SpeechEngine()
+        own.minimumGap = 0
+        own.producerGap = 0
+        own.producerBudget = 1
+        own.producerWindow = 600
+        now = 0
+        for index in 0..<5 {
+            now += 0.1
+            check(
+                accepted(own.say("achoo!", from: SpeechEngine.ownProducer, now: now)),
+                "her own reaction \(index + 1) is never the thing that gets rate limited"
+            )
+        }
+
         // Opacity and quiet mode are settings like any other, and both have a
         // floor: a pookie below a third stops reading as an animal.
         check(

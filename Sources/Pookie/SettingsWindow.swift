@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 
 /// The settings window.
 ///
@@ -140,6 +141,13 @@ final class SettingsWindowController: NSWindowController {
         cadencePopup.target = self
         cadencePopup.action = #selector(cadenceChanged(_:))
 
+        let login = checkbox(
+            "Start Pookie when I log in",
+            #selector(toggleLogin(_:)),
+            tooltip: "Adds Pookie to your login items. Needs the app bundle, so it does nothing when running the debug binary"
+        )
+        login.state = config.launchAtLogin ? .on : .off
+
         let teleport = checkbox(
             "Blink between displays",
             #selector(toggleTeleport(_:)),
@@ -164,6 +172,7 @@ final class SettingsWindowController: NSWindowController {
             heading("The desk"),
             sizeRow,
             opacityRow,
+            login,
             teleport,
             cadenceRow,
             caption("A bigger pookie is a real size change: the window, the drawing and the behaviour geometry all scale together, so she still fits the ledge she jumps to."),
@@ -353,6 +362,23 @@ final class SettingsWindowController: NSWindowController {
     @objc private func toggleJump(_ sender: NSButton) {
         AppConfig.shared.jumpEnabled = sender.state == .on
         for pet in cohort?.pets ?? [] { pet.motion.jumpEnabled = AppConfig.shared.jumpEnabled }
+        changed()
+    }
+
+    /// Launch at login goes through `SMAppService`, which is the supported API
+    /// and needs no permission prompt — but it does need a real app bundle, so
+    /// the debug binary gets a beep and an explanation rather than a silent lie.
+    @objc private func toggleLogin(_ sender: NSButton) {
+        let wanted = sender.state == .on
+        if !AppDelegate.setLaunchAtLogin(wanted) {
+            sender.state = wanted ? .off : .on
+            let alert = NSAlert()
+            alert.messageText = wanted ? "Could not add Pookie to your login items" : "Could not remove it"
+            alert.informativeText = "This works from the app bundle — `make bundle`, then open build/Pookie.app."
+            alert.addButton(withTitle: "OK")
+            NSApp.activate(ignoringOtherApps: true)
+            alert.runModal()
+        }
         changed()
     }
 
