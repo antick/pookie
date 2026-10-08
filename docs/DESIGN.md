@@ -373,6 +373,14 @@ while idle and visible**, effectively 0% while occluded.
 Tier transitions are hysteresis-based. A pet at the boundary between "idle" and "active" must not
 oscillate between 12 and 30 fps every frame.
 
+**The suite is parallel, and that is a feature.** The art sweeps are thousands of independent
+rasterisations — 17 species x 8 shapes x 74 poses for the analytic envelope, plus 2,974 rendered poses
+for the pixel sweep — and growing from five species to seventeen took the whole suite from twelve
+seconds to two minutes. Both sweeps now run across cores with `DispatchQueue.concurrentPerform` and
+write into pre-sized arrays: a 6x speed-up (116s -> 19s) with *no* loss of coverage. The alternative —
+sweeping fewer poses — is how the fox's brush got out of the stage in the first place. A suite you avoid
+running is a suite that stops catching things.
+
 **A stutter is measured, not felt.** `PetView` times each draw (`worst=`) and counts silhouette
 rasterisations (`masks=`), and the controller reports how late the frame pump ran as a multiple of its
 target interval (`slip=`). With five pookies that is 1–2 ms of drawing, ~2 rasterisations a second and a
