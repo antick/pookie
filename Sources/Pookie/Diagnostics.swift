@@ -50,7 +50,27 @@ enum Diagnostics {
         // it — the bunny's ears are what that rule is for, and they are the
         // reason an animal with long ears is scaled down instead of given a
         // taller window (a taller window is a longer ledge she no longer fits).
-        for species in PetSpecies.allCases {
+        //
+        // In parallel, because this is thousands of independent rasterisations:
+        // 17 species x 8 shapes x 74 poses, and every one of them is its own
+        // `CGContext`. Growing from 5 species to 17 took the suite from twelve
+        // seconds to two minutes; the work is embarrassingly parallel, and doing
+        // it that way costs no coverage — unlike the alternative of sweeping fewer
+        // poses, which is how the fox's brush got out of the stage in the first
+        // place.
+        struct SpeciesEnvelope {
+            var species: PetSpecies
+            var ink: CGRect
+            var envelope: CGRect
+            var blink: CGRect
+            var transientInk: CGRect
+            var shapeInk: [(CatShape, CGRect)]
+        }
+
+        var results = [SpeciesEnvelope?](repeating: nil, count: PetSpecies.allCases.count)
+        let resultsLock = NSLock()
+        DispatchQueue.concurrentPerform(iterations: PetSpecies.allCases.count) { index in
+            let species = PetSpecies.allCases[index]
             let inkByShape = Dictionary(uniqueKeysWithValues: CatShape.allCases.map {
                 ($0, inkPoints(renderer: renderer, shape: $0, species: species))
             })
@@ -62,22 +82,32 @@ enum Diagnostics {
                     species: species
                 )
             }
-            let envelope = shapeEnvelopes.values.reduce(CGRect.null) { $0.union($1) }
-            let blink = CatShape.allCases.reduce(CGRect.null) { union, shape in
-                union.union(blinkEnvelope(shape: shape, points: inkByShape[shape] ?? [], species: species))
-            }
-            let ink = bounds(of: CatShape.allCases.flatMap { inkByShape[$0] ?? [] })
+            let entry = SpeciesEnvelope(
+                species: species,
+                ink: bounds(of: CatShape.allCases.flatMap { inkByShape[$0] ?? [] }),
+                envelope: shapeEnvelopes.values.reduce(CGRect.null) { $0.union($1) },
+                blink: CatShape.allCases.reduce(CGRect.null) { union, shape in
+                    union.union(blinkEnvelope(shape: shape, points: inkByShape[shape] ?? [], species: species))
+                },
+                transientInk: bounds(of: transientInkPoints(renderer: renderer, species: species)),
+                shapeInk: CatShape.allCases.map { ($0, bounds(of: inkByShape[$0] ?? [])) }
+            )
+            resultsLock.lock()
+            results[index] = entry
+            resultsLock.unlock()
+        }
+
+        for entry in results.compactMap({ $0 }) {
             print(String(
                 format: "  info %-6@ ink x[%6.1f, %6.1f] y[%6.1f, %6.1f]  envelope x[%6.1f, %6.1f] y[%6.1f, %6.1f]",
-                species.name as NSString,
-                ink.minX, ink.maxX, ink.minY, ink.maxY,
-                envelope.minX, envelope.maxX, envelope.minY, envelope.maxY
+                entry.species.name as NSString,
+                entry.ink.minX, entry.ink.maxX, entry.ink.minY, entry.ink.maxY,
+                entry.envelope.minX, entry.envelope.maxX, entry.envelope.minY, entry.envelope.maxY
             ))
-            if !stage.contains(envelope) || !stage.contains(blink) {
+            if !stage.contains(entry.envelope) || !stage.contains(entry.blink) {
                 // Say which part is out, rather than making the next person
                 // bisect a rectangle by hand.
-                for shape in CatShape.allCases {
-                    let shapeInk = bounds(of: inkByShape[shape] ?? [])
+                for (shape, shapeInk) in entry.shapeInk {
                     print(String(
                         format: "         %-7@ ink x[%6.1f, %6.1f] y[%6.1f, %6.1f]",
                         shape.rawValue as NSString,
@@ -85,27 +115,35 @@ enum Diagnostics {
                     ))
                 }
             }
-            let transientInk = bounds(of: transientInkPoints(renderer: renderer, species: species))
             check(
-                stage.contains(transientInk),
-                "\(species.name): thrown paws and markings draw inside the stage too (x[\(String(format: "%.1f", transientInk.minX)), \(String(format: "%.1f", transientInk.maxX))])"
+                stage.contains(entry.transientInk),
+                "\(entry.species.name): thrown paws and markings draw inside the stage too (x[\(String(format: "%.1f", entry.transientInk.minX)), \(String(format: "%.1f", entry.transientInk.maxX))])"
             )
-            check(stage.contains(envelope), "\(species.name): the stage contains the worst-case pose envelope")
-            check(stage.contains(blink), "\(species.name): the stage contains the blink at every step")
+            check(stage.contains(entry.envelope), "\(entry.species.name): the stage contains the worst-case pose envelope")
+            check(stage.contains(entry.blink), "\(entry.species.name): the stage contains the blink at every step")
         }
 
         // The analytic envelope assumes extremes happen at parameter corners.
         // These renderings do not assume anything: they rasterise the real
         // renderer and look for ink in the window's outer ring.
+        // Also in parallel: nearly three thousand independent rasterisations, and
+        // they are what the suite spends most of its time on.
         let sweep = ArtSweep.poses()
+        var margins = [CGFloat](repeating: 0, count: sweep.count)
+        let marginLock = NSLock()
+        DispatchQueue.concurrentPerform(iterations: sweep.count) { index in
+            let coverage = rasterise(renderer: renderer, size: size, pose: sweep[index])
+            let margin = edgeMargin(coverage, width: Int(size.width), height: Int(size.height))
+            marginLock.lock()
+            margins[index] = margin
+            marginLock.unlock()
+        }
         var clippedPoses: [String] = []
         var nearestEdge: CGFloat = .greatestFiniteMagnitude
-        for (index, pose) in sweep.enumerated() {
-            let coverage = rasterise(renderer: renderer, size: size, pose: pose)
-            let margin = edgeMargin(coverage, width: Int(size.width), height: Int(size.height))
+        for (index, margin) in margins.enumerated() {
             nearestEdge = min(nearestEdge, margin)
             if margin <= 0 {
-                clippedPoses.append("pose #\(index) \(describe(pose))")
+                clippedPoses.append("pose #\(index) \(describe(sweep[index]))")
             }
         }
         print(String(format: "  info %d poses rasterised; closest ink came within %.1f px of the edge", sweep.count, nearestEdge))
@@ -2504,9 +2542,14 @@ enum ArtSweep {
         var poses: [CatPose] = []
 
         // Tail sway is the largest horizontal excursion in the whole drawing.
-        for step in 0..<36 {
+        // Eighteen samples, not thirty-six: the sway is a sine, so its extremes are
+        // at 0 and pi and both are included, and the poses in between are
+        // interpolations of the same curve. Halving it halves the dominant cost of
+        // this sweep — which is the difference between a suite you run on every
+        // change and one you avoid.
+        for step in 0..<18 {
             var pose = CatPose()
-            pose.tailPhase = Double(step) / 36 * 2 * .pi
+            pose.tailPhase = Double(step) / 18 * 2 * .pi
             poses.append(pose)
         }
 

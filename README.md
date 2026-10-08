@@ -414,7 +414,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 416 headless checks, including:
+runs 416 headless checks in about twenty seconds, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,
