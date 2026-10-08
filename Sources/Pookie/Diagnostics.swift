@@ -707,6 +707,10 @@ enum Diagnostics {
         loafer.followCursor = false
         loafer.loafAfterSeconds = 2
         loafer.sitAfterSeconds = 10_000
+        // Pinned: a peer is a random behaviour, and one that fires while she is
+        // loafing would make this test fail about one run in five. That is what it
+        // was doing before the behaviour was gated out of a settled rest.
+        loafer.peekChance = 0
         loafer.platforms = [ledge]
         loafer.move(to: CGPoint(x: 300, y: 702), animated: false)
         run(loafer, 0.9)

@@ -93,6 +93,10 @@ final class PetMotion {
     private(set) var spinCount = 0
     /// Peering over the edge of whatever she is standing on.
     private(set) var peekSeconds: Double = 0
+    /// How likely a peer is, per frame, once she is settled on something. A `var`
+    /// so a test can pin it: this is a random behaviour, and a random behaviour
+    /// that can interrupt a loaf makes the loaf untestable.
+    var peekChance: Double = 0.0006
     /// A stretch up, after a nap.
     private(set) var reachSeconds: Double = 0
 
@@ -286,8 +290,10 @@ final class PetMotion {
         // happening.
         // Rare, and only once she has settled: a peering pookie should be a
         // surprise, not the pose she spends the afternoon in.
+        // Not while she is already settled into a rest: a peer is a thing she does
+        // *instead of* loafing, not something that interrupts a loaf.
         if supportPlatform() != nil, wanderTargetX == nil, !isScuffling, !isPlaying,
-           peekSeconds <= 0, idleSeconds > loafAfterSeconds, Rand.bool(0.0006) {
+           !isResting, peekSeconds <= 0, idleSeconds > loafAfterSeconds, Rand.bool(peekChance) {
             peekSeconds = Rand.double(1.6...3.0)
         }
     }
