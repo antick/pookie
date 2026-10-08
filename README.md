@@ -33,6 +33,13 @@ its proportions and appendages — so all five perch, jump, loaf, stretch and bl
 
 ![Pookie talking on the desktop](shots/talking.png)
 
+## What's next
+
+[`TODO.md`](TODO.md) is the working list: what is left, why it is not done, and what
+"done" means for each one. The short version: a layer-backed renderer (the measured fix for the one
+thing that still stutters), the `pookie` control plane that unlocks the MCP server, the brain and skill
+packs, voice, a signed release, and a handful of checks that need a human rather than a test.
+
 ## Try it
 
 ```bash

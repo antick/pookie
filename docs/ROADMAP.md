@@ -1,5 +1,9 @@
 # Pookie — Roadmap
 
+> The working list of what is *not* done — what "done" means for each item, and the
+> things that need a human rather than a test — lives in [`TODO.md`](../TODO.md).
+> This file keeps the milestone detail and the acceptance criteria.
+
 Milestones are ordered by **risk retired**, not by user-visible value. The parts that can invalidate
 the design are built first, even when they are the least impressive.
 

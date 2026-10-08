@@ -5,7 +5,8 @@ drawn procedurally. Swift + AppKit, **no third-party dependencies**, and **no pe
 Screen Recording, Accessibility and Input Monitoring are off the table by design, see
 `docs/MACOS-CONSTRAINTS.md`.
 
-`README.md` is the tour and the file map. `docs/DESIGN.md` is the architecture.
+`TODO.md` is what is left and what "done" means for it. `README.md` is the tour and the file map.
+`docs/DESIGN.md` is the architecture.
 `docs/ROADMAP.md` is what is done, what is next, and the risk each milestone retires. Read the
 relevant one before changing behaviour in its area.
 
