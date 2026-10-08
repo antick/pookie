@@ -311,9 +311,10 @@ collection landed ahead of the milestone: a real window (General / Behaviour / P
 holds every animal with a desk flag, and the frame budget. **Opacity** and **quiet mode** have since landed too — a slider with a floor of a
 third, and a switch that suppresses the *unprompted* lines while leaving a producer's intact.
 **Per-producer rate limits** and **launch at login** have since landed too.
-The last thing outstanding from criterion 2 is the per-pet CPU budget: it is still a shared frame-rate
-ceiling rather than an accounting of who spent what, and doing it properly means measuring each pet's
-drawn cost rather than dividing a total.
+The per-pet CPU budget landed too: it is now a
+**time** budget divided by each pet's measured draw cost rather than a flat frame count split evenly, so
+a sleeping pookie frees frames for a running one. Criterion 2 is met for the in-process case; what is
+left of M8 is the parts that need other milestones (a skill registry, the wire protocol).
 
 ### Goal
 

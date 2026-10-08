@@ -673,16 +673,39 @@ enum Diagnostics {
         loafer.move(to: CGPoint(x: 300, y: 702), animated: false)
         run(loafer, 0.9)
         check(loafer.supportPlatform()?.windowNumber == 77, "she is perched on the window")
-        // Pin the hold after landing: the fresh-perch edge jitters it, and the
-        // selftest wants a loaf it can time.
+        // Pin the hold after landing: a fresh perch jitters it, and this test wants
+        // a loaf it can time.
         loafer.loafHoldSeconds = 2.5
-        run(loafer, 1.5)
-        check(loafer.restingShape == .loaf, "after a long perch the ladder asks for a loaf")
-        run(loafer, 0.9)
-        check(loafer.shape == .loaf, "the loaf is what she ends up wearing")
+
+        // Advance *until* the ladder asks for a loaf rather than assuming exact
+        // frame timings. The old version ran a fixed 1.5 s and then a fixed 0.9 s
+        // more, which raced the 0.9 s shape blend against a 2.5 s hold window and
+        // failed about one run in five. A test that fails at random is worse than
+        // no test: it teaches you to ignore the suite.
+        var askedForLoaf = false
+        for _ in 0..<600 where !askedForLoaf {
+            loafer.advance(dt: 1.0 / 60.0)
+            if loafer.restingShape == .loaf { askedForLoaf = true }
+        }
+        check(askedForLoaf, "after a long perch the ladder asks for a loaf")
+
+        // Wait for the blend to *settle*, not just for the loaf to dominate: at
+        // 0.8 weight the dominant shape is already loaf, but she is still moving,
+        // and "resting" means settled.
+        var woreLoaf = false
+        for _ in 0..<180 where !woreLoaf {
+            loafer.advance(dt: 1.0 / 60.0)
+            if loafer.shape == .loaf && loafer.isResting { woreLoaf = true }
+        }
+        check(woreLoaf, "the loaf is what she ends up wearing")
         check(loafer.isResting, "the loaf counts as resting")
-        run(loafer, 2.0)
-        check(loafer.shape == .stand, "the loaf ends on its own and she gets up again")
+
+        var stoodUp = false
+        for _ in 0..<900 where !stoodUp {
+            loafer.advance(dt: 1.0 / 60.0)
+            if loafer.shape == .stand { stoodUp = true }
+        }
+        check(stoodUp, "the loaf ends on its own and she gets up again")
 
         // And a settled cat stays settled. Before this, the wander scheduler
         // would stand her back up every few seconds, which made the sit a twitch
@@ -1301,6 +1324,40 @@ print("scuffles")
             PetCohort.perPetFPS(petCount: PetCohort.maximumPets) < PetCohort.perPetFPS(petCount: 2),
             "more pets means fewer frames each"
         )
+
+        // The budget is accounted per pet, not divided evenly: a pookie whose
+        // frame costs 1 ms can run twice as often as one that costs 2 ms.
+        // Two cheap pets do not bind the budget at all — which is the honest
+        // answer, and the reason the flat share was never noticed there. Where it
+        // binds, the accounting shows.
+        let uneven = PetCohort.frameRates(costs: [1.0, 2.0, 1.0, 3.0])
+        check(
+            uneven[0] > uneven[3],
+            "the cheaper pookie is drawn more often (\(Int(uneven[0])) vs \(Int(uneven[3])) fps)"
+        )
+        let spent = zip(uneven, [1.0, 2.0, 1.0, 3.0]).reduce(0) { $0 + $1.0 * $1.1 }
+        check(
+            spent <= PetCohort.drawBudgetMillisecondsPerSecond + 0.01,
+            "and the four of them stay inside the time budget (spent \(Int(spent)) of \(Int(PetCohort.drawBudgetMillisecondsPerSecond))ms/s)"
+        )
+        let squeezed = PetCohort.frameRates(costs: [1.0, 2.0], budget: 60)
+        check(
+            squeezed[0] > squeezed[1] && squeezed[0] * 1.0 + squeezed[1] * 2.0 <= 60.01,
+            "and a tight budget is spent on the pet that can buy the most frames (\(Int(squeezed[0])) vs \(Int(squeezed[1])))"
+        )
+        check(
+            PetCohort.frameRates(costs: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).allSatisfy { $0 >= 8 },
+            "ten pets each still get at least the sleep tier"
+        )
+        check(
+            PetCohort.frameRates(costs: [0.05]).allSatisfy { $0 <= 60 },
+            "and nothing exceeds the ceiling, however cheap it is"
+        )
+        check(
+            PetCohort.frameRates(costs: Array(repeating: 40, count: 10)).allSatisfy { $0 == 8 },
+            "a set of expensive pets all fall back to the floor rather than starving"
+        )
+        check(PetCohort.frameRates(costs: []).isEmpty, "and an empty colony divides nothing")
 
         // Where a new cat appears. This rule used to override `--at x,y` silently,
         // which is exactly the kind of bug a pure function makes impossible.

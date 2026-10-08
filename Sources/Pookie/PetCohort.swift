@@ -11,21 +11,65 @@ final class PetCohort {
     /// animal and the desk is the thing that has a limit; the frame budget below
     /// is what keeps it honest.
     static let maximumPets = 10
-    /// Total drawn frames per second, shared evenly across the pets. One pet's
-    /// own tiers sit below this, so the budget only starts to bite at three or
-    /// four; ten get 12 fps each, which is the tier a sleeping cat already uses.
-    /// Five pets on this renderer are still five pets' worth of software
-    /// rasterisation — that is the M1 SpriteKit work, not a tuning problem.
+    /// The colony's frame budget, in **milliseconds of drawing per second**.
+    ///
+    /// A time budget rather than a frame count, because that is what "an
+    /// accounting of who spent what" means: a pookie whose frame costs 1 ms can
+    /// run twice as often as one that costs 2 ms inside the same budget, where a
+    /// flat frame count gave them both the same and let the expensive one spend
+    /// twice as much CPU. 200 ms/s is a little over the old flat 120 frames at the
+    /// measured cost, so nothing got slower.
+    static let drawBudgetMillisecondsPerSecond: Double = 200
+
+    /// Kept for the flag help and the old tests: the frame count the budget works
+    /// out to when every pet is nominal.
     static let totalFrameBudget: Double = 120
 
     /// Pure, so the cap is checkable without a window server.
     static func canAddPet(having count: Int) -> Bool { count < maximumPets }
 
-    /// The share of the budget one pet gets. Never below the sleep tier: a cat
-    /// that cannot be seen to breathe is not a pet.
+    /// The share of the budget one pet gets, when every pet costs the same.
+    /// Never below the sleep tier: a cat that cannot be seen to breathe is not a
+    /// pet.
     static func perPetFPS(petCount: Int) -> Double {
         guard petCount > 0 else { return 0 }
         return max(8, min(60, totalFrameBudget / Double(petCount)))
+    }
+
+    /// Frame rates for a set of pets, given what each one costs to draw.
+    ///
+    /// Pure and total: the cheapest pet is served first (it can be drawn most
+    /// often for the same milliseconds), every pet keeps at least the sleep tier,
+    /// and nothing exceeds the ceiling. Water-filling rather than proportional
+    /// shares, because a pet that costs nothing should not be handed a share it
+    /// cannot use while a costly one starves.
+    static func frameRates(
+        costs: [Double],
+        budget: Double = drawBudgetMillisecondsPerSecond,
+        floor: Double = 8,
+        ceiling: Double = 60
+    ) -> [Double] {
+        guard !costs.isEmpty else { return [] }
+        let safe = costs.map { $0 > 0.05 ? $0 : 1.5 }
+
+        // Every pet's floor is guaranteed first, then the rest of the budget is
+        // handed out a millisecond at a time to whoever can buy the most frames.
+        var rates = safe.map { _ in floor }
+        var remaining = budget - safe.reduce(0) { $0 + floor * $1 }
+        guard remaining > 0 else { return rates }
+
+        // Cheapest first: one extra frame costs this pet's cost in milliseconds.
+        let order = safe.indices.sorted { safe[$0] < safe[$1] }
+        for index in order {
+            guard rates[index] < ceiling else { continue }
+            let affordable = remaining / safe[index]
+            let room = ceiling - rates[index]
+            let added = min(affordable, room)
+            rates[index] += added
+            remaining -= added * safe[index]
+            if remaining <= 0 { break }
+        }
+        return rates.map { min(ceiling, max(floor, $0)) }
     }
 
     private(set) var pets: [PetWindowController] = []
@@ -218,10 +262,21 @@ final class PetCohort {
     private func applyColonySettings() {
         var excluded: Set<Int> = []
         for pet in pets { excluded.formUnion(pet.ownWindowNumbers) }
-        let fps = Self.perPetFPS(petCount: max(1, visibleCount))
+        // The budget is divided by what each pet actually costs to draw, so a
+        // sleeping pookie frees frames for a running one instead of both getting
+        // the same flat share. Hidden pets are not in the list at all: they are not
+        // drawn, so they should not hold a share.
+        let visible = pets.filter { !$0.isHiddenByUser }
+        let rates = Self.frameRates(costs: visible.map(\.drawCostMilliseconds))
+        var next = 0
         for pet in pets {
             pet.setExcludedPerchWindows(excluded)
-            pet.frameRateCap = fps
+            if pet.isHiddenByUser {
+                pet.frameRateCap = 8
+            } else {
+                pet.frameRateCap = rates.indices.contains(next) ? rates[next] : 8
+                next += 1
+            }
         }
     }
 

@@ -314,6 +314,17 @@ final class PetWindowController {
 
     /// How solid she is drawn. Applied to both windows, so a bubble is as solid
     /// as the pookie saying it.
+    /// What one frame of this pet costs, in milliseconds. The colony divides its
+    /// budget by these, so an unmeasured pet gets the nominal figure rather than
+    /// zero — which would be a division by zero and an infinite frame rate.
+    var drawCostMilliseconds: Double {
+        let measured = view.averageDrawMilliseconds
+        return measured > 0.05 ? measured : Self.nominalDrawMilliseconds
+    }
+
+    /// A stand-in for a pet that has not drawn yet.
+    static let nominalDrawMilliseconds: Double = 1.5
+
     func applyOpacity() {
         let alpha = CGFloat(AppConfig.shared.petOpacity)
         window.alphaValue = alpha
@@ -632,6 +643,8 @@ final class PetWindowController {
             + "slip=\(String(format: "%.1f", worstSlip))x "
             + "masks=\(view.maskRefreshCount) "
             + "tier=\(String(format: "%.0f", (1.0 / targetInterval).rounded()))fps "
+            + "cost=\(String(format: "%.1f", drawCostMilliseconds))ms "
+            + "cap=\(String(format: "%.0f", frameRateCap))fps "
             + "cpu=\(String(format: "%.1f", cpu))% "
             + "rss=\(String(format: "%.0f", ProcessMetrics.residentMegabytes()))MB "
             + "mood=\(motion.pose.mood.rawValue) "

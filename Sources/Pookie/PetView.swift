@@ -55,10 +55,18 @@ final class PetView: NSView {
         let cost = (CACurrentMediaTime() - started) * 1000
         lastDrawMilliseconds = cost
         worstDrawMilliseconds = max(worstDrawMilliseconds, cost)
+        // Smoothed, because the allocator divides a budget by it: a single slow
+        // frame should not halve a pookie's frame rate for the next second.
+        averageDrawMilliseconds = averageDrawMilliseconds == 0
+            ? cost
+            : averageDrawMilliseconds * 0.92 + cost * 0.08
     }
 
     /// The slowest single draw since the last heartbeat, in milliseconds.
     private(set) var worstDrawMilliseconds: Double = 0
+    /// A smoothed draw cost, in milliseconds. This is what the colony's frame
+    /// budget is divided by.
+    private(set) var averageDrawMilliseconds: Double = 0
     /// The most recent draw, in milliseconds.
     private(set) var lastDrawMilliseconds: Double = 0
     /// How many silhouette rasterisations have happened, for the heartbeat: they

@@ -381,6 +381,14 @@ transparent always-on-top window moving every frame, twice as often while airbor
 what M1's layer-backed renderer replaces with one compositor-moved surface. Those three numbers are the
 regression metric for that work.
 
+**The budget is accounted, not divided.** `PetCohort.frameRates` takes what each pet's frame actually
+costs (a smoothed measurement from `PetView`) and water-fills a **time** budget —
+`drawBudgetMillisecondsPerSecond`, 200 ms/s — cheapest pet first, because a pet that costs 1 ms can buy
+twice the frames for the same milliseconds. Every pet keeps the 8 fps sleep tier and nothing exceeds 60.
+The first version divided a flat 120 frames evenly, which gave a cheap pet and an expensive one the same
+frame rate and let the expensive one spend twice the CPU for it. Pure, so the allocation is testable
+without a window server, and `cost=`/`cap=` in the heartbeat make it visible.
+
 **Many pets share one budget.** The *desk* is capped at ten (`PetCohort.maximumPets`) while the
 *collection* is not, because the desk is the part that costs; the frame rates are divided rather than
 multiplied: `totalFrameBudget` is 120 drawn frames per second for the whole colony, so a single pet is

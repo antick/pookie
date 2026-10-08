@@ -286,8 +286,11 @@ twice as often while airborne. That is what M1's layer-backed renderer removes �
 the compositor instead of a window frame per frame. The metrics are in `Pookie --verbose` (`worst=`,
 `slip=`, `masks=`) so the improvement can be checked rather than felt.
 
-Ten pookies are real work. They share one frame budget — 120 drawn frames per second between them, so
-one pet is unaffected and five get 24 fps each — and an occluded pet stops entirely. The honest numbers
+Ten pookies are real work. They share one budget — **200 milliseconds of drawing per second**, divided by what each pet actually
+costs to draw rather than evenly — and an occluded pet stops entirely. A pookie whose frame costs 1 ms
+gets twice the frame rate of one that costs 2 ms, because that is what the same milliseconds buy; every
+pet keeps at least the 8 fps sleep tier and nothing exceeds 60. `cost=` and `cap=` in `--verbose` show
+the accounting. The honest numbers
 on this renderer (software Core Graphics, a 3840x1620 display):
 
 | Pookies | CPU, idle | RSS |
@@ -411,7 +414,7 @@ There is no human in the loop for correctness:
 make selftest
 ```
 
-runs 407 headless checks, including:
+runs 416 headless checks, including:
 
 - **five species on one stage**: every animal is swept through the whole art envelope — keyframes,
   mid-settle blends, the teleport twist — and checked against the stage, plus its own ground contact,
