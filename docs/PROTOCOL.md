@@ -9,6 +9,7 @@ Status by milestone:
 | Feature | Available |
 |---|---|
 | Verb vocabulary + envelope | M2 (in-process), M3 (on the wire) |
+| Envelope decode, dedupe, TTL, error codes, acks | **Landed** — `Sources/Pookie/Protocol.swift`, headless-tested. The transport is what is left |
 | `pookie` CLI client | M3 |
 | MCP surface | M4 |
 | LLM brain as a client | M5 |

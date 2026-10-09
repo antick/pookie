@@ -294,6 +294,13 @@ to keep in sync with the body. This is also the piece of M1's "explicit animatio
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
 
+**The protocol's envelope is decided before its transport** (`Protocol.swift`, `IntentRouter`).
+Decoding a line, checking the required fields, deduping by `id`, expiring by `ts + ttl`, clamping
+`priority` and answering with an ack are all rules with edge cases and no I/O — so they are a pure type
+with the specification's error codes as an enum, tested headlessly. M3's socket will be a thin layer
+that reads lines, calls `receive`, and writes `ack.line` back. It is the same split as the behaviour
+layer: the part that is easy to get subtly wrong is the part with no window server in it.
+
 **Transient channels are cleared every frame, and that is a contract.** `CatPose.punch`, `.kick`,
 `.groom`, `.spin` and `.impact` are only *written* while their condition holds, and `PetMotion.pose` is
 a persistent property — so a channel left at its last value sticks for the rest of the session. It

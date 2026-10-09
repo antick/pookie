@@ -28,36 +28,16 @@ the method matters more than the memory: **sweep the docs, do not recall them.**
       and `worst=` (slowest draw) is lower than it is now under the same load.
       *Needs:* nothing. `worst=`, `masks=` and `slip=` are already in the heartbeat.
 
-- [ ] **The frame-pump slip, which is window movement and nothing else.** Measured,
-      not guessed: ten pookies **stationary** slip 1.0×; the same ten **wandering**
-      slip 2.5×; a **single** wandering pookie slips 2.2× — so it is the window
-      server's per-frame window move, not the pet count, not the drawing (1 ms in all
-      four cases) and not jumping (windows containing a jump measured *better* than
-      average: 1.00× worst, against 1.40× for the rest). The mean over 481 samples is
-      1.00×, so this is occasional late frames under the heaviest load rather than a
-      general stutter.
-      *Done when:* either the slip is reduced by moving the window less (a smaller
-      window while she is calm — the envelope is only large while she stretches,
-      hops or leans — or a coarser move cadence than draw cadence), **or** the
-      measurements are written into `DESIGN.md` with the honest conclusion that
-      occasional late frames while walking are the cost of a window that moves, and
-      accepted.
-      *Needs:* nothing. The four measurements above are the baseline.
-
-- [ ] **Interim lever, only if the swap slips:** cache the parts that do not
-      change every frame (body, head, ears, paws) and redraw only the tail, eyes,
-      whiskers and mouth. M0's findings estimate 40–60%, and recommend measuring
-      the layer-backed path first — it is real complexity that the swap makes
-      unnecessary.
-
 ## 2. The control plane, which unlocks three other milestones
 
-- [ ] **M3 — a `pookie` CLI over a local socket.** `PROTOCOL.md` is written and
-      the receiving end already exists (`Pookie --say` is the stand-in); what is
-      missing is the transport (NDJSON over a Unix domain socket, loopback TCP
-      fallback), the CLI verbs, and the envelope semantics: `id` dedupe, `ts` +
-      `ttl` expiry, `priority` override, acks, and every error code in the
-      protocol.
+- [ ] **M3 — a `pookie` CLI over a local socket.** The **envelope has landed**
+      (`Protocol.swift`: decode, validate, dedupe, expire, and an ack per intent, with
+      every error code and the per-verb defaults from the spec — pure, headless, 16
+      checks). What is left: the **transport** (NDJSON over a Unix domain socket,
+      loopback TCP fallback), the **CLI verbs**, and the **mapping** from an intent to
+      the in-process behaviour (`say`, `moveTo`, `lookAt`, `hide`/`show`,
+      `spawn`/`despawn` and `state` all exist; `emote` and `face` do not). `Pookie
+      --say` remains the stand-in until the socket is there.
       *Done when:* `pookie say "hi"` from a fresh terminal makes the pet speak,
       with no setup beyond the CLI being on `PATH`.
       *Unlocks:* M4, M5 and M7. This is the roadmap's own "unlocks everything".

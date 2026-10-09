@@ -1092,6 +1092,92 @@ enum Diagnostics {
         )
 
         print("")
+        print("the intent envelope (M3's first slice)")
+        // Pure rules, no socket and no window server: decode, validate, dedupe,
+        // expire. The transport will feed lines into this and write the ack back.
+        let router = IntentRouter()
+        let epoch: Double = 1_759_773_421_000
+
+        func line(_ json: String) -> IntentAck { router.receive(line: json, now: epoch) }
+        let minimal = #"{"id":"a1","ts":1759773421000,"verb":"emote","args":{"name":"sparkle"}}"#
+
+        check(line(minimal).ok, "a minimal intent is accepted")
+        check(line(minimal).error == "duplicate_id", "the same id twice is a duplicate, which makes retries safe")
+        check(line("not json").error == "malformed_json", "a malformed line says so")
+        check(
+            line(#"{"ts":1,"verb":"say","args":{}}"#).error == "missing_field",
+            "a missing id is a missing field"
+        )
+        check(
+            line(#"{"id":"a2","ts":1759773421000,"args":{}}"#).error == "missing_field",
+            "and so is a missing verb"
+        )
+        check(
+            line(#"{"id":"a3","ts":1759773421000,"verb":"say"}"#).error == "missing_field",
+            "and a missing args, which the spec says must not be null"
+        )
+        check(
+            line(#"{"id":"a4","ts":1759773421000,"verb":"teleport","args":{}}"#).error == "unknown_verb",
+            "an unknown verb is rejected rather than ignored"
+        )
+        check(
+            line(#"{"id":"a5","ts":1759773400000,"verb":"say","args":{},"ttl":10}"#).error == "expired",
+            "an intent whose ttl has already passed is dropped, not played late"
+        )
+        check(
+            line(#"{"id":"a6","ts":1759773421000,"verb":"say","args":{"text":"hi"},"extra":"ignored"}"#).ok,
+            "unknown fields are ignored"
+        )
+
+        // Defaults come from the verb table in PROTOCOL.md §4.
+        check(IntentVerb.say.defaults == (60, 15_000), "say's defaults are the spec's")
+        check(IntentVerb.emote.defaults == (30, 4_000), "and so are emote's")
+        check(IntentVerb.petOn.defaults.ttl == .infinity, "a subscription never expires")
+
+        // Priority is clamped rather than refused: a pet that will not speak over a
+        // number nobody can see is worse than one that speaks.
+        let router2 = IntentRouter()
+        check(
+            router2.receive(
+                line: #"{"id":"p1","ts":1759773421000,"verb":"say","args":{},"priority":900}"#,
+                now: epoch
+            ).ok,
+            "an out-of-range priority is clamped, not rejected"
+        )
+
+        // Dedupe memory is bounded: a producer that retries forever must not grow it.
+        let router3 = IntentRouter()
+        router3.dedupeMemory = 8
+        for index in 0..<40 {
+            _ = router3.receive(
+                line: #"{"id":"r\#(index)","ts":1759773421000,"verb":"say","args":{}}"#,
+                now: epoch
+            )
+        }
+        check(
+            router3.receive(
+                line: #"{"id":"r39","ts":1759773421000,"verb":"say","args":{}}"#,
+                now: epoch
+            ).error == "duplicate_id",
+            "a recent id is still remembered"
+        )
+        check(
+            router3.receive(
+                line: #"{"id":"r0","ts":1759773421000,"verb":"say","args":{}}"#,
+                now: epoch
+            ).ok,
+            "and an evicted one is forgotten, so the memory cannot grow forever"
+        )
+
+        // The ack is one NDJSON line, which is what goes back down the socket.
+        let ackLine = IntentAck.started("a1").line
+        check(ackLine.contains("\"ok\":true") && ackLine.contains("\"accepted\":\"started\""), "an ack serialises to one line")
+        check(
+            IntentAck.refused("a1", .rateLimited).line.contains("\"error\":\"rate_limited\""),
+            "and a refusal carries its error code"
+        )
+
+        print("")
         print("the small things")
         let quietDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
         // A sneeze: a hop, a head shake, and one noise.
