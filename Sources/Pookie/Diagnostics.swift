@@ -755,6 +755,11 @@ enum Diagnostics {
         let parked = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: restDesktop)
         parked.followCursor = false
         parked.sitAfterSeconds = 1
+        // Pinned: a stretch legitimately ends a sit — she stands up, bows, and then
+        // the wander clock is free to move her, which is correct behaviour and not
+        // what this test is about. The claim here is that the *rest ladder* does not
+        // stand her back up, so the other reason to stand has to be switched off.
+        parked.stretchAfterSeconds = 10_000
         run(parked, 2.5)
         check(parked.shape == .sit, "left alone on the floor she sits down")
         let sittingX = parked.origin.x
