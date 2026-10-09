@@ -16,17 +16,33 @@ the method matters more than the memory: **sweep the docs, do not recall them.**
 
 ## 1. The renderer swap (M1 criterion 1)
 
-- [ ] **A layer-backed renderer behind `PetRenderer`.** This is the single
-      highest-value piece of work left, and it is measured rather than assumed:
-      drawing a pookie costs **1–2 ms**, the silhouette raster is ~2/s, and the
-      frame pump runs within **1.2×** of its target — so a stutter is *not* the
-      drawing. It is the window server moving a transparent, always-on-top window
-      every frame, twice as often while airborne.
-      *Done when:* the pet is drawn into a `CAMetalLayer`/`CALayer` on one
-      surface, the window frame stops changing per frame, and `slip=` in
-      `--verbose` is no worse than it is now under the same load.
-      *Needs:* nothing. `worst=`, `masks=` and `slip=` are already in the
-      heartbeat as the regression metric.
+- [ ] **A layer-backed renderer behind `PetRenderer`** (M1 criterion 1). Worth
+      doing on its own merits — the software raster is 1–7 ms a frame and it is the
+      last piece of M1 — but **not because of the stutter.** An experiment settled
+      that: drawing is 1–2 ms in every configuration, the window is already
+      configured as cheaply as AppKit allows (`isOpaque = false`, `hasShadow =
+      false`, `animationBehavior = .none`), and the stage is already tight to the art
+      envelope, so there is no margin to reclaim. See the next item for what the
+      stutter actually is.
+      *Done when:* the pet is drawn into a `CAMetalLayer`/`CALayer` on one surface,
+      and `worst=` (slowest draw) is lower than it is now under the same load.
+      *Needs:* nothing. `worst=`, `masks=` and `slip=` are already in the heartbeat.
+
+- [ ] **The frame-pump slip, which is window movement and nothing else.** Measured,
+      not guessed: ten pookies **stationary** slip 1.0×; the same ten **wandering**
+      slip 2.5×; a **single** wandering pookie slips 2.2× — so it is the window
+      server's per-frame window move, not the pet count, not the drawing (1 ms in all
+      four cases) and not jumping (windows containing a jump measured *better* than
+      average: 1.00× worst, against 1.40× for the rest). The mean over 481 samples is
+      1.00×, so this is occasional late frames under the heaviest load rather than a
+      general stutter.
+      *Done when:* either the slip is reduced by moving the window less (a smaller
+      window while she is calm — the envelope is only large while she stretches,
+      hops or leans — or a coarser move cadence than draw cadence), **or** the
+      measurements are written into `DESIGN.md` with the honest conclusion that
+      occasional late frames while walking are the cost of a window that moves, and
+      accepted.
+      *Needs:* nothing. The four measurements above are the baseline.
 
 - [ ] **Interim lever, only if the swap slips:** cache the parts that do not
       change every frame (body, head, ears, paws) and redraw only the tail, eyes,

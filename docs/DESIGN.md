@@ -389,6 +389,19 @@ write into pre-sized arrays: a 6x speed-up (116s -> 19s) with *no* loss of cover
 sweeping fewer poses — is how the fox's brush got out of the stage in the first place. A suite you avoid
 running is a suite that stops catching things.
 
+**The stutter is window movement, and the experiment is the point.** Four measured
+configurations, 45 seconds each: ten pookies stationary slip **1.0×**, the same ten
+wandering **2.5×**, a *single* wandering pookie **2.2×**, and ten wandering on a
+`--scale huge` window **4.4×**. Drawing was 1–2 ms in every one of them, and windows
+that contained a jump measured *better* than average (1.00× worst against 1.40× for
+the rest). So the late frames are the window server's per-frame window move — not the
+drawing, not the pet count, not jumping — and the layer-backed renderer below would
+not fix them, because it addresses the 1–2 ms that was never the problem. The window
+is already as cheap as AppKit allows (`isOpaque = false`, `hasShadow = false`,
+`animationBehavior = .none`) and the stage is already tight to the art envelope, so
+there was no margin to reclaim either. Recorded because the obvious conclusion —
+"rewrite the renderer" — was wrong, and only measuring said so.
+
 **A stutter is measured, not felt.** `PetView` times each draw (`worst=`) and counts silhouette
 rasterisations (`masks=`), and the controller reports how late the frame pump ran as a multiple of its
 target interval (`slip=`). With five pookies that is 1–2 ms of drawing, ~2 rasterisations a second and a
