@@ -4,34 +4,17 @@ What is left, in the order I would do it. `docs/ROADMAP.md` has the milestone
 detail and the acceptance criteria; this file is the working list — the things
 that are *not* done, why they are not done, and what "done" means.
 
-Two items closed since the last audit (the kick, and the screen-lock pause); the
-rest is unchanged. Last audited: against every place this repo records unfinished work — the roadmap's
+**A finished item is deleted from this file, not ticked off.** The history lives in
+`git log`, in `docs/ROADMAP.md`'s milestone statuses and in `docs/DESIGN.md`, so
+anything still in here is still open. An empty section is a good sign.
+
+Last audited against every place this repo records unfinished work: the roadmap's
 "Outstanding" lines, `M0-FINDINGS.md` §5 "Not yet verified" and its "New unknowns",
-`MACOS-CONSTRAINTS.md` §11 and `DESIGN.md` "New unknowns". The first version of this
-file missed three items, the second missed three more (a sleep/lock feature that was
-never implemented, and two things never seen on screen). Both times the miss was
-found by sweeping the docs rather than by remembering, which is why the audit trail
-is written down here. Anything not
-listed here is either finished or not worth doing; `git log` is the history.
+`MACOS-CONSTRAINTS.md` §11, `DESIGN.md`'s "New unknowns", and the code itself for
+stubs and dead ends. Three sweeps have each found items the previous one missed, so
+the method matters more than the memory: **sweep the docs, do not recall them.**
 
-## 1. Asked for, or designed and never built
-
-- [x] **A kick in the brawl.** **Closed.** `CatPose.kick` throws a hind leg — from
-      the hip, low, out past the front of the body, which is what makes it read as a
-      different limb from the punch. The brawl alternates them off the bout's own
-      clock, the blow lands through the same `pendingHit` path, and the receiving
-      pookie flinches the same way. In the transient sweep, and the brawl sheet has a
-      kick phase.
-
-- [x] **Pause when the screen locks, and on sleep.** **Closed.** `NSWorkspace` sleep
-      and wake, plus the two distributed notifications macOS posts on lock and
-      unlock, pause every pet — no permission, because observing is not capturing.
-      `PauseState` keeps the two reasons apart (hidden by you, asleep or locked), so
-      unhiding a pookie behind a lock screen does not start drawing it again. The
-      rule is unit-tested; the wiring is exercised with `Pookie --simulate-lock on`,
-      and measured: **21.5% CPU -> 0.6%** while locked.
-
-## 2. The renderer swap (M1 criterion 1)
+## 1. The renderer swap (M1 criterion 1)
 
 - [ ] **A layer-backed renderer behind `PetRenderer`.** This is the single
       highest-value piece of work left, and it is measured rather than assumed:
@@ -51,7 +34,7 @@ listed here is either finished or not worth doing; `git log` is the history.
       the layer-backed path first — it is real complexity that the swap makes
       unnecessary.
 
-## 3. The control plane, which unlocks three other milestones
+## 2. The control plane, which unlocks three other milestones
 
 - [ ] **M3 — a `pookie` CLI over a local socket.** `PROTOCOL.md` is written and
       the receiving end already exists (`Pookie --say` is the stand-in); what is
@@ -74,7 +57,7 @@ listed here is either finished or not worth doing; `git log` is the history.
 - [ ] **M7 — reactive skill packs**: declarative documents binding triggers to
       intents (`on git commit → emote(sparkle)`). *Needs:* M3/M4.
 
-## 4. M2's remaining criteria
+## 3. M2's remaining criteria
 
 All four need M3's transport to be meaningful:
 
@@ -84,7 +67,7 @@ All four need M3's transport to be meaningful:
 - [ ] Criterion 7 — every rate-limit and preemption decision logged with a
       reason, so "why did my line not appear" has an answer.
 
-## 5. Voice (M6)
+## 4. Voice (M6)
 
 - [ ] STT via `whisper.cpp`, locally, with no audio leaving the machine.
 - [ ] TTS via `AVSpeechSynthesizer`, with a voice option and a mute.
@@ -94,7 +77,7 @@ All four need M3's transport to be meaningful:
       active; no always-on listening; the pet ducks its own idle behaviour while
       listening and does not talk over the user.
 
-## 6. Release (M8 criterion 4)
+## 5. Release (M8 criterion 4)
 
 - [ ] **A signed, notarized DMG.** `make bundle` produces an unsigned app;
       Gatekeeper warns on a clean machine until somebody with an Apple Developer
@@ -103,11 +86,13 @@ All four need M3's transport to be meaningful:
       notification bridge, and permission behaviour. M0's findings call the
       bridge the most likely casualty of sandboxing.
 
-## 6b. Open questions from the uncertainty register
+## 6. Open questions from the uncertainty register
 
 `docs/MACOS-CONSTRAINTS.md` §11 is the register; these are its entries that are
 still open, and they are here because a register nobody reads is a register nobody
-closes.
+closes. Entries that were closed — the `hitTest` negative, the mouse-moved monitor,
+`CADisplayLink` availability, the seam-gap fallback — are struck through in the
+register itself, not here.
 
 - [ ] **Item 7 — the fullscreen-geometry heuristic.** Whether detecting "a
       full-screen app is in front" by window geometry gives acceptable false
@@ -117,14 +102,10 @@ closes.
       to Codex and Claude Code is untested; assume a `pookie_poll_events` tool is
       required until it is tested. Belongs with M4.
 - [ ] **Item 4 — capture exclusion.** `sharingType = .none` has never met a real
-      screen-share client. Listed under §7 as a check for a human.
+      screen-share client. Also listed in §7 as a check for a human.
 - [ ] **Item 5 — the hotkey in a notarized, sandboxed build.** Carbon
       `RegisterEventHotKey` works with zero prompts in a dev build; re-check after
-      notarization. Listed under §6.
-- [x] **Item 11 — `Desktop.region(containing:)` near a display seam.** Closed: a
-      point in the gap between two displays now prefers the region the pookie was
-      already in, instead of nearest-by-centre, which could hand her back the
-      display she just left and read as a bounce at the boundary.
+      notarization. Also listed in §5.
 
 ## 7. Verified by hand, not yet by a test
 
@@ -147,7 +128,7 @@ five-minute check for a human:
       clicking every control. Same for the menu-bar items and the right-click
       menu.
 
-## 7b. Not yet verified, from M0's findings
+## 8. Not yet verified, from M0's findings
 
 `docs/M0-FINDINGS.md` §5 is the list; these are its entries that are still open and
 not already covered above.
@@ -166,7 +147,7 @@ not already covered above.
       (`ignoresMouseEvents` from a cursor poll). Not a task — recorded so the file is
       complete, and so nobody "fixes" the poll back into a `hitTest` assumption.
 
-## 7c. Implemented, waiting for a caller
+## 9. Implemented, waiting for a caller
 
 - [ ] **`PetWindowController.appendToBubble`** is the `bubble.append` verb, implemented
       in-process and reachable from `SpeechEngine.append` — and nothing calls the
@@ -174,7 +155,7 @@ not already covered above.
       not dead code: it is the seam the protocol will use. Listed so that a future
       dead-code pass does not delete it.
 
-## 8. Small and cosmetic
+## 10. Small and cosmetic
 
 - [ ] **A true peek.** `CatShape.peek` is a lean forward — head low and forward,
       body high behind — because the renderer has no way to clip a pookie at the
