@@ -9,7 +9,9 @@ Status by milestone:
 | Feature | Available |
 |---|---|
 | Verb vocabulary + envelope | M2 (in-process), M3 (on the wire) |
-| Envelope decode, dedupe, TTL, error codes, acks | **Landed** — `Sources/Pookie/Protocol.swift`, headless-tested. The transport is what is left |
+| Envelope decode, dedupe, TTL, error codes, acks | **Landed** — `Sources/Pookie/Protocol.swift`, headless-tested |
+| Unix socket + loopback TCP fallback, `hello`, acks over the wire | **Landed** — `Sources/Pookie/ControlServer.swift`, tested against a real socket |
+| The `pookie` CLI verbs (`state`, `move`, `hide`, `show`) and an installed name on `PATH` | M3, outstanding |
 | `pookie` CLI client | M3 |
 | MCP surface | M4 |
 | LLM brain as a client | M5 |
@@ -324,7 +326,20 @@ Available from M8.
 {"id":"k1","ts":1759773421000,"verb":"despawn","args":{"petId":"pookie-2","exit":"walkOff"}}
 ```
 
-### 4.12 `pet.on`
+### 4.12 `hide` / `show`
+
+Hide or show the pet itself. Distinct from `bubble.hide`, which dismisses a bubble and
+leaves the pet on screen.
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| — | — | — | — | No arguments. |
+
+Default priority 90. Default TTL 5000 ms. Above `say`, so a hide always wins. Hidden
+pets keep running: this is the same state the menu's **Hide** sets, and `show` undoes
+it. Note that the attention budget does not apply — a hide is not speech.
+
+### 4.13 `pet.on`
 
 Subscribe to pet-emitted events on this connection. The only subscription verb.
 

@@ -126,6 +126,22 @@ marking are worth keeping even when the animal is not on screen. The desk holds 
 (`PetCohort.maximumPets`), because the desk is the part that costs; the collection holds all
 seventeen. `Pookie --settings` opens the window at launch.
 
+### Driving it from a shell
+
+A running pookie listens on a **Unix domain socket** at
+`~/Library/Application Support/Pookie/control.sock` (mode 0600 — only you can talk to your cat), with a
+loopback TCP fallback whose port is written to `.../Pookie/port`. Lines in, acks out, one JSON object
+per line, per [`PROTOCOL.md`](docs/PROTOCOL.md).
+
+```bash
+Pookie --say "build finished" --producer ci
+# pookie says: build finished (from ci) — {"id":"…","ok":true,"accepted":"started","eta_ms":0}
+```
+
+That is the socket, not the old distributed-notification stand-in: the pet shakes hands, accepts the
+intent, and answers with an ack. `POOKIE_CONTROL_SOCKET` points both the pet and the CLI at a different
+path, which is how a second instance or a test gets its own socket.
+
 ### Who gets to talk
 
 A producer names itself: `Pookie --say "build finished" --producer ci` (or the `POOKIE_PRODUCER`

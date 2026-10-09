@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var cohort: PetCohort?
     private var settingsWindow: SettingsWindowController?
+    private var controlServer: ControlServer?
     /// Sleep, wake, lock and unlock. Removed in `applicationWillTerminate`.
     private var pauseObservers: [NSObjectProtocol] = []
     private var statusItem: NSStatusItem?
@@ -45,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installHotKeys()
         installSayBridge()
         installPauseObservers()
+        installControlServer()
     }
 
     deinit {
@@ -55,12 +57,88 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DistributedNotificationCenter.default().removeObserver(token)
         }
         pauseObservers.removeAll()
+        // The socket is removed on the way out, so the next launch binds cleanly and
+        // no stale file is left for a client to connect to and wait on.
+        controlServer?.stop()
+        controlServer = nil
         }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
+
+    /// The control socket: `PROTOCOL.md` §1's transport, wired to the behaviour that
+    /// already exists in-process.
+    ///
+    /// The verbs that have an in-process implementation are mapped here; `emote` and
+    /// `face` do not exist yet and answer `unsupported`, which is what that error code
+    /// is for. A pet with no control socket is not a broken pet, so a failure to bind
+    /// is logged and survived rather than fatal.
+    private func installControlServer() {
+        let server = ControlServer()
+        server.petNames = { [weak self] in
+            (self?.cohort?.collection ?? []).filter(\.onDesk).map(\.name)
+        }
+        server.handler = { [weak self] intent in
+            self?.perform(intent) ?? .refused(intent.id, .unsupported)
+        }
+        do {
+            try server.start()
+        } catch {
+            Log.info("control: not listening — \(error)")
+        }
+        controlServer = server
+    }
+
+    /// One intent, mapped onto behaviour that already exists.
+    private func perform(_ intent: Intent) -> IntentAck {
+        guard let cohort else { return .refused(intent.id, .unknownPet) }
+        switch intent.verb {
+        case .say:
+            guard let text = intent.args["text"] as? String else {
+                return .refused(intent.id, .badArgs)
+            }
+            let style = (intent.args["style"] as? String).flatMap(BubbleStyle.init(rawValue:)) ?? .plain
+            // Through the same per-producer budget the notification bridge uses: the
+            // protocol names the producer, so a chatty client is limited like any
+            // other.
+            let producer = (intent.args["producer"] as? String) ?? "socket"
+            _ = cohort.say(text, style: style, from: producer)
+            return .started(intent.id)
+
+        case .hide, .show:
+            cohort.setHidden(intent.verb == .hide)
+            return .started(intent.id)
+
+        case .spawn:
+            guard cohort.spawn() != nil else { return .refused(intent.id, .capacity) }
+            return .started(intent.id)
+
+        case .despawn:
+            guard cohort.removePet(at: cohort.count - 1) else {
+                return .refused(intent.id, .capacity)
+            }
+            return .started(intent.id)
+
+        case .moveTo:
+            guard let x = intent.args["x"] as? Double, let y = intent.args["y"] as? Double else {
+                return .refused(intent.id, .badArgs)
+            }
+            cohort.spokespet?.motion.move(to: CGPoint(x: x, y: y), animated: true)
+            return .started(intent.id)
+
+        case .state:
+            // The same line the ctrl-opt-D hotkey logs: one description, one place.
+            describeState()
+            return .started(intent.id)
+
+        case .emote, .face, .bubbleShow, .bubbleAppend, .bubbleHide, .lookAt, .petOn:
+            // Understood, and not implemented at this version — which is exactly what
+            // `unsupported` means, and better than pretending to accept it.
+            return .refused(intent.id, .unsupported)
+        }
+    }
 
     /// Pause everything while the screen is locked or the machine is asleep.
     ///

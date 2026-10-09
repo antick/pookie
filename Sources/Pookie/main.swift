@@ -178,14 +178,52 @@ if let index = arguments.firstIndex(of: "--say") {
     } else if let named = ProcessInfo.processInfo.environment["POOKIE_PRODUCER"], !named.isEmpty {
         producer = named
     }
+    // The control socket first — that is M3's transport, and it carries an ack. The
+    // distributed notification is the stand-in it replaces, kept as a fallback so an
+    // older running pet still answers.
+    let intent = """
+    {"id":"\(UUID().uuidString)","ts":\(Int(Date().timeIntervalSince1970 * 1000)),\
+    "verb":"say","args":{"text":\(jsonString(text)),"producer":\(jsonString(producer))}}
+    """.replacingOccurrences(of: "\n", with: "")
+    if let client = try? ControlClient() {
+        // The handshake first: acks are opt-in, and a client that never says hello is
+        // assumed to want neither acks nor events — so skipping this gets a pet that
+        // does exactly as it is told and says nothing about it.
+        client.send(#"{"verb":"hello","args":{"client":"pookie-cli/0.1","protocol":"0.1"}}"#)
+        guard let greeting = client.readLine(timeout: 2), greeting.contains("hello.ok") else {
+            client.close()
+            print("pookie: connected but the pet did not answer the handshake")
+            exit(1)
+        }
+        client.send(intent)
+        if let ack = client.readLine(timeout: 2) {
+            print("pookie says: \(text) (from \(producer)) — \(ack)")
+            client.close()
+            exit(ack.contains("\"ok\":true") ? 0 : 1)
+        }
+        client.close()
+        print("pookie: the control socket accepted the line but said nothing back")
+        exit(1)
+    }
+
     DistributedNotificationCenter.default().postNotificationName(
         AppDelegate.sayNotification,
         object: nil,
         userInfo: ["text": text, "producer": producer],
         deliverImmediately: true
     )
-    print("pookie says: \(text) (from \(producer))")
+    print("pookie says: \(text) (from \(producer), over the notification fallback)")
     exit(0)
+}
+
+/// One JSON string literal, escaped. A text argument comes from a shell and can
+/// contain anything, including the quote that would otherwise break the line.
+func jsonString(_ value: String) -> String {
+    let escaped = value
+        .replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "\"", with: "\\\"")
+        .replacingOccurrences(of: "\n", with: "\\n")
+    return "\"\(escaped)\""
 }
 
 // Interactive mode.

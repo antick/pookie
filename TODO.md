@@ -30,7 +30,18 @@ the method matters more than the memory: **sweep the docs, do not recall them.**
 
 ## 2. The control plane, which unlocks three other milestones
 
-- [ ] **M3 — a `pookie` CLI over a local socket.** The **envelope has landed**
+- [ ] **M3 — a `pookie` CLI over a local socket.** The **transport has landed too**:
+      a Unix domain socket at the protocol's path (mode 0600, stale files replaced,
+      a live one not stolen), the loopback TCP fallback with its port file, the
+      `hello` handshake, and acks back down the connection — 11 checks against a real
+      socket. `Pookie --say` uses it and returns an ack; the notification bridge is
+      now the fallback. Verbs mapped: `say`, `hide`, `show`, `spawn`, `despawn`,
+      `moveTo`, `state`. `emote` and `face` answer `unsupported`, which is what that
+      error code is for. What is left: the protocol's own **CLI verbs** (`pookie
+      state`, `pookie move`, `pookie hide`, `pookie show` as separate commands rather
+      than `--say`), an installed `pookie` name on `PATH`, and the two missing verbs.
+
+      Earlier slice, for context: the **envelope**
       (`Protocol.swift`: decode, validate, dedupe, expire, and an ack per intent, with
       every error code and the per-verb defaults from the spec — pure, headless, 16
       checks). What is left: the **transport** (NDJSON over a Unix domain socket,

@@ -294,6 +294,18 @@ to keep in sync with the body. This is also the piece of M1's "explicit animatio
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
 
+**The transport is BSD sockets, deliberately** (`ControlServer`). `PROTOCOL.md` names a Unix domain
+socket, `Network.framework`'s support for one is a corner rather than a road, and the two things that
+bite — not binding over a socket a live instance still owns, and not leaving one world-writable — are
+visible in the POSIX calls rather than buried. Both are tested: a second instance is refused, a stale
+file is replaced, and the mode is 0600. One bug the tests caught immediately: a **blocking listener**
+wedges the serial queue it shares with every connection's read source after the first client, so the
+server accepts one connection and then goes silent while looking healthy.
+
+The listener is also where a client's *choice* matters: acks are opt-in, so a client that never sends
+`hello` is told nothing — which is the specification working, and it cost me one confused minute when
+the CLI skipped the handshake.
+
 **The protocol's envelope is decided before its transport** (`Protocol.swift`, `IntentRouter`).
 Decoding a line, checking the required fields, deduping by `id`, expiring by `ts + ttl`, clamping
 `priority` and answering with an ack are all rules with edge cases and no I/O — so they are a pure type

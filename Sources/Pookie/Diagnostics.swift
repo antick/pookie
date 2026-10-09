@@ -1178,6 +1178,91 @@ enum Diagnostics {
         )
 
         print("")
+        print("the control socket (M3's second slice)")
+        // A real socket, in a temporary directory. The transport is where the two
+        // things that bite — binding over a live instance's socket, and leaving one
+        // world-writable — actually live, so they get tests rather than comments.
+        let scratch = NSTemporaryDirectory() + "pookie-selftest-\(ProcessInfo.processInfo.processIdentifier)"
+        try? FileManager.default.removeItem(atPath: scratch)
+        try? FileManager.default.createDirectory(atPath: scratch, withIntermediateDirectories: true)
+        let socketPath = scratch + "/control.sock"
+
+        var seen: [Intent] = []
+        let server = ControlServer(socketPath: socketPath, portPath: scratch + "/port")
+        server.petNames = { ["Pookie"] }
+        server.handler = { intent in
+            seen.append(intent)
+            return .started(intent.id)
+        }
+
+        do {
+            try server.start()
+            check(true, "the control socket binds")
+        } catch {
+            check(false, "the control socket binds: \(error)")
+        }
+
+        // The mode matters: a world-writable control socket is a stranger animating
+        // your cat.
+        let mode = (try? FileManager.default.attributesOfItem(atPath: socketPath)[.posixPermissions] as? Int) ?? nil
+        check(mode == 0o600, "and is readable only by its owner (mode \(String(mode ?? 0, radix: 8)))")
+
+        // A live socket must not be stolen.
+        let thief = ControlServer(socketPath: socketPath, portPath: nil)
+        do {
+            try thief.start()
+            check(false, "a second instance refuses to bind over a live socket")
+        } catch let error as ControlError {
+            if case .alreadyRunning = error {
+                check(true, "a second instance refuses to bind over a live socket")
+            } else {
+                check(false, "a second instance refuses to bind over a live socket: \(error)")
+            }
+        } catch {
+            check(false, "a second instance refuses to bind over a live socket: \(error)")
+        }
+
+        // The handshake, and an intent, over a real connection.
+        if let client = try? ControlClient(socketPath: socketPath) {
+            client.send(#"{"verb":"hello","args":{"client":"selftest","protocol":"0.1"}}"#)
+            let hello = client.readLine(timeout: 2) ?? ""
+            check(hello.contains("hello.ok"), "the handshake is answered")
+            check(hello.contains("\"Pookie\""), "and names the pets that exist")
+
+            client.send(#"{"id":"c1","ts":\#(Int(Date().timeIntervalSince1970 * 1000)),"verb":"say","args":{"text":"hi"}}"#)
+            let ack = client.readLine(timeout: 2) ?? ""
+            check(ack.contains("\"ok\":true"), "an intent is accepted and acknowledged")
+            check(seen.count == 1 && seen.first?.verb == .say, "and reaches the behaviour layer")
+
+            client.send("not json")
+            let bad = client.readLine(timeout: 2) ?? ""
+            check(bad.contains("malformed_json"), "a malformed line is refused over the wire")
+
+            client.send(#"{"id":"c1","ts":\#(Int(Date().timeIntervalSince1970 * 1000)),"verb":"say","args":{"text":"again"}}"#)
+            let duplicate = client.readLine(timeout: 2) ?? ""
+            check(duplicate.contains("duplicate_id"), "and a retry of a seen id is a duplicate")
+            client.close()
+        } else {
+            check(false, "a client can connect to the control socket")
+        }
+
+        // A stale socket file — what a crashed instance leaves — must not stop the
+        // next one, which is the difference between a pet that starts and a pet that
+        // reports "address in use" with nobody to blame.
+        server.stop()
+        check(!FileManager.default.fileExists(atPath: socketPath), "stopping removes the socket")
+        FileManager.default.createFile(atPath: socketPath, contents: Data("stale".utf8))
+        let recovered = ControlServer(socketPath: socketPath, portPath: nil)
+        do {
+            try recovered.start()
+            check(true, "a stale socket file is replaced rather than blocking the start")
+            recovered.stop()
+        } catch {
+            check(false, "a stale socket file is replaced rather than blocking the start: \(error)")
+        }
+        try? FileManager.default.removeItem(atPath: scratch)
+
+        print("")
         print("the small things")
         let quietDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
         // A sneeze: a hop, a head shake, and one noise.

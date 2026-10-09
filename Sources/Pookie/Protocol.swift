@@ -20,6 +20,11 @@ enum IntentVerb: String, CaseIterable {
     case lookAt
     case face
     case state
+    /// The pet itself, not its bubble. M3's acceptance criteria name `pookie hide`
+    /// and `pookie show`; §4 of the protocol defined `bubble.hide` and not these, so
+    /// they are added here and documented in the same change.
+    case hide
+    case show
     case bubbleShow = "bubble.show"
     case bubbleAppend = "bubble.append"
     case bubbleHide = "bubble.hide"
@@ -36,6 +41,9 @@ enum IntentVerb: String, CaseIterable {
         case .lookAt: return (20, 5_000)
         case .face: return (20, 10_000)
         case .state: return (50, 30_000)
+        // Above `say`, so hiding always wins — the same reasoning as `bubble.hide`.
+        case .hide: return (90, 5_000)
+        case .show: return (90, 5_000)
         case .bubbleShow: return (35, 20_000)
         case .bubbleAppend: return (55, 20_000)
         case .bubbleHide: return (65, 5_000)
@@ -124,42 +132,48 @@ final class IntentRouter {
     /// Decode one line and answer it. `now` is the same clock the producer stamps
     /// with, in epoch milliseconds.
     func receive(line: String, now: Double) -> IntentAck {
+        receiveResult(line: line, now: now).ack
+    }
+
+    /// The same thing, with the decoded intent when there is one — which is what the
+    /// transport needs in order to hand it to the behaviour layer.
+    func receiveResult(line: String, now: Double) -> (ack: IntentAck, intent: Intent?) {
         guard let data = line.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else {
             refusedCount += 1
-            return .refused("", .malformedJSON)
+            return (.refused("", .malformedJSON), nil)
         }
 
         guard let id = object["id"] as? String, !id.isEmpty else {
             refusedCount += 1
-            return .refused("", .missingField)
+            return (.refused("", .missingField), nil)
         }
         guard let ts = object["ts"] as? Double ?? (object["ts"] as? Int).map(Double.init) else {
             refusedCount += 1
-            return .refused(id, .missingField)
+            return (.refused(id, .missingField), nil)
         }
         guard let verbName = object["verb"] as? String else {
             refusedCount += 1
-            return .refused(id, .missingField)
+            return (.refused(id, .missingField), nil)
         }
         guard let verb = IntentVerb(rawValue: verbName) else {
             refusedCount += 1
-            return .refused(id, .unknownVerb)
+            return (.refused(id, .unknownVerb), nil)
         }
         // `args` is required and must not be null: the specification is explicit,
         // and a missing object is the difference between "no arguments" and "the
         // producer forgot".
         guard let args = object["args"] as? [String: Any] else {
             refusedCount += 1
-            return .refused(id, .missingField)
+            return (.refused(id, .missingField), nil)
         }
 
         // Dedupe before expiry: a retry of something that already ran is a
         // duplicate, not a stale intent, and saying so is more useful.
         if seenSet.contains(id) {
             refusedCount += 1
-            return .refused(id, .duplicateID)
+            return (.refused(id, .duplicateID), nil)
         }
 
         let defaults = verb.defaults
@@ -167,7 +181,7 @@ final class IntentRouter {
         // A TTL of infinity is the subscription case (`pet.on`): never expires.
         if ttl.isFinite, ts + ttl < now {
             refusedCount += 1
-            return .refused(id, .expired)
+            return (.refused(id, .expired), nil)
         }
 
         var priority = defaults.priority
@@ -189,7 +203,7 @@ final class IntentRouter {
         )
         remember(id)
         acceptedCount += 1
-        return .started(intent.id)
+        return (.started(intent.id), intent)
     }
 
     private func remember(_ id: String) {
