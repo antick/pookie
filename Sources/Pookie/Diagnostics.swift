@@ -1339,6 +1339,43 @@ print("scuffles")
         check(yelped, "and the flattened-ear face")
         check(victim.hitsTaken == 1, "and it is counted")
 
+        // Nothing may stick. The pose is a persistent property, so a channel that is
+        // only written while its condition holds will otherwise stay at its last
+        // value for the rest of the session — which is what a pookie standing still
+        // with a leg out sideways turned out to be.
+        let after = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        after.followCursor = false
+        after.wanderEnabled = false
+        after.companions = [CGPoint(x: after.origin.x + after.personalSpace * 0.5, y: 0)]
+        check(after.startScuffle(1.5), "she has a scrap")
+        var sawLimb = false
+        for _ in 0..<120 {
+            after.companions = [CGPoint(x: after.origin.x + after.personalSpace * 0.5, y: 0)]
+            after.advance(dt: 1.0 / 60.0)
+            if abs(after.pose.punch) > 0.3 || abs(after.pose.kick) > 0.3 { sawLimb = true }
+        }
+        check(sawLimb, "and throws something during it")
+        run(after, 3)
+        check(!after.isScuffling, "the scrap ends")
+        check(
+            after.pose.punch == 0 && after.pose.kick == 0 && after.pose.impact == 0,
+            "and nothing is left sticking out (punch=\(after.pose.punch), kick=\(after.pose.kick))"
+        )
+
+        // Same for the other two channels, which had the same bug.
+        let rinsed = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        rinsed.followCursor = false
+        rinsed.wanderEnabled = false
+        check(rinsed.groom(), "she washes")
+        run(rinsed, 4)
+        check(rinsed.pose.groom == 0, "and puts the paw down afterwards")
+        let whirled = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
+        whirled.followCursor = false
+        whirled.wanderEnabled = false
+        check(whirled.startTailChase(), "she chases her tail")
+        run(whirled, 4)
+        check(whirled.pose.spin == 0, "and stops spinning afterwards")
+
         // And a brawl holds them closer than the rule that keeps them apart.
         let brawler = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: scuffleDesk)
         brawler.followCursor = false

@@ -65,6 +65,12 @@ relevant one before changing behaviour in its area.
   engine.
 - **One of each animal.** `PetCohort` refuses a second pookie of a kind somebody already is, and a
   saved roster is repaired on load rather than trusted. Coats and names are the free axes.
+- **Transient pose channels are cleared every frame.** `punch`, `kick`, `groom`, `spin` and `impact`
+  are written only while their condition holds, and the pose is a persistent property — so a channel
+  that is not cleared walks around with the pet forever. That shipped once: a pookie standing still
+  with one leg out sideways for no reason, which was the last frame of a brawl she had finished ten
+  minutes earlier. Clear them at the top of `updatePose`, and assert it in a test that ends the
+  behaviour and checks the channel is back to zero.
 - **`TODO.md` is open work only.** Finish an item and it comes out of the file, with the reason it
   is gone left to `git log` and the roadmap. Do not tick, do not strike through, do not keep a
   "recently closed" section: anything in there is something still to do.

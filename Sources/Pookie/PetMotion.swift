@@ -1400,6 +1400,18 @@ final class PetMotion {
     // MARK: - Pose
 
     private func updatePose(_ dt: Double) {
+        // Clear the transient channels before anything sets them. The pose is a
+        // persistent property, and these five are only *written* while their
+        // condition holds — so without this, a punch, a kick, a wash or a
+        // tail-chase left at its last value sticks to her for the rest of the
+        // session. That is what a pookie standing still with one leg out sideways
+        // for no reason is: the last frame of a brawl she finished ten minutes ago.
+        pose.punch = 0
+        pose.kick = 0
+        pose.groom = 0
+        pose.spin = 0
+        pose.impact = 0
+
         let region = desktop.region(containing: origin)
         let ground = surface(at: origin.x + size.width / 2, region: region, from: origin.y)
         let airborne = !isDragging && origin.y > ground + 0.5

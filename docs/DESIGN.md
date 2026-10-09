@@ -294,6 +294,14 @@ to keep in sync with the body. This is also the piece of M1's "explicit animatio
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
 
+**Transient channels are cleared every frame, and that is a contract.** `CatPose.punch`, `.kick`,
+`.groom`, `.spin` and `.impact` are only *written* while their condition holds, and `PetMotion.pose` is
+a persistent property — so a channel left at its last value sticks for the rest of the session. It
+shipped: a pookie standing still with one leg out sideways, which was the final frame of a brawl she
+had finished ten minutes earlier. `updatePose` clears all five before anything sets them, the heartbeat
+reports all four limbs-and-channels, and a test ends each behaviour and asserts the channel is back to
+zero.
+
 **Three more shapes, and two more channels.** `CatShape` grew `curl`, `reachUp` and `peek`, which cost
 three anatomy keyframes each and nothing else — the renderer draws whatever the blend says, so a new
 pose is data. `groom` and `spin` are *transient channels* like the punch: applied in the renderer rather

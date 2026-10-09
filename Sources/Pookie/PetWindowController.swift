@@ -673,6 +673,12 @@ final class PetWindowController {
             + "hops=\(motion.teleportCount) "
             + "plays=\(motion.playCount) "
             + "scraps=\(motion.scuffleCount) "
+            // The transient channels, so "is something stuck out?" is answerable
+            // from a log instead of from a screenshot of a pookie with a leg out.
+            + "punch=\(String(format: "%.2f", motion.pose.punch)) "
+            + "kick=\(String(format: "%.2f", motion.pose.kick)) "
+            + "groom=\(String(format: "%.2f", motion.pose.groom)) "
+            + "spin=\(String(format: "%.2f", motion.pose.spin)) "
             + "zoomies=\(motion.zoomiesCount) "
             + "sneezes=\(motion.sneezeCount) "
             + "hits=\(motion.hitsLanded)/\(motion.hitsTaken) "
