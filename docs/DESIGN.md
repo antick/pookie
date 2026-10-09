@@ -294,6 +294,18 @@ to keep in sync with the body. This is also the piece of M1's "explicit animatio
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
 
+**Intent arguments are mapped in one pure place** (`IntentMapping`). The protocol speaks Core Graphics
+global display space — origin at the top-left of the *display*, `y` increasing down — while AppKit's
+screens are bottom-left, so the flip happens once, in a function with a test, rather than in every
+client. The first version flipped about the *visible region's* top instead of the display's, which is
+wrong by exactly the menu bar and would have been invisible until somebody watched where she went.
+Anchors resolve inside the screen they are given, and `front-window-edge` is refused rather than
+guessed at.
+
+A `state` mode is a profile, not a mood: `work` holds still *and* stops a walk already in progress
+(otherwise a mode that says stay put leaves her mid-stride with a sleepy mood), `sleep` forces sleep
+whatever the idle clock thinks, and `hidden` is the one mode that changes what is on screen.
+
 **The transport is BSD sockets, deliberately** (`ControlServer`). `PROTOCOL.md` names a Unix domain
 socket, `Network.framework`'s support for one is a corner rather than a road, and the two things that
 bite — not binding over a socket a live instance still owns, and not leaving one world-writable — are

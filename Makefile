@@ -40,6 +40,13 @@ poses: build
 	@$(BIN) --render-patterns shots/patterns.png
 	@$(BIN) --render-brawl shots/brawl.png
 
+# The protocol's M3 criterion is `pookie say "hi"` from a fresh terminal, so the
+# command line needs a name without a path in front of it. A symlink beside the app
+# rather than an install step, so nothing is written outside the build directory.
+cli: bundle
+	@ln -sf "$(CURDIR)/build/Pookie.app/Contents/MacOS/Pookie" build/pookie
+	@echo "build/pookie -> the app binary; add $(CURDIR)/build to PATH"
+
 bundle:
 	@./scripts/bundle.sh $(CONFIG)
 

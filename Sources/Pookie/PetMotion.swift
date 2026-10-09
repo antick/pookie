@@ -198,6 +198,27 @@ final class PetMotion {
         hurtSeconds -= dt
     }
 
+    /// The holds a producer asked for: an emote, and a facing.
+    private func updateHolds(_ dt: Double) {
+        if emoteSeconds > 0 {
+            emoteSeconds -= dt
+            if emoteSeconds <= 0 {
+                emoteMood = nil
+                emoteBlush = false
+            }
+        }
+        if facingHold > 0 {
+            facingHold -= dt
+            if facingHold <= 0 {
+                forcedFacing = nil
+            } else if let forcedFacing {
+                // Held, not set once: the cursor-following logic would otherwise take
+                // the facing straight back.
+                facing = forcedFacing
+            }
+        }
+    }
+
     /// The brawl, and the clock that decides when one starts.
     ///
     /// Close company used to trigger a scrap on the frame it was detected, which
@@ -259,7 +280,7 @@ final class PetMotion {
         if zoomiesCountdown <= 0 {
             zoomiesCountdown = Rand.double(60...200)
             // Only from a standstill: a cat does not interrupt a nap to do this.
-            if wanderTargetX == nil, !isResting, !isPlaying {
+            if canStartUnprompted {
                 zoomiesSeconds = Rand.double(0.9...1.8)
                 zoomiesCount += 1
                 speedBoost = 2.1
@@ -276,7 +297,7 @@ final class PetMotion {
         groomCountdown -= dt
         if groomCountdown <= 0 {
             groomCountdown = Rand.double(70...200)
-            if wanderTargetX == nil, !isScuffling, !isPlaying {
+            if wanderTargetX == nil, !isScuffling, !isPlaying, stateProfile?.wanders ?? true {
                 groom()
             }
         }
@@ -285,7 +306,7 @@ final class PetMotion {
         spinCountdown -= dt
         if spinCountdown <= 0 {
             spinCountdown = Rand.double(120...320)
-            if wanderTargetX == nil, !isScuffling, !isPlaying {
+            if canStartUnprompted {
                 startTailChase()
             }
         }
@@ -319,6 +340,65 @@ final class PetMotion {
         spinSeconds = Rand.double(1.0...1.8)
         spinCount += 1
         return true
+    }
+
+    /// An emote the pet was told to wear, and how long is left of it.
+    ///
+    /// An emote is a *held expression*, which is why it is not the same thing as a
+    /// mood: moods are derived from what she is doing, and this one is imposed from
+    /// outside for a stated time.
+    private var emoteMood: CatMood?
+    private var emoteSeconds: Double = 0
+    private var emoteBlush = false
+    /// A forced facing, from the `face` verb.
+    private var facingHold: Double = 0
+    private var forcedFacing: Double?
+    /// A high-level mode, from the `state` verb. Nil means "the usual profile".
+    private var stateProfile: IntentMapping.Profile?
+
+    /// Wear an expression for a while. False for an emote this renderer cannot
+    /// honestly do.
+    @discardableResult
+    func applyEmote(_ emote: IntentMapping.Emote, seconds: Double) -> Bool {
+        guard emote.isSupported else { return false }
+        emoteMood = emote.mood
+        emoteBlush = emote.blushes
+        emoteSeconds = max(0.1, seconds)
+        return true
+    }
+
+    /// Hold a facing direction for a while. `nil` means "back to normal".
+    func holdFacing(_ direction: Double?, seconds: Double) {
+        forcedFacing = direction
+        facingHold = max(0, seconds)
+        if let direction { facing = direction }
+    }
+
+    /// Force a high-level mode, or clear it.
+    func applyState(_ profile: IntentMapping.Profile?) {
+        stateProfile = profile
+        // "Hold still" has to stop a walk already in progress, not only prevent the
+        // next one: otherwise a mode that says stay put leaves her mid-stride, with a
+        // sleepy mood and a standing shape, which is exactly what the first live check
+        // showed.
+        if profile?.wanders == false {
+            wanderTargetX = nil
+            velocity.dx = 0
+        }
+        if profile?.celebrates == true, canStartUnprompted {
+            zoomiesSeconds = 1.4
+            zoomiesCount += 1
+        }
+    }
+
+    /// The mode in force, for the selftest and the state description.
+    var currentStateProfile: IntentMapping.Profile? { stateProfile }
+
+    /// Whether an unprompted behaviour that moves her may start at all. A mode that
+    /// says "hold still" means hold still.
+    private var canStartUnprompted: Bool {
+        guard stateProfile?.wanders ?? true else { return false }
+        return !isResting && !isPlaying && !isScuffling && !isTeleporting && wanderTargetX == nil
     }
 
     /// A stretch up after a nap: the shape, held for a moment.
@@ -487,7 +567,7 @@ final class PetMotion {
     private(set) var jumpCount = 0
     /// Nothing has interacted with her for long enough that she has gone to
     /// sleep. The same threshold the `sleepy` mood uses.
-    var isAsleep: Bool { idleSeconds > sleepAfterSeconds }
+    var isAsleep: Bool { (stateProfile?.forcesSleep ?? false) || idleSeconds > sleepAfterSeconds }
 
     /// The resting shape she is easing into. `stand` unless something else is
     /// true: perched and still means a loaf, idle for a long time means a sit,
@@ -683,6 +763,7 @@ final class PetMotion {
         }
 
         updateHurt(dt)
+        updateHolds(dt)
         updateSmallBehaviours(dt)
         updatePlay(dt)
         updateScuffle(dt)
@@ -1319,7 +1400,7 @@ final class PetMotion {
     /// Pookie ambles to a new spot every so often. Cheap, and it is the thing
     /// that stops a desktop pet from feeling like a sticker.
     private func wander(_ dt: Double, grounded: Bool) {
-        guard wanderEnabled, grounded, !isDragging else {
+        guard wanderEnabled, grounded, !isDragging, stateProfile?.wanders ?? true else {
             if !grounded { wanderTargetX = nil }
             return
         }
@@ -1698,6 +1779,10 @@ final class PetMotion {
     }
 
     private func resolveMood(sleepy: Bool, airborne: Bool, walking: Bool) -> CatMood {
+        // An emote is imposed from outside and wins over what she is doing: a producer
+        // asking for `love` means now, not when she next happens to be idle.
+        if emoteSeconds > 0, let emoteMood { return emoteMood }
+        if let forced = stateProfile?.mood { return forced }
         if isDragging { return .dragged }
         if airborne && abs(velocity.dy) > 700 { return .alarmed }
         // A cat in a chase is playing, and the happy face already has the ears

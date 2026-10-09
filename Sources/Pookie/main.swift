@@ -9,7 +9,8 @@ if arguments.contains("--help") || arguments.contains("-h") {
 
     Usage:
       Pookie                       run the pet
-      Pookie --say "text"          make a running Pookie say something, then exit
+      pookie say "text"            drive a running Pookie (see `pookie help`)
+      Pookie --say "text"          the flag-style equivalent, kept for scripts
       Pookie --producer <name>     name the sender, for the per-producer budget
       Pookie --simulate-lock <on|off>  post the screen-lock notification, to test the pause path
       Pookie --launch-at-login <on|off>  add or remove Pookie from your login items
@@ -166,6 +167,32 @@ if let index = arguments.firstIndex(of: "--simulate-lock") {
     exit(0)
 }
 
+// `pookie <verb>` — the command line the protocol's M3 criterion names. It goes
+// through the control socket and prints the pet's ack, so a shell sees what happened
+// rather than hoping.
+if let command = CLI.command(for: arguments) {
+guard let client = try? ControlClient() else {
+    FileHandle.standardError.write(Data("pookie: no pet is listening. Is Pookie running?\n".utf8))
+    exit(2)
+}
+client.send("{\"verb\":\"hello\",\"args\":{\"client\":\"pookie-cli/0.1\",\"protocol\":\"0.1\"}}")
+guard let greeting = client.readLine(timeout: 2), greeting.contains("hello.ok") else {
+    client.close()
+    FileHandle.standardError.write(Data("pookie: connected, but the pet did not answer the handshake\n".utf8))
+    exit(2)
+}
+client.send(CLI.line(for: command))
+guard let ack = client.readLine(timeout: 3) else {
+    client.close()
+    FileHandle.standardError.write(Data("pookie: the pet said nothing back\n".utf8))
+    exit(2)
+}
+client.close()
+print(ack)
+// A refusal is a non-zero exit, so a script can branch on it.
+exit(ack.contains("\"ok\":true") ? 0 : 1)
+}
+
 if let index = arguments.firstIndex(of: "--say") {
     let text = index + 1 < arguments.count ? arguments[index + 1] : "hello"
     // Who is asking. The protocol has no sender identity of its own yet, so the
@@ -178,7 +205,7 @@ if let index = arguments.firstIndex(of: "--say") {
     } else if let named = ProcessInfo.processInfo.environment["POOKIE_PRODUCER"], !named.isEmpty {
         producer = named
     }
-    // The control socket first — that is M3's transport, and it carries an ack. The
+// The control socket first — that is M3's transport, and it carries an ack. The
     // distributed notification is the stand-in it replaces, kept as a fallback so an
     // older running pet still answers.
     let intent = """

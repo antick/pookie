@@ -11,7 +11,8 @@ Status by milestone:
 | Verb vocabulary + envelope | M2 (in-process), M3 (on the wire) |
 | Envelope decode, dedupe, TTL, error codes, acks | **Landed** — `Sources/Pookie/Protocol.swift`, headless-tested |
 | Unix socket + loopback TCP fallback, `hello`, acks over the wire | **Landed** — `Sources/Pookie/ControlServer.swift`, tested against a real socket |
-| The `pookie` CLI verbs (`state`, `move`, `hide`, `show`) and an installed name on `PATH` | M3, outstanding |
+| The `pookie` CLI (`say`, `emote`, `move`, `face`, `state`, `hide`, `show`) | **Landed** — `Sources/Pookie/CLI.swift`, and `make cli` puts `pookie` on `PATH` |
+| `lookAt`, `bubble.*`, `pet.on`, `front-window-edge`, `emote sparkle`/`sweat` | Refused with `unsupported` |
 | `pookie` CLI client | M3 |
 | MCP surface | M4 |
 | LLM brain as a client | M5 |

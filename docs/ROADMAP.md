@@ -159,6 +159,11 @@ enforced behaviour with tests.
 
 ## M3 — Control plane: `pookie say "hi"` from the terminal
 
+**Status: criteria 1–4 met**, with a handful of verbs answering `unsupported` rather than
+being faked: the Unix socket and loopback fallback, the envelope with dedupe and TTL, the
+`pookie` CLI, and `pookie say "hi"` from a fresh terminal with an ack and a non-zero exit
+on refusal. See `TODO.md` for the verbs that remain.
+
 ### Goal
 
 Make the pet drivable from a shell. This is the milestone that unlocks everything: once a terminal

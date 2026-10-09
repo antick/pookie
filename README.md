@@ -134,9 +134,27 @@ loopback TCP fallback whose port is written to `.../Pookie/port`. Lines in, acks
 per line, per [`PROTOCOL.md`](docs/PROTOCOL.md).
 
 ```bash
-Pookie --say "build finished" --producer ci
-# pookie says: build finished (from ci) — {"id":"…","ok":true,"accepted":"started","eta_ms":0}
+make cli                      # build/pookie -> the app binary; add build/ to PATH
+pookie say "build finished" --producer ci
+pookie emote love             # happy, with a blush
+pookie move bottom-right      # or move 100 200, in the protocol's coordinates
+pookie state sleep            # idle | sleep | work | alert | hidden | celebrate
+pookie face left              # left | right | cursor
+pookie hide                   # and pookie show
 ```
+
+Every verb answers with an ack, and a refusal is a **non-zero exit**, so a script can branch on it:
+
+```
+$ pookie emote sparkle
+{"id":"…","ok":false,"accepted":"dropped","error":"unsupported"}
+$ echo $?
+1
+```
+
+`sparkle` and `sweat` need an effect the renderer does not have yet, and they say so rather than
+faking it as a mood that means something else. The same is true of `lookAt`, the `bubble.*` verbs and
+`pet.on`.
 
 That is the socket, not the old distributed-notification stand-in: the pet shakes hands, accepts the
 intent, and answers with an ack. `POOKIE_CONTROL_SOCKET` points both the pet and the CLI at a different

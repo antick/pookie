@@ -122,22 +122,104 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .started(intent.id)
 
         case .moveTo:
-            guard let x = intent.args["x"] as? Double, let y = intent.args["y"] as? Double else {
+            guard let target = moveTarget(for: intent) else {
                 return .refused(intent.id, .badArgs)
             }
-            cohort.spokespet?.motion.move(to: CGPoint(x: x, y: y), animated: true)
+            for pet in cohort.pets { pet.motion.move(to: target, animated: true) }
+            return .started(intent.id)
+
+        case .face:
+            guard let raw = intent.args["direction"] as? String else {
+                return .refused(intent.id, .badArgs)
+            }
+            let hold = ((intent.args["holdMs"] as? Double) ?? 0) / 1000
+            let direction: Double?
+            switch raw {
+            case "left": direction = -1
+            case "right": direction = 1
+            case "cursor":
+                guard let cursor = cohort.spokespet?.motion.cursor else {
+                    return .refused(intent.id, .badArgs)
+                }
+                let centre = cohort.spokespet?.motion.origin.x ?? 0
+                direction = cursor.x >= centre ? 1 : -1
+            default:
+                // `front-window` needs the frontmost window's geometry, which is the
+                // scanner's job: refused rather than guessed at.
+                return .refused(intent.id, .unsupported)
+            }
+            for pet in cohort.pets { pet.motion.holdFacing(direction, seconds: hold) }
             return .started(intent.id)
 
         case .state:
-            // The same line the ctrl-opt-D hotkey logs: one description, one place.
-            describeState()
+            guard let raw = intent.args["name"] as? String,
+                  let name = IntentMapping.StateName(rawValue: raw)
+            else {
+                return .refused(intent.id, .badArgs)
+            }
+            let profile = IntentMapping.profile(for: name)
+            // `hidden` is the one mode that changes what is on screen rather than how
+            // she behaves.
+            cohort.setHidden(profile.hides)
+            for pet in cohort.pets { pet.motion.applyState(name == .idle ? nil : profile) }
+            Log.info("state -> \(name.rawValue)")
             return .started(intent.id)
 
-        case .emote, .face, .bubbleShow, .bubbleAppend, .bubbleHide, .lookAt, .petOn:
+        case .emote:
+            guard let raw = intent.args["name"] as? String,
+                  let emote = IntentMapping.Emote(rawValue: raw)
+            else {
+                return .refused(intent.id, .badArgs)
+            }
+            let seconds = ((intent.args["durationMs"] as? Double) ?? 2_000) / 1000
+            guard cohort.spokespet?.motion.applyEmote(emote, seconds: seconds) == true else {
+                // `sparkle` and `sweat` need an effect this renderer does not have.
+                // Saying so is better than faking them as a mood that means something
+                // else.
+                return .refused(intent.id, .unsupported)
+            }
+            if let line = emote.line {
+                _ = cohort.say(line, from: "socket")
+            }
+            return .started(intent.id)
+
+        case .lookAt, .bubbleShow, .bubbleAppend, .bubbleHide, .petOn:
             // Understood, and not implemented at this version — which is exactly what
             // `unsupported` means, and better than pretending to accept it.
             return .refused(intent.id, .unsupported)
         }
+    }
+
+    /// Where a `moveTo` wants her, in AppKit's coordinates.
+    ///
+    /// The protocol speaks Core Graphics global display space — origin top-left, `y`
+    /// down — which is the convention `CGWindowListCopyWindowInfo` uses and therefore
+    /// the one that keeps producer code boring. AppKit is bottom-left, so this is the
+    /// single place the flip happens.
+    private func moveTarget(for intent: Intent) -> CGPoint? {
+        let screens = NSScreen.screens
+        let mainHeight = screens.first?.frame.maxY ?? 0
+
+        if let raw = intent.args["anchor"] as? String,
+           let anchor = IntentMapping.Anchor(rawValue: raw) {
+            let region = screens.first?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+            guard let point = IntentMapping.point(
+                for: anchor,
+                region: region,
+                displayHeight: screens.first?.frame.height ?? 900,
+                petSize: AppConfig.shared.petSize,
+                cursor: NSEvent.mouseLocation
+            ) else { return nil }
+            // Anchors are already resolved into the protocol's space by `point(for:)`;
+            // the cursor is handed in from AppKit, so it comes back unchanged and is
+            // the one case that does not need the flip.
+            return anchor == .cursor ? point : IntentMapping.toAppKit(point, mainDisplayHeight: mainHeight)
+        }
+
+        guard let x = intent.args["x"] as? Double, let y = intent.args["y"] as? Double else {
+            return nil
+        }
+        return IntentMapping.toAppKit(CGPoint(x: x, y: y), mainDisplayHeight: mainHeight)
     }
 
     /// Pause everything while the screen is locked or the machine is asleep.

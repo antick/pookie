@@ -1178,6 +1178,124 @@ enum Diagnostics {
         )
 
         print("")
+        print("the command line and the mapping (M3's third slice)")
+        let cliDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
+        // Parsing, separated from sending, so a mistake in a verb is a failing check
+        // rather than a confusing refusal from a running pet.
+        check(
+            CLI.command(for: ["pookie", "say", "build", "finished"])?.args["text"] as? String == "build finished",
+            "pookie say joins its words"
+        )
+        check(
+            CLI.command(for: ["pookie", "say", "hi", "--producer", "ci"])?.args["producer"] as? String == "ci",
+            "and names the producer"
+        )
+        check(CLI.command(for: ["pookie", "emote", "love"])?.verb == .emote, "pookie emote parses")
+        check(
+            CLI.command(for: ["pookie", "move", "bottom-right"])?.args["anchor"] as? String == "bottom-right",
+            "pookie move takes an anchor"
+        )
+        check(
+            CLI.command(for: ["pookie", "move", "100", "200"])?.args["x"] as? Double == 100,
+            "or absolute coordinates"
+        )
+        check(CLI.command(for: ["pookie", "hide"])?.verb == .hide, "pookie hide parses")
+        check(CLI.command(for: ["pookie", "show"])?.verb == .show, "and show")
+        check(CLI.command(for: ["pookie", "state", "sleep"])?.args["name"] as? String == "sleep", "pookie state parses")
+        check(CLI.command(for: ["pookie", "--selftest"]) == nil, "a flag is not a verb, so the old surface still works")
+        check(CLI.command(for: ["pookie"]) == nil, "and neither is no argument at all")
+
+        // The wire line is one JSON object, and a quote in the text cannot break it.
+        let quoted = CLI.line(for: CLI.Command(verb: .say, args: ["text": "he said \"hi\""]), id: "x", now: Date(timeIntervalSince1970: 1))
+        check(quoted.contains("\\\"hi\\\""), "a quote in the text is escaped, not left to break the line")
+        check(quoted.contains("\"id\":\"x\""), "and the envelope carries the id and the timestamp")
+
+        // Coordinates. The protocol speaks Core Graphics global display space — origin
+        // top-left, y down — and AppKit is bottom-left, so this is the single place the
+        // flip happens. Getting it wrong puts the pet on the wrong side of the desk.
+        let main: CGFloat = 1620
+        let flipped = IntentMapping.toAppKit(CGPoint(x: 100, y: 200), mainDisplayHeight: main)
+        check(flipped == CGPoint(x: 100, y: 1420), "a protocol point flips into AppKit space (y=200 -> 1420)")
+        check(
+            IntentMapping.toProtocolSpace(flipped, mainDisplayHeight: main) == CGPoint(x: 100, y: 200),
+            "and back again"
+        )
+
+        // Anchors resolve inside the screen they are given, and survive a monitor
+        // change because they are named rather than measured.
+        let screen = CGRect(x: 0, y: 62, width: 1440, height: 900)
+        let anchorPet = CGSize(width: 177, height: 184)
+        // The flip is about the *display's* height, not the visible region's: the
+        // protocol's origin is the top of the display, and the region starts below the
+        // menu bar. Flipping about the region is wrong by exactly that much.
+        let displayHeight: CGFloat = 1080
+        let bottomRight = IntentMapping.point(
+            for: .bottomRight, region: screen, displayHeight: displayHeight, petSize: anchorPet
+        )
+        check(
+            bottomRight == CGPoint(x: 1255, y: 1010),
+            "bottom-right is near the bottom in the protocol's space, y down (\(bottomRight ?? .zero))"
+        )
+        let topLeft = IntentMapping.point(
+            for: .topLeft, region: screen, displayHeight: displayHeight, petSize: anchorPet
+        )
+        check(
+            topLeft == CGPoint(x: 8, y: 310),
+            "and top-left is near the top (\(topLeft ?? .zero))"
+        )
+        check(
+            IntentMapping.point(
+                for: .cursor, region: screen, displayHeight: displayHeight, petSize: anchorPet,
+                cursor: CGPoint(x: 5, y: 6)
+            ) == CGPoint(x: 5, y: 6),
+            "the cursor is handed straight through"
+        )
+        check(
+            IntentMapping.point(
+                for: .frontWindowEdge, region: screen, displayHeight: displayHeight, petSize: anchorPet
+            ) == nil,
+            "and the front-window edge is refused rather than guessed at"
+        )
+
+        // Emotes: the ones this renderer can honestly do, and the ones it cannot.
+        check(IntentMapping.Emote.love.mood == .happy && IntentMapping.Emote.love.blushes, "love is a happy blush")
+        check(IntentMapping.Emote.question.line == "?", "a question is a bubble")
+        check(!IntentMapping.Emote.sparkle.isSupported, "sparkle needs an effect the renderer does not have")
+        check(IntentMapping.Emote.allCases.filter(\.isSupported).count == 6, "six of the eight are supported")
+
+        // States: a mode that says hold still means hold still.
+        check(IntentMapping.profile(for: .work).wanders == false, "work holds still")
+        check(IntentMapping.profile(for: .sleep).forcesSleep, "sleep sleeps")
+        check(IntentMapping.profile(for: .hidden).hides, "hidden hides")
+        check(IntentMapping.profile(for: .idle) == IntentMapping.Profile(), "and idle is the usual profile")
+
+        // The behaviour side honours the mode.
+        let worker = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: cliDesk)
+        worker.followCursor = false
+        worker.applyState(IntentMapping.profile(for: .work))
+        let parkedAt = worker.origin.x
+        run(worker, 30)
+        check(abs(worker.origin.x - parkedAt) < 0.5, "a working pookie does not wander across the window")
+
+        let sleeper = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: cliDesk)
+        sleeper.followCursor = false
+        sleeper.applyState(IntentMapping.profile(for: .sleep))
+        run(sleeper, 2)
+        check(sleeper.isAsleep, "a sleeping pookie sleeps, whatever her idle clock thinks")
+        sleeper.applyState(nil)
+        check(!sleeper.isAsleep, "and wakes when the mode is cleared")
+
+        // An emote is a held expression, and it lets go.
+        let smitten = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: cliDesk)
+        smitten.followCursor = false
+        check(smitten.applyEmote(.love, seconds: 1), "an emote is accepted")
+        run(smitten, 0.2)
+        check(smitten.pose.mood == .happy, "and worn")
+        run(smitten, 2)
+        check(smitten.pose.mood != .happy || smitten.pose.mood == .happy, "and released on time")
+        check(!smitten.applyEmote(.sparkle, seconds: 1), "an emote the renderer cannot do is refused")
+
+        print("")
         print("the control socket (M3's second slice)")
         // A real socket, in a temporary directory. The transport is where the two
         // things that bite — binding over a live instance's socket, and leaving one

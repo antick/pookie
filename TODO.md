@@ -30,28 +30,14 @@ the method matters more than the memory: **sweep the docs, do not recall them.**
 
 ## 2. The control plane, which unlocks three other milestones
 
-- [ ] **M3 — a `pookie` CLI over a local socket.** The **transport has landed too**:
-      a Unix domain socket at the protocol's path (mode 0600, stale files replaced,
-      a live one not stolen), the loopback TCP fallback with its port file, the
-      `hello` handshake, and acks back down the connection — 11 checks against a real
-      socket. `Pookie --say` uses it and returns an ack; the notification bridge is
-      now the fallback. Verbs mapped: `say`, `hide`, `show`, `spawn`, `despawn`,
-      `moveTo`, `state`. `emote` and `face` answer `unsupported`, which is what that
-      error code is for. What is left: the protocol's own **CLI verbs** (`pookie
-      state`, `pookie move`, `pookie hide`, `pookie show` as separate commands rather
-      than `--say`), an installed `pookie` name on `PATH`, and the two missing verbs.
-
-      Earlier slice, for context: the **envelope**
-      (`Protocol.swift`: decode, validate, dedupe, expire, and an ack per intent, with
-      every error code and the per-verb defaults from the spec — pure, headless, 16
-      checks). What is left: the **transport** (NDJSON over a Unix domain socket,
-      loopback TCP fallback), the **CLI verbs**, and the **mapping** from an intent to
-      the in-process behaviour (`say`, `moveTo`, `lookAt`, `hide`/`show`,
-      `spawn`/`despawn` and `state` all exist; `emote` and `face` do not). `Pookie
-      --say` remains the stand-in until the socket is there.
-      *Done when:* `pookie say "hi"` from a fresh terminal makes the pet speak,
-      with no setup beyond the CLI being on `PATH`.
-      *Unlocks:* M4, M5 and M7. This is the roadmap's own "unlocks everything".
+- [ ] **The verbs that answer `unsupported`.** M3 landed its criteria — the socket, the
+      envelope, the CLI and `pookie say "hi"` from a fresh terminal — with these
+      honestly refused rather than faked: `emote`'s `sparkle` and `sweat` (they need an
+      effect the renderer does not have), `lookAt`, `bubble.show`, `bubble.append`,
+      `bubble.hide`, `pet.on`, the `front-window-edge` anchor, and `face front-window`
+      (which needs the frontmost window's geometry). Each is understood and answers
+      `unsupported`, which is what that error code is for.
+      *Done when:* either the verb does something, or the protocol stops listing it.
 
 - [ ] **M4 — an MCP server**, one tool per verb, so Codex and Claude Code can
       animate the pet with no bespoke integration. The adapter must contain no

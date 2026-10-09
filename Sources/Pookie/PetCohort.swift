@@ -434,6 +434,9 @@ final class PetCohort {
     }
 
     func setHidden(_ hidden: Bool) {
+        // Logged, because a hidden pet stops drawing and therefore stops reporting:
+        // without this line, "did the hide work?" has no answer in the log.
+        Log.info("pets \(hidden ? "hidden" : "shown")")
         for pet in pets { pet.setHidden(hidden) }
     }
 
