@@ -1335,7 +1335,16 @@ print("scuffles")
             if victim.pose.mouthOpen > 0.3 { flinched = true }
             if victim.pose.mood == .alarmed { yelped = true }
         }
-        check(flinched, "with a yelp and a squint")
+        check(flinched, "with a yelp and an open mouth")
+        // The squint specifically: the blink timeline runs after `updatePose` and
+        // owns the channel, so a flinch that writes it from there is overwritten
+        // every frame and never shows.
+        var squinted = false
+        for _ in 0..<30 {
+            victim.advance(dt: 1.0 / 60.0)
+            if victim.pose.blink > 0.5 { squinted = true }
+        }
+        check(squinted, "and a squint, which the blink timeline used to overwrite")
         check(yelped, "and the flattened-ear face")
         check(victim.hitsTaken == 1, "and it is counted")
 

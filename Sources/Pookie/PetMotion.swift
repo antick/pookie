@@ -1440,6 +1440,7 @@ final class PetMotion {
 
         // Blink scheduling.
         updateBlink(dt)
+        applyFaceOverrides()
 
         // Deformation: squash kick decays, airborne stretch overrides. The
         // magnitudes stay inside `CatPose.RenderLimits`, which is the envelope
@@ -1514,7 +1515,9 @@ final class PetMotion {
         // blow, and a stagger. Without this a punch is a gesture at nobody.
         if hurtSeconds > 0 {
             let fade = CGFloat(max(0, min(1, hurtSeconds / 0.42)))
-            pose.blink = max(pose.blink, 0.8 * fade)
+            // The squint is applied in `updateBlink`, which runs after this and
+            // owns the channel: written here it was silently overwritten, which is
+            // why being punched never actually squinted.
             pose.mouthOpen = max(pose.mouthOpen, 0.95 * fade)
             pose.tilt = pose.tilt + Double(hurtDirection) * 0.14 * Double(fade)
             pose.hopOffset = max(pose.hopOffset, 1.3 * fade)
@@ -1538,7 +1541,7 @@ final class PetMotion {
             let peak = sin((1 - sneezeSeconds / 0.45) * .pi)
             pose.hopOffset = max(pose.hopOffset, peak * 2.2)
             pose.earTwitch = max(pose.earTwitch, peak * 0.5)
-            pose.blink = max(pose.blink, peak * 0.8)
+            // Squint in `updateBlink`, for the same reason as the flinch.
         }
 
         // Kneading: settled on something, happy, pressing her paws in a rhythm.
@@ -1610,6 +1613,23 @@ final class PetMotion {
         guard blinkCountdown <= 0 else { return }
         blinkProgress = 0
         blinkDoubleUp = Rand.bool(0.18)
+    }
+
+    /// Squints that ride *over* the blink timeline.
+    ///
+    /// This function owns `pose.blink`, so anything that wants to narrow her eyes
+    /// has to say so here. The flinch and the sneeze both used to write the channel
+    /// from `updatePose`, which runs first — so the timeline overwrote them every
+    /// frame and neither ever showed.
+    private func applyFaceOverrides() {
+        if hurtSeconds > 0 {
+            let fade = CGFloat(max(0, min(1, hurtSeconds / 0.42)))
+            pose.blink = max(pose.blink, 0.8 * fade)
+        }
+        if sneezeSeconds > 0 {
+            let peak = sin((1 - sneezeSeconds / 0.45) * .pi)
+            pose.blink = max(pose.blink, peak * 0.8)
+        }
     }
 
     /// Where a design-space point sits on screen, through the same fit the
