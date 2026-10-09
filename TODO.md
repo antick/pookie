@@ -4,9 +4,13 @@ What is left, in the order I would do it. `docs/ROADMAP.md` has the milestone
 detail and the acceptance criteria; this file is the working list — the things
 that are *not* done, why they are not done, and what "done" means.
 
-Last audited: against the roadmap's "Outstanding" lines, `M0-FINDINGS.md`'s
-uncertainty register and `MACOS-CONSTRAINTS.md` §11 — the first version of this
-file missed three of those, which is why the audit is written down. Anything not
+Last audited: against every place this repo records unfinished work — the roadmap's
+"Outstanding" lines, `M0-FINDINGS.md` §5 "Not yet verified" and its "New unknowns",
+`MACOS-CONSTRAINTS.md` §11 and `DESIGN.md` "New unknowns". The first version of this
+file missed three items, the second missed three more (a sleep/lock feature that was
+never implemented, and two things never seen on screen). Both times the miss was
+found by sweeping the docs rather than by remembering, which is why the audit trail
+is written down here. Anything not
 listed here is either finished or not worth doing; `git log` is the history.
 
 ## 1. Asked for, not built
@@ -17,6 +21,14 @@ listed here is either finished or not worth doing; `git log` is the history.
       *Done when:* `CatPose.kick` throws a hind leg at the rival, the brawl
       alternates punches and kicks rather than repeating one, and the receiving
       pookie reacts to both. It belongs in the transient sweep, like the punch.
+
+- [ ] **Pause when the screen locks, and on sleep.** `M0-FINDINGS.md` §5 item 6:
+      "`ProcessInfo` activity holds and screen-lock suspension are **designed but not
+      implemented**". A pookie that keeps walking around behind a locked screen is
+      burning battery for nobody, and `PetMotion.isPaused` is already the hook.
+      *Done when:* locking the screen pauses every pet, unlocking resumes them, and
+      a check drives the pause path without a window server.
+      *Needs:* nothing.
 
 ## 2. The renderer swap (M1 criterion 1)
 
@@ -133,6 +145,25 @@ five-minute check for a human:
       by log lines (`settings: 5 in the collection, 3 on the desk`), not by
       clicking every control. Same for the menu-bar items and the right-click
       menu.
+
+## 7b. Not yet verified, from M0's findings
+
+`docs/M0-FINDINGS.md` §5 is the list; these are its entries that are still open and
+not already covered above.
+
+- [ ] **Bubble edge cases.** The flip-below-her-when-there-is-no-room-above path is
+      unit-tested by geometry and has never been *seen*; and no bubble has been
+      observed on a display other than the primary.
+- [ ] **Perching while the host window changes Space.** Riding is verified for a
+      window dragged across one display. What happens when the window moves to
+      another Space — the pet joins every Space, but the platform list is built from
+      `optionOnScreenOnly`, so the window may vanish from the list and reappear —
+      is untested. `DESIGN.md` "New unknowns" item 8.
+- [ ] **The `hitTest` negative.** Register item 1: whether returning `nil` from
+      `hitTest` forwards a click to the app underneath is unprovable here without
+      Screen Recording permission, and the dependency was designed out
+      (`ignoresMouseEvents` from a cursor poll). Not a task — recorded so the file is
+      complete, and so nobody "fixes" the poll back into a `hitTest` assumption.
 
 ## 8. Small and cosmetic
 

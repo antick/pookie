@@ -448,7 +448,8 @@ Measured results and the bugs it caught are in `M0-FINDINGS.md`.
   `bubble.hide` are implemented in-process behind `SpeechEngine` — one bubble at a time, a minimum
   gap between utterances, a length-derived dismiss timer, and a master mute. `Pookie --say "text"`
   reaches a running pet over a distributed notification until M3's socket lands. This is the M2 shell
-  and half of its behaviour; the preemption stack and attention budget are still to come.
+  and most of its behaviour; the attention budget landed with per-producer rate limits, and the
+  preemption stack waits on M3's transport.
 - **Perching on other apps' windows** (`WindowScanner`, `PerchPump`): she lands on the top edges of
   normal-layer windows, rides one while it is dragged, and falls off the end. Geometry only —
   `CGWindowListCopyWindowInfo` needs no Screen Recording permission, and titles are never read. It is
@@ -569,7 +570,7 @@ so the same thing can be exercised from a script.
 | Cached static geometry / draw-call reduction | M1, only if the SpriteKit swap slips |
 | Animation state machine with explicit preemption | M1 |
 | Waypoint/spring easing for `moveTo` (M0 has linear waypoints + trot) | M1 |
-| The rest of M2: preemption stack (`drag > say > follow > idle`), per-producer attention budget, streaming `say` from the wire | M2 |
+| The rest of M2: preemption stack (`drag > say > follow > idle`), streaming `say` from the wire | M2 |
 | Wire protocol server + `pookie` CLI | M3 |
 | MCP server | M4 |
 | LLM brain, conversation, memory | M5 |
@@ -611,8 +612,9 @@ Tracked here so they are not rediscovered as bugs. Full detail in `MACOS-CONSTRA
 
 6. Whether a SpriteKit renderer actually removes the ~3 ms/frame software rasterisation cost, and by
    how much. This is the M1 bet; measure it with `--verbose` before and after. See `M0-FINDINGS.md` §2.
-7. Whether the seam-gap fallback in `Desktop.region(containing:)` needs to prefer the previous region
-   for points near a display boundary. Low severity, deferred to M1.
+7. ~~Whether the seam-gap fallback in `Desktop.region(containing:)` needs to prefer the previous
+   region.~~ **Closed.** It does, and it now does: a point in the gap between two displays keeps the
+   region she was already in, so a crossing cannot bounce off a boundary she has left.
 8. Whether perching behaves when the host window moves to another Space. The pet joins every Space
    and so does the window, but the platform list is built from `optionOnScreenOnly`, so the window
    may vanish from the list and reappear. Untested.

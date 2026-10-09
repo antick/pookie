@@ -341,7 +341,7 @@ path and the jump path composing without either knowing about the other.
 frame, so `Desktop.region(containing:)` falls back to nearest-by-centre. Near a seam at high altitude
 the chosen region can flip between displays with different floors and ceilings, and the wall clamp
 can bounce the pet off the boundary. Low severity — it self-corrects — but the fallback should
-prefer the *previous* region when the point is within a few points of it. Deferred to M1.
+prefer the *previous* region when the point is within a few points of it. **Fixed:** it now does.
 
 ---
 
