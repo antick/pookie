@@ -226,7 +226,7 @@ the `idle` state, each with its own cooldown and randomization:
 | Stretch up | on waking | A new shape, held for a second or two. The anatomy has one paw anchor, so she stretches *tall* with her front paws down rather than floating — a shape that floats fails the ground-line contract |
 | Peering over | rarely, once settled on a perch | A new shape: head low and forward over the lip, body up behind it |
 | Sleeping in a pile | two settled pookies | The separation rule shrinks by a third when both are resting, so they lean on each other instead of being pushed apart |
-| Brawl | contact, or three seconds within a paw's length, every 6–16 s | The close-quarters version of playing: flattened ears, a hop under each swing, a **one-two of thrown paws** (`CatPose.punch`, alternating sign) with a comic burst where each lands (`CatPose.impact`), one bubble, 1.6–3 s. Two who *touch* start one on the spot; three seconds of nearness is for pookies who sit down near each other. The separation rule relaxes to half, so their bodies overlap — at the first distance they were close enough to look like dancing, which is exactly what the human reported. A landed swing is signalled (`takePendingHit`) and handed to the other pookie, who flinches: squint, open mouth, head snapping away, stagger, one bubble. A chase that closes the distance becomes one, so "they fight when they are close" falls out of the same rule as the chase rather than being a third scheduler |
+| Brawl | contact, or three seconds within a paw's length, every 6–16 s | The close-quarters version of playing: flattened ears, a hop under each swing, a **one-two of punches and kicks** (`CatPose.punch` and `CatPose.kick`, alternating off the bout's own clock) with a comic burst where each lands (`CatPose.impact`), one bubble, 1.6–3 s. Two who *touch* start one on the spot; three seconds of nearness is for pookies who sit down near each other. The separation rule relaxes to half, so their bodies overlap — at the first distance they were close enough to look like dancing, which is exactly what the human reported. A landed swing is signalled (`takePendingHit`) and handed to the other pookie, who flinches: squint, open mouth, head snapping away, stagger, one bubble. A chase that closes the distance becomes one, so "they fight when they are close" falls out of the same rule as the chase rather than being a third scheduler |
 | Company | continuous, when other pets are near | Two cats converging on one pixel read as one buggy cat, so each steps out of the other's way. The push is positional and decays to zero at one personal space, so they settle apart instead of springing at each other forever, and it only applies between cats on the same footing — one on a ledge and one on the floor are not stacked |
 | Play | every 20–50 s, when two cats are awake on the same display | A jittered 2–5 s chase: aim at the playmate through the ordinary wander channel, re-aimed every 0.3 s, wearing the happy face. Refused while asleep, held, mid-air or mid-sentence, and behind the same "Wander around" switch as any other unprompted walking. One cat of the pair says a line, not both |
 | Perch | on landing above a window top | One-way platform: a window top is a floor only if she is already above it. She rides a dragged window and falls off the end |
@@ -517,6 +517,15 @@ permission prompt, and it needs a real bundle — so the debug binary reports th
 showing a checkbox that lies. One code path, shared by the settings checkbox and `--launch-at-login`,
 so the same thing can be exercised from a script.
 
+**A pause with two reasons** (`PauseState`, `AppDelegate.installPauseObservers`). Hiding a pookie and
+the machine being asleep or locked are independent, and it resumes only when both are clear — so
+unhiding one behind a lock screen does not start drawing it again. The rule is a value, which is what
+lets it be tested without a window server; the wiring is `NSWorkspace` sleep and wake plus the lock and
+unlock distributed notifications, and `Pookie --simulate-lock on` exercises it. Measured: **21.5% CPU to
+0.6%** while locked, because a paused pet draws nothing at all — which also meant moving the heartbeat
+*before* the pause guard, or a paused pookie would report nothing, including the `paused=` field that
+exists to explain the silence.
+
 **Opacity and quiet mode** (`AppConfig.petOpacity`, `.quietMode`). Opacity is clamped at a third —
   below that a pookie stops reading as an animal — and applied to the bubble as well as the body.
   Quiet mode suppresses the *unprompted* lines (greeting, yelp, `achoo!`, the brawl bubbles) and leaves
@@ -553,7 +562,7 @@ so the same thing can be exercised from a script.
   physics applies drag once per frame, so long jumps landed up to a fifth short. The integral now models
   the discrete integration, and a deterministic jump lands exactly on its target.
 - **Brawls** (`PetMotion.startScuffle`, `CatPose.punch`/`impact`). Two pookies within a paw's length *for three
-  seconds* brawl for 1.6–3 s: alternating thrown paws with a comic hit on each swing, leaning into each
+  seconds* brawl for 1.6–3 s: alternating punches and kicks with a comic hit on each swing, leaning into each
   other. The three-second rule is what makes it provoked rather than random — the first version fired on
   the frame two animals happened to be close, which is why it was almost never seen.
 - **The teleport has an effect** (`CatPose.vanish`, `CatGeometry.vanishTransform`). Leaving and
