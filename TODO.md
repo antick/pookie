@@ -13,7 +13,7 @@ found by sweeping the docs rather than by remembering, which is why the audit tr
 is written down here. Anything not
 listed here is either finished or not worth doing; `git log` is the history.
 
-## 1. Asked for, not built
+## 1. Asked for, or designed and never built
 
 - [ ] **A kick in the brawl.** The ask was "punching their face, getting face
       punched **or kicked**". Punches landed (`CatPose.punch`, alternating
