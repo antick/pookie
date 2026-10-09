@@ -20,7 +20,9 @@ relevant one before changing behaviour in its area.
    frame tier, CPU and RSS every two seconds. `Pookie --help` is the source of truth for the launch
    flags, and they are how you set up a specific case by hand (`--at`, `--scale`, `--no-wander`).
 3. **Documented.** The same change updates `README.md`, `docs/DESIGN.md` and `docs/ROADMAP.md`
-   wherever behaviour or status moved.
+   wherever behaviour or status moved — and **deletes** the finished item from `TODO.md`. That file
+   is open work only: a ticked box is a list you stop reading. The history is `git log` and the
+   milestone statuses.
 4. **Committed.** One unit of work, one commit, as soon as it is green and documented — not batched
    to the end of the session. A unit is one thing the human asked for, or one coherent slice of it;
    when a slice is large, commit the slice that stands up on its own rather than the whole feature.
@@ -63,6 +65,9 @@ relevant one before changing behaviour in its area.
   engine.
 - **One of each animal.** `PetCohort` refuses a second pookie of a kind somebody already is, and a
   saved roster is repaired on load rather than trusted. Coats and names are the free axes.
+- **`TODO.md` is open work only.** Finish an item and it comes out of the file, with the reason it
+  is gone left to `git log` and the roadmap. Do not tick, do not strike through, do not keep a
+  "recently closed" section: anything in there is something still to do.
 - **A launch flag is not a settings edit.** `--no-wander` and friends are overrides for one run;
   `AppConfig.persistsChanges` is what keeps them out of the settings store.
 
