@@ -1278,19 +1278,22 @@ print("scuffles")
         check(company.startScuffle(2.5), "and then somebody throws a paw")
 
         var sawPunch = false
+        var sawKick = false
         var sawImpact = false
         var sides = Set<Int>()
-        for _ in 0..<150 {
+        for _ in 0..<300 {
             company.companions = [neighbour]
             company.advance(dt: 1.0 / 60.0)
             if abs(company.pose.punch) > 0.4 {
                 sawPunch = true
                 sides.insert(company.pose.punch > 0 ? 1 : -1)
             }
+            if abs(company.pose.kick) > 0.4 { sawKick = true }
             if company.pose.impact > 0.5 { sawImpact = true }
         }
         check(sawPunch, "she throws a paw at the other one")
-        check(sides.count == 2, "and alternates paws, like a one-two")
+        check(sawKick, "and a hind leg, so it is a scrap and not shadow-boxing")
+        check(sides.count == 2, "alternating paws, like a one-two")
         check(sawImpact, "with a comic hit at the end of the swing")
 
         // Contact starts one on the spot: two pookies who walk into each other do
@@ -1517,6 +1520,22 @@ print("scuffles")
                 "her own reaction \(index + 1) is never the thing that gets rate limited"
             )
         }
+
+        // Two independent reasons to be paused, and it resumes only when both are
+        // clear: unhiding a pookie while the screen is locked must not start drawing
+        // it again.
+        check(PauseState().isPaused == false, "a visible pookie on an awake machine is drawing")
+        check(PauseState(hiddenByUser: true).isPaused, "hiding pauses it")
+        check(PauseState(systemAsleepOrLocked: true).isPaused, "and so does a locked screen or sleep")
+        check(
+            PauseState(hiddenByUser: true, systemAsleepOrLocked: true).isPaused,
+            "both together pause it too"
+        )
+        var resume = PauseState(hiddenByUser: true, systemAsleepOrLocked: true)
+        resume.hiddenByUser = false
+        check(resume.isPaused, "unhiding while the screen is locked does not start it again")
+        resume.systemAsleepOrLocked = false
+        check(!resume.isPaused, "and it resumes only once the system does")
 
         // Opacity and quiet mode are settings like any other, and both have a
         // floor: a pookie below a third stops reading as an animal.
@@ -2305,7 +2324,7 @@ print("scuffles")
     /// the first version looked like dancing because the two of them were never
     /// close enough to touch.
     static func renderBrawlPNG(to path: String) -> Int32 {
-        let phases: CGFloat = 4
+        let phases: CGFloat = 5
         let cell = 260
         let width = Int(phases) * cell
         let height = Int(cell)
@@ -2351,10 +2370,15 @@ print("scuffles")
                 { var pose = left; pose.punch = 0.2; pose.mood = .alarmed; return pose }(),
                 { var pose = right; pose.blink = 0.8; pose.mouthOpen = 0.95; pose.tilt = -0.14; pose.mood = .alarmed; pose.hopOffset = 1.3; return pose }()
             ),
-            // Recovery: the other paw comes back.
+            // Recovery: the other paw comes back — and then a kick, which comes
+            // off the hip rather than the shoulder.
             (
                 { var pose = left; pose.punch = -1; pose.mood = .alarmed; pose.hopOffset = 2.0; return pose }(),
                 { var pose = right; pose.blink = 0.5; pose.mouthOpen = 0.6; pose.mood = .alarmed; return pose }()
+            ),
+            (
+                { var pose = left; pose.kick = 1; pose.mood = .alarmed; pose.hopOffset = 2.6; return pose }(),
+                { var pose = right; pose.blink = 0.8; pose.mouthOpen = 0.9; pose.tilt = -0.1; pose.mood = .alarmed; return pose }()
             ),
         ]
 
@@ -2390,7 +2414,7 @@ print("scuffles")
             return 1
         }
         print("wrote \(width)x\(height) brawl sheet to \(path)")
-        print("one swing: wind-up | the blow lands | the flinch | the other paw")
+        print("a bout: wind-up | a punch lands | the flinch | the other paw | a kick")
         return 0
     }
 
@@ -2563,6 +2587,11 @@ enum ArtSweep {
         for spin in [CGFloat(0.55), -0.55] {
             var pose = CatPose()
             pose.spin = Double(spin)
+            poses.append(pose)
+        }
+        for side in [CGFloat(1), CGFloat(-1)] {
+            var pose = CatPose()
+            pose.kick = Double(side)
             poses.append(pose)
         }
         var washing = CatPose()

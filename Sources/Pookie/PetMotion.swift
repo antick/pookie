@@ -100,6 +100,9 @@ final class PetMotion {
     /// A stretch up, after a nap.
     private(set) var reachSeconds: Double = 0
 
+    /// How long the current brawl was scheduled to run, so the punch/kick
+    /// alternation has a clock that cannot drift away from the pose.
+    private var scuffleLength: Double = 2
     /// Seconds left of a flinch: the face and the stagger after being hit.
     private(set) var hurtSeconds: Double = 0
     /// Which way the blow pushed her, so the head snaps away from it.
@@ -182,6 +185,7 @@ final class PetMotion {
             nearSeconds = 0
         }
         scuffleSeconds = max(scuffleSeconds, seconds)
+        scuffleLength = max(scuffleLength, scuffleSeconds)
         // The chase, if there was one, is over: this is the contact version.
         playSeconds = 0
         wanderTargetX = nil
@@ -1553,7 +1557,15 @@ final class PetMotion {
             let swing = sin(scuffleSeconds * 6.5)
             pose.hopOffset = max(pose.hopOffset, CGFloat(max(0, beat)) * 2.6)
             pose.mouthOpen = max(pose.mouthOpen, CGFloat(max(0, -beat)) * 0.85)
-            pose.punch = swing * 1.15
+            // Every other swing is a kick rather than a punch, counted off the
+            // bout's own clock so the two cannot drift apart: a scrap of nothing
+            // but punches reads as shadow-boxing.
+            let swingIndex = Int((scuffleLength - scuffleSeconds) / 0.48)
+            if swingIndex % 2 == 0 {
+                pose.punch = swing * 1.15
+            } else {
+                pose.kick = swing * 1.15
+            }
             // The burst lands on the way through, not at the top of the swing.
             pose.impact = max(0, 1 - abs(swing) * 2.4)
         }

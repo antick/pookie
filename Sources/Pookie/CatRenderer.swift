@@ -227,6 +227,7 @@ struct CatRenderer: PetRenderer {
         drawPattern(in: context, pose: pose, anatomy: anatomy)
         // Over the paws: a thrown foreleg is in front of the body, not behind it.
         if pose.punch != 0 { drawPunch(in: context, pose: pose, anatomy: anatomy) }
+        if pose.kick != 0 { drawKick(in: context, pose: pose, anatomy: anatomy) }
         drawEars(in: context, pose: pose, anatomy: anatomy)
         drawHead(in: context, pose: pose, anatomy: anatomy)
         if pose.species.traits.gills { drawGills(in: context, pose: pose, anatomy: anatomy) }
@@ -1006,6 +1007,59 @@ struct CatRenderer: PetRenderer {
             bar.addLine(to: CGPoint(x: point.x + half * 0.5, y: point.y + half))
             stroke(context, path: bar, color: colour, width: width)
         }
+    }
+
+    /// A hind leg thrown at somebody.
+    ///
+    /// Deliberately a different limb from `drawPunch`: it comes off the *hip*, so
+    /// it starts low and behind, and it swings up and forward at the rival's chest.
+    /// A brawl of nothing but punches reads as shadow-boxing; the two together read
+    /// as a scrap.
+    private func drawKick(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let kick = CGFloat(max(-1, min(1, pose.kick)))
+        let amount = abs(kick)
+        guard amount > 0.05 else { return }
+        let near: CGFloat = 1
+
+        // The hip is at the *back* of the body and the foot has to clear the
+        // *front* of it, low, the way a cat rabbit-kicks: the first version put
+        // both ends inside the silhouette, so the leg read as a marking on her
+        // chest. It is also lower than the punch — a punch is at head height, a
+        // kick comes out at belly height — which is what makes the two readable as
+        // different limbs.
+        let hip = CGPoint(
+            x: anatomy.bodyCenter.x - near * anatomy.bodyRadii.width * 0.55,
+            y: anatomy.bodyCenter.y - anatomy.bodyRadii.height * 0.3
+        )
+        let extension_ = anatomy.bodyRadii.width * 1.6 + anatomy.pawRadii.width * 0.5
+        let foot = CGPoint(
+            x: hip.x + near * extension_ * amount,
+            y: hip.y + anatomy.bodyRadii.height * 0.2 * amount
+        )
+
+        let leg = CGMutablePath()
+        leg.move(to: hip)
+        leg.addQuadCurve(
+            to: foot,
+            control: CGPoint(
+                x: (hip.x + foot.x) / 2,
+                y: min(hip.y, foot.y) - anatomy.bodyRadii.height * 0.25 * amount
+            )
+        )
+        stroke(context, path: leg, color: palette.outline, width: anatomy.pawRadii.width * 1.6)
+        stroke(context, path: leg, color: palette.fur, width: anatomy.pawRadii.width * 1.6 - outlineWidth)
+        fillStroke(
+            context,
+            path: CGPath(ellipseIn: CGRect(
+                x: foot.x - anatomy.pawRadii.width * 0.9,
+                y: foot.y - anatomy.pawRadii.width * 0.9,
+                width: anatomy.pawRadii.width * 1.8,
+                height: anatomy.pawRadii.width * 1.8
+            ), transform: nil),
+            fill: palette.belly,
+            stroke: palette.outline,
+            width: outlineWidth * 0.8
+        )
     }
 
     /// Grooming: a foreleg up to the muzzle, and a tongue behind it.

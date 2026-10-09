@@ -437,6 +437,13 @@ final class PetCohort {
         for pet in pets { pet.setHidden(hidden) }
     }
 
+    /// Every pet, for a system reason rather than a human one: the screen locked or
+    /// the machine went to sleep.
+    func setSystemPaused(_ paused: Bool) {
+        Log.info("system pause \(paused ? "on" : "off") — \(paused ? "screen locked or asleep" : "back")")
+        for pet in pets { pet.setSystemPaused(paused) }
+    }
+
     /// Hide or show one pet, by its place in the colony.
     func setHidden(_ hidden: Bool, at index: Int) {
         guard pets.indices.contains(index) else { return }

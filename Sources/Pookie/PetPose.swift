@@ -233,6 +233,10 @@ struct CatPose {
     /// signed value because a brawl is a one-two: the paws alternate, and the
     /// sign is which one is out.
     var punch: Double = 0
+    /// The hind leg, thrown the same way. A brawl that is only punches reads as
+    /// shadow-boxing; a kick comes off the hip, lower and from behind, and it is
+    /// what makes the pair look like they are actually scrapping.
+    var kick: Double = 0
     /// A comic hit, 0 to 1: the burst of lines drawn where a paw lands.
     var impact: Double = 0
 

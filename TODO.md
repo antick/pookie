@@ -4,7 +4,8 @@ What is left, in the order I would do it. `docs/ROADMAP.md` has the milestone
 detail and the acceptance criteria; this file is the working list — the things
 that are *not* done, why they are not done, and what "done" means.
 
-Last audited: against every place this repo records unfinished work — the roadmap's
+Two items closed since the last audit (the kick, and the screen-lock pause); the
+rest is unchanged. Last audited: against every place this repo records unfinished work — the roadmap's
 "Outstanding" lines, `M0-FINDINGS.md` §5 "Not yet verified" and its "New unknowns",
 `MACOS-CONSTRAINTS.md` §11 and `DESIGN.md` "New unknowns". The first version of this
 file missed three items, the second missed three more (a sleep/lock feature that was
@@ -15,20 +16,20 @@ listed here is either finished or not worth doing; `git log` is the history.
 
 ## 1. Asked for, or designed and never built
 
-- [ ] **A kick in the brawl.** The ask was "punching their face, getting face
-      punched **or kicked**". Punches landed (`CatPose.punch`, alternating
-      forelegs, a flinch with a squint and a yelp); a hind-leg kick did not.
-      *Done when:* `CatPose.kick` throws a hind leg at the rival, the brawl
-      alternates punches and kicks rather than repeating one, and the receiving
-      pookie reacts to both. It belongs in the transient sweep, like the punch.
+- [x] **A kick in the brawl.** **Closed.** `CatPose.kick` throws a hind leg — from
+      the hip, low, out past the front of the body, which is what makes it read as a
+      different limb from the punch. The brawl alternates them off the bout's own
+      clock, the blow lands through the same `pendingHit` path, and the receiving
+      pookie flinches the same way. In the transient sweep, and the brawl sheet has a
+      kick phase.
 
-- [ ] **Pause when the screen locks, and on sleep.** `M0-FINDINGS.md` §5 item 6:
-      "`ProcessInfo` activity holds and screen-lock suspension are **designed but not
-      implemented**". A pookie that keeps walking around behind a locked screen is
-      burning battery for nobody, and `PetMotion.isPaused` is already the hook.
-      *Done when:* locking the screen pauses every pet, unlocking resumes them, and
-      a check drives the pause path without a window server.
-      *Needs:* nothing.
+- [x] **Pause when the screen locks, and on sleep.** **Closed.** `NSWorkspace` sleep
+      and wake, plus the two distributed notifications macOS posts on lock and
+      unlock, pause every pet — no permission, because observing is not capturing.
+      `PauseState` keeps the two reasons apart (hidden by you, asleep or locked), so
+      unhiding a pookie behind a lock screen does not start drawing it again. The
+      rule is unit-tested; the wiring is exercised with `Pookie --simulate-lock on`,
+      and measured: **21.5% CPU -> 0.6%** while locked.
 
 ## 2. The renderer swap (M1 criterion 1)
 

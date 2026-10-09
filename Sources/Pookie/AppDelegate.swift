@@ -13,6 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var cohort: PetCohort?
     private var settingsWindow: SettingsWindowController?
+    /// Sleep, wake, lock and unlock. Removed in `applicationWillTerminate`.
+    private var pauseObservers: [NSObjectProtocol] = []
     private var statusItem: NSStatusItem?
     private var hotKeys: [GlobalHotKey] = []
     private var sayObserver: NSObjectProtocol?
@@ -42,17 +44,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installStatusItem()
         installHotKeys()
         installSayBridge()
+        installPauseObservers()
     }
 
     deinit {
         if let sayObserver {
             DistributedNotificationCenter.default().removeObserver(sayObserver)
+        for token in pauseObservers {
+            NSWorkspace.shared.notificationCenter.removeObserver(token)
+            DistributedNotificationCenter.default().removeObserver(token)
+        }
+        pauseObservers.removeAll()
         }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
+
+    /// Pause everything while the screen is locked or the machine is asleep.
+    ///
+    /// Two sources, because macOS splits them: `NSWorkspace` knows about sleep, and
+    /// the screen lock is a distributed notification. Both are permission-free —
+    /// observing is not capturing, and neither needs Accessibility or Screen
+    /// Recording. `Pookie --simulate-lock on` posts the same notification, which is
+    /// how the wiring is exercised without locking a real screen.
+    private func installPauseObservers() {
+        let workspace = NSWorkspace.shared.notificationCenter
+        pauseObservers.append(workspace.addObserver(
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.cohort?.setSystemPaused(true)
+        })
+        pauseObservers.append(workspace.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.cohort?.setSystemPaused(false)
+        })
+
+        let distributed = DistributedNotificationCenter.default()
+        for name in [Self.screenLockedNotification, Self.screenUnlockedNotification] {
+            let paused = name == Self.screenLockedNotification
+            pauseObservers.append(distributed.addObserver(
+                forName: name, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.cohort?.setSystemPaused(paused)
+            })
+        }
+    }
+
+    /// The names macOS posts when the screen locks and unlocks. They are not in a
+    /// header; they are what every menu-bar app observes.
+    static let screenLockedNotification = Notification.Name("com.apple.screenIsLocked")
+    static let screenUnlockedNotification = Notification.Name("com.apple.screenIsUnlocked")
 
     private func installSayBridge() {
         sayObserver = DistributedNotificationCenter.default().addObserver(

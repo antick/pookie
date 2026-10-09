@@ -219,15 +219,33 @@ final class PetWindowController {
         window.orderFrontRegardless()
     }
 
-    func setHidden(_ hidden: Bool) {
-        isHiddenByUser = hidden
-        motion.isPaused = hidden
-        if hidden {
+    /// Why this pookie is or is not being drawn. `isPaused` on the motion is
+    /// derived from it, so the two reasons cannot fight: unhiding a pookie while
+    /// the screen is locked must not start drawing it again.
+    private(set) var pauseState = PauseState()
+
+    private func applyPauseState() {
+        motion.isPaused = pauseState.isPaused
+        if pauseState.hiddenByUser {
             window.orderOut(nil)
             bubbleWindow.orderOut(nil)
-        } else {
+        } else if !pauseState.systemAsleepOrLocked {
             window.orderFrontRegardless()
         }
+    }
+
+    func setHidden(_ hidden: Bool) {
+        pauseState.hiddenByUser = hidden
+        isHiddenByUser = hidden
+        applyPauseState()
+    }
+
+    /// The screen locked, or the machine went to sleep: stop drawing entirely.
+    /// There is nobody looking, and a pookie walking around behind a lock screen is
+    /// burning battery for nobody.
+    func setSystemPaused(_ paused: Bool) {
+        pauseState.systemAsleepOrLocked = paused
+        applyPauseState()
     }
 
     func toggleHidden() {
@@ -412,8 +430,13 @@ final class PetWindowController {
         guard lastTimestamp > 0 else { return }
         let elapsed = now - lastTimestamp
 
-        // Hidden or fully occluded: there is nothing to draw and nobody to draw
-        // it for, so do not even keep the simulation warm.
+        // The heartbeat is recorded *before* the pause guard, so that a paused
+        // pookie still reports itself: the field exists to say why nothing is being
+        // drawn, and a report that stops when the reason appears is no report.
+        recordHeartbeat(elapsed)
+
+        // Hidden or fully occluded, or the screen is locked: there is nothing to
+        // draw and nobody to draw it for, so do not even keep the simulation warm.
         guard !motion.isPaused else { return }
 
         // A sentence takes a locomotion lock: idle behaviour, jumping included,

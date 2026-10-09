@@ -146,6 +146,14 @@ thing that gets rate limited.
    Application Support directory, no cache, no socket, and no database. Nothing else on disk knows
    Pookie exists.
 
+### While you are away
+
+Lock the screen or put the machine to sleep and every pookie stops dead — no drawing, no simulation,
+**21.5% CPU down to 0.6%** — and picks up where it left off when you come back. It uses `NSWorkspace`'s
+sleep and wake notifications plus the two the system posts on lock and unlock, none of which needs a
+permission: observing is not capturing. `Pookie --simulate-lock on` posts the same notification, which
+is how it is tested without locking a real screen.
+
 ### Where your settings live
 
 In `~/Library/Preferences/com.pookie.pet.plist` — the standard macOS preferences file for the app's
@@ -278,8 +286,9 @@ you saved.
 They all have everything the first cat has — perching, jumping, teleporting, loafing, stretching — and
 they know where each other are. Two who end up on the same spot step apart rather than stacking. Two pookies who **touch** start a **brawl** on the spot, and so do two who stay within a paw's length
 for three seconds. It runs 1.6–3 seconds: they close in until their bodies are overlapping (the rule
-that normally keeps them a body apart relaxes to half), and trade a **one-two of thrown paws** aimed at
-the other's face. Whoever is hit **feels it** — a squint, an open mouth, flattened ears, the head
+that normally keeps them a body apart relaxes to half), and trade **punches and kicks** — a foreleg at
+the other's face, then a hind leg out low past the front of the body, alternating off the bout's own
+clock, because a scrap of nothing but punches reads as shadow-boxing. Whoever is hit **feels it** — a squint, an open mouth, flattened ears, the head
 snapping away from the blow, a stagger, and one indignant bubble (`ow!`, `eep!`, `*thud*`).
 
 When they are further apart, one **chases** the other instead — a 2.5–5 second bout at a run, wearing

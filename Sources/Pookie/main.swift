@@ -11,6 +11,7 @@ if arguments.contains("--help") || arguments.contains("-h") {
       Pookie                       run the pet
       Pookie --say "text"          make a running Pookie say something, then exit
       Pookie --producer <name>     name the sender, for the per-producer budget
+      Pookie --simulate-lock <on|off>  post the screen-lock notification, to test the pause path
       Pookie --launch-at-login <on|off>  add or remove Pookie from your login items
       Pookie --render-png <path>   write a pose sheet to a PNG and exit
       Pookie --render-species <p>  write a species sheet to a PNG and exit
@@ -148,6 +149,21 @@ if let index = arguments.firstIndex(of: "--render-png") {
 if let index = arguments.firstIndex(of: "--launch-at-login") {
     let wanted = index + 1 < arguments.count ? arguments[index + 1] : "on"
     exit(AppDelegate.setLaunchAtLogin(wanted == "on" || wanted == "1") ? 0 : 1)
+}
+
+// Posts the same notification macOS posts when the screen locks, so the pause path
+// can be exercised without locking a real screen.
+if let index = arguments.firstIndex(of: "--simulate-lock") {
+    let on = index + 1 < arguments.count ? arguments[index + 1] : "on"
+    let locked = on == "on" || on == "1"
+    DistributedNotificationCenter.default().postNotificationName(
+        locked ? AppDelegate.screenLockedNotification : AppDelegate.screenUnlockedNotification,
+        object: nil,
+        userInfo: nil,
+        deliverImmediately: true
+    )
+    print("simulated screen \(locked ? "lock" : "unlock")")
+    exit(0)
 }
 
 if let index = arguments.firstIndex(of: "--say") {

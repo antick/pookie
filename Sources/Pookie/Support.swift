@@ -115,6 +115,20 @@ extension Collection {
     }
 }
 
+/// Why a pookie is not being drawn.
+///
+/// Two independent reasons — the human hid it, and the system is asleep or locked —
+/// and it resumes only when *both* are clear. Written as a value rather than a pair
+/// of booleans on the controller because "unhiding a pookie while the screen is
+/// locked must not start drawing it again" is a rule worth testing, and the
+/// controller needs a window server.
+struct PauseState: Equatable {
+    var hiddenByUser = false
+    var systemAsleepOrLocked = false
+
+    var isPaused: Bool { hiddenByUser || systemAsleepOrLocked }
+}
+
 /// A screen's usable region (excludes the menu bar and the Dock).
 struct Desktop {
     var visibleFrames: [CGRect]
