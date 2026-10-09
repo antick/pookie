@@ -85,9 +85,7 @@ final class PetCohort {
     /// At least one is off the desk, so the colony-wide item offers to bring them
     /// all back rather than hiding the rest.
     var someHidden: Bool { pets.contains { $0.isHiddenByUser } }
-    /// How many are actually being drawn. A hidden pet costs nothing, so it should
-    /// not be holding a share of the frame budget either.
-    var visibleCount: Int { pets.filter { !$0.isHiddenByUser }.count }
+
     /// The pet a producer talks through when it does not name one: the one the
     /// menu marks as the default.
     var spokespet: PetWindowController? {

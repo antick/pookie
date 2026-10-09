@@ -234,14 +234,6 @@ final class PetWindowController {
         setHidden(!isHiddenByUser)
     }
 
-    func toggleClickThrough() {
-        let modes = ClickThroughMode.allCases
-        let index = modes.firstIndex(of: AppConfig.shared.clickThroughMode) ?? 0
-        AppConfig.shared.clickThroughMode = modes[(index + 1) % modes.count]
-        applyClickThroughMode()
-        Log.info("click-through mode -> \(AppConfig.shared.clickThroughMode.rawValue)")
-    }
-
     func resetPosition() {
         let region = Desktop.current().region(containing: motion.origin)
         motion.move(

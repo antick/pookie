@@ -165,6 +165,14 @@ not already covered above.
       (`ignoresMouseEvents` from a cursor poll). Not a task — recorded so the file is
       complete, and so nobody "fixes" the poll back into a `hitTest` assumption.
 
+## 7c. Implemented, waiting for a caller
+
+- [ ] **`PetWindowController.appendToBubble`** is the `bubble.append` verb, implemented
+      in-process and reachable from `SpeechEngine.append` — and nothing calls the
+      shell wrapper yet, because streaming from the wire is M2 criterion 3. It is
+      not dead code: it is the seam the protocol will use. Listed so that a future
+      dead-code pass does not delete it.
+
 ## 8. Small and cosmetic
 
 - [ ] **A true peek.** `CatShape.peek` is a lean forward — head low and forward,
