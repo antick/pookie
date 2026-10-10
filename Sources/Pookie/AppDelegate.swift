@@ -89,6 +89,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Log.info("control: not listening — \(error)")
         }
         controlServer = server
+        // The pet's own events, out to whoever subscribed.
+        cohort?.onEvent = { [weak server] event, payload in
+            let pet = payload["pet"] as? String ?? "pookie"
+            var data = payload
+            data.removeValue(forKey: "pet")
+            server?.emit(event, pet: pet, data: data)
+        }
     }
 
     /// One intent, mapped onto behaviour that already exists.
@@ -143,10 +150,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 let centre = cohort.spokespet?.motion.origin.x ?? 0
                 direction = cursor.x >= centre ? 1 : -1
+            case "front-window":
+                // Face the window she is working in: the scanner already knows which
+                // one that is.
+                guard let target = frontWindowPoint(),
+                      let origin = cohort.spokespet?.motion.origin else {
+                    return .refused(intent.id, .unsupported)
+                }
+                direction = target.x >= origin.x ? 1 : -1
             default:
-                // `front-window` needs the frontmost window's geometry, which is the
-                // scanner's job: refused rather than guessed at.
-                return .refused(intent.id, .unsupported)
+                return .refused(intent.id, .badArgs)
             }
             for pet in cohort.pets { pet.motion.holdFacing(direction, seconds: hold) }
             return .started(intent.id)
@@ -183,11 +196,97 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return .started(intent.id)
 
-        case .lookAt, .bubbleShow, .bubbleAppend, .bubbleHide, .petOn:
-            // Understood, and not implemented at this version — which is exactly what
-            // `unsupported` means, and better than pretending to accept it.
+        case .lookAt:
+            guard let target = lookTarget(for: intent) else {
+                return .refused(intent.id, .badArgs)
+            }
+            let hold = ((intent.args["holdMs"] as? Double) ?? 2_000) / 1000
+            for pet in cohort.pets { pet.motion.holdGaze(at: target, seconds: hold) }
+            return .started(intent.id)
+
+        case .bubbleShow:
+            guard let text = intent.args["text"] as? String else {
+                return .refused(intent.id, .badArgs)
+            }
+            let style = (intent.args["style"] as? String).flatMap(BubbleStyle.init(rawValue:)) ?? .plain
+            // Streaming on purpose: `bubble.show` opens a bubble that `bubble.append`
+            // grows, which is what a token stream needs.
+            let outcome = cohort.spokespet?.say(
+                text,
+                style: style,
+                duration: (intent.args["durationMs"] as? Double).map { $0 / 1000 },
+                streaming: true,
+                from: "socket"
+            )
+            return outcome == .started || outcome == .replaced
+                ? .started(intent.id)
+                : .refused(intent.id, .rateLimited)
+
+        case .bubbleAppend:
+            guard let delta = intent.args["text"] as? String else {
+                return .refused(intent.id, .badArgs)
+            }
+            let final = (intent.args["final"] as? Bool) ?? false
+            let outcome = cohort.spokespet?.appendToBubble(delta, final: final)
+            return outcome == .started || outcome == .replaced ? .started(intent.id) : .refused(intent.id, .badArgs)
+
+        case .bubbleHide:
+            cohort.hideBubble()
+            return .started(intent.id)
+
+        case .petOn:
+            // A subscription is per *connection*, so it belongs to the transport rather
+            // than to the behaviour layer. Answered by the server.
             return .refused(intent.id, .unsupported)
         }
+    }
+
+    /// Where a `lookAt` wants her eyes, in AppKit's coordinates.
+    private func lookTarget(for intent: Intent) -> CGPoint? {
+        if let raw = intent.args["target"] as? String {
+            switch raw {
+            case "cursor": return NSEvent.mouseLocation
+            case "front-window": return frontWindowPoint()
+            case "menubar":
+                guard let screen = NSScreen.screens.first else { return nil }
+                return CGPoint(x: screen.frame.midX, y: screen.frame.maxY - 8)
+            default: return nil
+            }
+        }
+        if let raw = intent.args["anchor"] as? String,
+           let anchor = IntentMapping.Anchor(rawValue: raw) {
+            guard let screen = NSScreen.screens.first else { return nil }
+            guard let point = IntentMapping.point(
+                for: anchor,
+                region: screen.visibleFrame,
+                displayHeight: screen.frame.height,
+                petSize: AppConfig.shared.petSize,
+                cursor: NSEvent.mouseLocation
+            ) else { return nil }
+            return anchor == .cursor
+                ? point
+                : IntentMapping.toAppKit(point, mainDisplayHeight: screen.frame.height)
+        }
+        guard let x = intent.args["x"] as? Double, let y = intent.args["y"] as? Double else {
+            return nil
+        }
+        let height = NSScreen.screens.first?.frame.height ?? 900
+        return IntentMapping.toAppKit(CGPoint(x: x, y: y), mainDisplayHeight: height)
+    }
+
+    /// The frontmost window's top-right corner, from the platforms the perch pump
+    /// already scans.
+    ///
+    /// The protocol notes that this "may require Screen Recording". It does not here:
+    /// `CGWindowListCopyWindowInfo` reports geometry with no permission, which is the
+    /// same fact perching works on. Nil when there is no window to point at, which the
+    /// caller turns into a refusal rather than a guess.
+    private func frontWindowPoint() -> CGPoint? {
+        guard let motion = cohort?.spokespet?.motion,
+              let owner = motion.preferredPlatformOwner,
+              let platform = motion.platforms.first(where: { $0.ownerName == owner })
+        else { return nil }
+        return CGPoint(x: platform.rect.maxX, y: platform.top)
     }
 
     /// Where a `moveTo` wants her, in AppKit's coordinates.
@@ -202,6 +301,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let raw = intent.args["anchor"] as? String,
            let anchor = IntentMapping.Anchor(rawValue: raw) {
+            // The one anchor that is not a coordinate conversion: it is the frontmost
+            // window's edge, which the scanner already knows.
+            if anchor == .frontWindowEdge {
+                guard let edge = frontWindowPoint() else { return nil }
+                return CGPoint(
+                    x: edge.x - AppConfig.shared.petSize.width,
+                    y: edge.y
+                )
+            }
             let region = screens.first?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
             guard let point = IntentMapping.point(
                 for: anchor,

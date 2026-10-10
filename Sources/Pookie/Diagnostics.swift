@@ -1260,8 +1260,12 @@ enum Diagnostics {
         // Emotes: the ones this renderer can honestly do, and the ones it cannot.
         check(IntentMapping.Emote.love.mood == .happy && IntentMapping.Emote.love.blushes, "love is a happy blush")
         check(IntentMapping.Emote.question.line == "?", "a question is a bubble")
-        check(!IntentMapping.Emote.sparkle.isSupported, "sparkle needs an effect the renderer does not have")
-        check(IntentMapping.Emote.allCases.filter(\.isSupported).count == 6, "six of the eight are supported")
+        check(IntentMapping.Emote.sparkle.effect == .sparkle, "sparkle draws sparkles")
+        check(IntentMapping.Emote.sweat.effect == .sweat, "and sweat a bead")
+        check(
+            IntentMapping.Emote.allCases.allSatisfy(\.isSupported),
+            "all eight emotes do something now"
+        )
 
         // States: a mode that says hold still means hold still.
         check(IntentMapping.profile(for: .work).wanders == false, "work holds still")
@@ -1293,7 +1297,18 @@ enum Diagnostics {
         check(smitten.pose.mood == .happy, "and worn")
         run(smitten, 2)
         check(smitten.pose.mood != .happy || smitten.pose.mood == .happy, "and released on time")
-        check(!smitten.applyEmote(.sparkle, seconds: 1), "an emote the renderer cannot do is refused")
+        // And the two that used to be refused now draw something.
+        check(smitten.applyEmote(.sparkle, seconds: 1), "sparkle is accepted")
+        run(smitten, 0.4)
+        check(smitten.pose.sparkle > 0.2, "and puts sparkles around her head")
+        check(smitten.applyEmote(.sweat, seconds: 1), "sweat is accepted")
+        run(smitten, 0.4)
+        check(smitten.pose.sweat > 0.2, "and a bead beside it")
+        run(smitten, 2)
+        check(
+            smitten.pose.sparkle == 0 && smitten.pose.sweat == 0,
+            "and both let go when the hold ends, like every other channel"
+        )
 
         print("")
         print("the control socket (M3's second slice)")
@@ -1362,6 +1377,41 @@ enum Diagnostics {
             client.close()
         } else {
             check(false, "a client can connect to the control socket")
+        }
+
+        // The event stream: a subscription is per connection, and an event only goes to
+        // a connection that asked for it. `PROTOCOL.md` §6.
+        func intentLine(_ id: String, _ verb: String, _ args: String) -> String {
+            let ts = Int(Date().timeIntervalSince1970 * 1000)
+            return "{\"id\":\"" + id + "\",\"ts\":" + String(ts) + ",\"verb\":\"" + verb + "\",\"args\":{" + args + "}}"
+        }
+        if let events = try? ControlClient(socketPath: socketPath) {
+            events.send(intentLine("hello", "hello", "\"client\":\"selftest\""))
+            _ = events.readLine(timeout: 2)
+            events.send(intentLine("s1", "pet.on", "\"event\":\"clicked\",\"handler\":\"selftest\""))
+            check((events.readLine(timeout: 2) ?? "").contains("\"ok\":true"), "pet.on subscribes over the wire")
+
+            server.emit("clicked", pet: "Pookie", data: ["button": "left"])
+            let clicked = events.readLine(timeout: 2) ?? ""
+            check(clicked.contains("\"event\":\"clicked\""), "a subscribed event arrives")
+            check(clicked.contains("\"handler\":\"selftest\""), "with the handler label the client gave")
+            check(clicked.contains("\"pet\":\"Pookie\""), "and the pet it happened to")
+
+            // And an event nobody asked for is not sent.
+            server.emit("dropped", pet: "Pookie", data: [:])
+            check(events.readLine(timeout: 1) == nil, "an unsubscribed event is not sent")
+
+            // `["*"]` is everything.
+            events.send(intentLine("s2", "pet.on", "\"event\":[\"*\"]"))
+            _ = events.readLine(timeout: 2)
+            server.emit("petted", pet: "Pookie", data: ["durationMs": 320])
+            check(
+                (events.readLine(timeout: 2) ?? "").contains("\"event\":\"petted\""),
+                "and a wildcard gets everything"
+            )
+            events.close()
+        } else {
+            check(false, "a second client can subscribe")
         }
 
         // A stale socket file — what a crashed instance leaves — must not stop the
@@ -2937,6 +2987,12 @@ enum ArtSweep {
         var washing = CatPose()
         washing.groom = 1
         poses.append(washing)
+        var sparkling = CatPose()
+        sparkling.sparkle = 1
+        poses.append(sparkling)
+        var sweating = CatPose()
+        sweating.sweat = 1
+        poses.append(sweating)
         return poses
     }
 

@@ -65,9 +65,9 @@ enum IntentMapping {
         case .cursor:
             return cursor
         case .frontWindowEdge:
-            // Needs the frontmost window's geometry, which is `WindowScanner`'s job and
-            // not a coordinate conversion. Reported as unsupported rather than guessed
-            // at: "somewhere near the front window" is worse than an honest refusal.
+            // Resolved by the caller, which has the scanned platforms: a pure mapping
+            // has no business knowing about other apps' windows. Nil here means "ask
+            // somebody who does", not "impossible".
             return nil
         }
     }
@@ -111,14 +111,28 @@ enum IntentMapping {
 
         var blushes: Bool { self == .love }
 
-        /// `question` is a bubble, which the pet already has; `sparkle` and `sweat`
-        /// need an effect the renderer does not have, and are refused rather than
-        /// faked as a mood that means something else.
+        /// The effect an emote draws around her head, if it has one.
+        enum Effect: Equatable {
+            case sparkle
+            case sweat
+        }
+
+        var effect: Effect? {
+            switch self {
+            case .sparkle: return .sparkle
+            case .sweat: return .sweat
+            default: return nil
+            }
+        }
+
+        /// `question` is a bubble, which the pet already has.
         var line: String? {
             self == .question ? "?" : nil
         }
 
-        var isSupported: Bool { mood != nil || line != nil }
+        /// All eight are supported: six as a held mood, one as a bubble, two as an
+        /// effect around her head.
+        var isSupported: Bool { true }
     }
 
     // MARK: - State

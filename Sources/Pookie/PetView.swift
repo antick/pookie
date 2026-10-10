@@ -178,6 +178,12 @@ final class PetView: NSView {
     /// the menu bar uses.
     var makeContextMenu: (() -> NSMenu?)?
 
+    /// Drag lifecycle, for the event stream (`PROTOCOL.md` §6). The view knows when
+    /// the mouse moved; the controller knows what to say about it.
+    var onDragBegan: (() -> Void)?
+    var onDragged: ((CGPoint) -> Void)?
+    var onDragEnded: ((CGPoint) -> Void)?
+
     /// Right-clicking a pet deals with *that* pet.
     ///
     /// Until this existed, the only way to take an animal off the desk was the
@@ -228,14 +234,17 @@ final class PetView: NSView {
         pressPoint = NSEvent.mouseLocation
         pressTime = event.timestamp
         motion.beginDrag(at: NSEvent.mouseLocation)
+        onDragBegan?()
     }
 
     override func mouseDragged(with event: NSEvent) {
         motion.updateDrag(to: NSEvent.mouseLocation)
+        onDragged?(NSEvent.mouseLocation)
     }
 
     override func mouseUp(with event: NSEvent) {
         motion.endDrag()
+        onDragEnded?(NSEvent.mouseLocation)
 
         // A press and release in the same spot is a tap, not a throw. Without
         // this the cat can only ever be dragged, never petted.

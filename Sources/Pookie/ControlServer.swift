@@ -23,6 +23,11 @@ final class ControlConnection {
     /// none: `PROTOCOL.md` §1.
     var wantsAcks = false
     var clientName: String?
+    /// Events this connection asked for (`pet.on`). `"*"` means all of them.
+    var subscriptions: Set<String> = []
+    /// The label the client gave, echoed on every event so a multiplexed client can
+    /// route (`PROTOCOL.md` §6).
+    var handlerLabel: String = "default"
     private(set) var isClosed = false
 
     /// One line received. The reply is written back if there is one.
@@ -67,6 +72,21 @@ final class ControlConnection {
                 return
             }
         }
+    }
+
+    /// One event line, if this connection asked for that event.
+    ///
+    /// Events are at-most-once and never replayed: a reconnecting client loses what it
+    /// missed, and the protocol says so.
+    func sendEvent(_ event: String, pet: String, data: [String: Any]) {
+        guard !isClosed else { return }
+        guard subscriptions.contains(event) || subscriptions.contains("*") else { return }
+        let fields = data
+            .sorted { $0.key < $1.key }
+            .map { key, value in "\"\(key)\":\(CLI.json(value))" }
+            .joined(separator: ",")
+        let timestamp = Int(Date().timeIntervalSince1970 * 1000)
+        send("{\"event\":\"\(event)\",\"ts\":\(timestamp),\"pet\":\(CLI.json(pet)),\"handler\":\(CLI.json(handlerLabel)),\"data\":{\(fields)}}")
     }
 
     func closeConnection() {
@@ -144,6 +164,16 @@ final class ControlServer {
     /// Called for each accepted intent. The reply is written back down the
     /// connection.
     var handler: ((Intent) -> IntentAck)?
+
+    /// Send an event to every connection that asked for it.
+    func emit(_ event: String, pet: String, data: [String: Any]) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            for connection in connections {
+                connection.sendEvent(event, pet: pet, data: data)
+            }
+        }
+    }
 
     /// The loopback port, once started, for the log line and the port file.
     private(set) var port: UInt16?
@@ -282,7 +312,29 @@ final class ControlServer {
         }
 
         let (ack, intent) = router.receiveResult(line: line, now: Date().timeIntervalSince1970 * 1000)
-        guard ack.ok, let intent, let handler else { return ack.line }
+        guard ack.ok, let intent else { return ack.line }
+
+        // `pet.on` is the one verb the transport answers itself: a subscription belongs
+        // to the connection, not to the pet, and the behaviour layer has no business
+        // knowing which socket asked.
+        if intent.verb == .petOn {
+            let wanted: [String]
+            if let one = intent.args["event"] as? String {
+                wanted = [one]
+            } else if let many = intent.args["event"] as? [String] {
+                wanted = many
+            } else {
+                return IntentAck.refused(intent.id, .badArgs).line
+            }
+            connection.subscriptions.formUnion(wanted)
+            if let label = intent.args["handler"] as? String {
+                connection.handlerLabel = label
+            }
+            Log.info("control: \(connection.clientName ?? "a client") subscribed to \(wanted.joined(separator: ", "))")
+            return IntentAck.started(intent.id).line
+        }
+
+        guard let handler else { return ack.line }
         return handler(intent).line
     }
 }

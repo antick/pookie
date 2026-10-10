@@ -237,6 +237,10 @@ struct CatPose {
     /// shadow-boxing; a kick comes off the hip, lower and from behind, and it is
     /// what makes the pair look like they are actually scrapping.
     var kick: Double = 0
+    /// Sparkles around her head, 0 to 1 — the `sparkle` emote.
+    var sparkle: Double = 0
+    /// A bead of sweat beside her head, 0 to 1 — the `sweat` emote.
+    var sweat: Double = 0
     /// A comic hit, 0 to 1: the burst of lines drawn where a paw lands.
     var impact: Double = 0
 

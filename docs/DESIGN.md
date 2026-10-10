@@ -294,6 +294,14 @@ to keep in sync with the body. This is also the piece of M1's "explicit animatio
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
 
+**The event stream is per connection, not per pet** (`ControlConnection.subscriptions`,
+`ControlServer.emit`). `pet.on` is the one verb the transport answers itself, because a subscription
+belongs to a socket and the behaviour layer has no business knowing which one asked. The pet emits
+`clicked`, `dragged` (coalesced to 10 Hz, since the consumer is usually about to do something
+expensive), `dropped` and `petted`; an event only goes to a client that asked for that event or for
+`["*"]`, which is tested rather than assumed. `bubbleClicked` cannot fire at all, because the bubble
+window is click-through by design — an honest gap rather than a missing wire.
+
 **Intent arguments are mapped in one pure place** (`IntentMapping`). The protocol speaks Core Graphics
 global display space — origin at the top-left of the *display*, `y` increasing down — while AppKit's
 screens are bottom-left, so the flip happens once, in a function with a test, rather than in every

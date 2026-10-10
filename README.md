@@ -152,9 +152,18 @@ $ echo $?
 1
 ```
 
-`sparkle` and `sweat` need an effect the renderer does not have yet, and they say so rather than
-faking it as a mood that means something else. The same is true of `lookAt`, the `bubble.*` verbs and
-`pet.on`.
+`pookie events` prints everything the pet emits — `clicked`, `dragged`, `dropped`, `petted` — so a
+script can react to being clicked:
+
+```bash
+pookie events
+{"event":"clicked","ts":1759773421000,"pet":"Pookie","handler":"pookie-cli","data":{"button":"left","clickCount":1}}
+```
+
+A subscription is per connection, an event only goes to a client that asked for it, and `["*"]` asks
+for all of them. Events are at-most-once and never replayed: a reconnecting client loses what it
+missed, and should not use them for state. `dragged` is coalesced to ~10 Hz, because the consumer is
+usually a producer about to do something expensive.
 
 That is the socket, not the old distributed-notification stand-in: the pet shakes hands, accepts the
 intent, and answers with an ack. `POOKIE_CONTROL_SOCKET` points both the pet and the CLI at a different

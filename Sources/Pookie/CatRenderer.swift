@@ -239,6 +239,8 @@ struct CatRenderer: PetRenderer {
         // with the body it ends up behind the head — the same mistake the eye
         // patch made.
         if pose.groom != 0 { drawGroom(in: context, pose: pose, anatomy: anatomy) }
+        // Last of all: an emote's effect sits in front of the face.
+        drawEmoteEffect(in: context, pose: pose, anatomy: anatomy)
         drawHeadStripes(in: context, pose: pose, anatomy: anatomy)
     }
 
@@ -1060,6 +1062,79 @@ struct CatRenderer: PetRenderer {
             stroke: palette.outline,
             width: outlineWidth * 0.8
         )
+    }
+
+    /// An emote's effect, around her head: sparkles, or a bead of sweat.
+    ///
+    /// Both are drawn *after* the face, because they sit in front of it, and both are
+    /// bounded to the stage — the first version of the sparkle threw one off the top
+    /// and the transient sweep failed on the pixels, which is what that sweep is for.
+    private func drawEmoteEffect(in context: CGContext, pose: CatPose, anatomy: CatAnatomy) {
+        let sparkle = CGFloat(max(0, min(1, pose.sparkle)))
+        let sweat = CGFloat(max(0, min(1, pose.sweat)))
+        guard sparkle > 0.05 || sweat > 0.05 else { return }
+
+        if sparkle > 0.05 {
+            let head = anatomy.headCenter
+            let radius = anatomy.headRadius
+            for (index, spot) in [
+                (CGFloat(-1.15), CGFloat(0.55)),
+                (CGFloat(1.25), CGFloat(0.35)),
+                (CGFloat(-0.35), CGFloat(1.15)),
+            ].enumerated() {
+                let centre = CGPoint(
+                    x: head.x + radius * spot.0,
+                    y: head.y + radius * spot.1
+                )
+                let reach = (2.6 + CGFloat(index) * 0.7) * sparkle * anatomy.headScale
+                let star = CGMutablePath()
+                star.move(to: CGPoint(x: centre.x, y: centre.y + reach))
+                star.addQuadCurve(
+                    to: CGPoint(x: centre.x + reach, y: centre.y),
+                    control: CGPoint(x: centre.x + reach * 0.18, y: centre.y + reach * 0.18)
+                )
+                star.addQuadCurve(
+                    to: CGPoint(x: centre.x, y: centre.y - reach),
+                    control: CGPoint(x: centre.x + reach * 0.18, y: centre.y - reach * 0.18)
+                )
+                star.addQuadCurve(
+                    to: CGPoint(x: centre.x - reach, y: centre.y),
+                    control: CGPoint(x: centre.x - reach * 0.18, y: centre.y - reach * 0.18)
+                )
+                star.addQuadCurve(
+                    to: CGPoint(x: centre.x, y: centre.y + reach),
+                    control: CGPoint(x: centre.x - reach * 0.18, y: centre.y + reach * 0.18)
+                )
+                star.closeSubpath()
+                fillStroke(context, path: star, fill: palette.belly, stroke: palette.outline, width: outlineWidth * 0.6)
+            }
+        }
+
+        if sweat > 0.05 {
+            // Beside the temple, and above the head rather than below it: a droplet
+            // drawn where the ears are reads as a stray marking.
+            let centre = CGPoint(
+                x: anatomy.headCenter.x + anatomy.headRadius * 0.95,
+                y: anatomy.headCenter.y + anatomy.headRadius * 0.85
+            )
+            let size = anatomy.headRadius * 0.28 * sweat
+            let drop = CGMutablePath()
+            drop.move(to: CGPoint(x: centre.x, y: centre.y + size * 1.6))
+            drop.addQuadCurve(
+                to: CGPoint(x: centre.x - size, y: centre.y),
+                control: CGPoint(x: centre.x - size * 0.9, y: centre.y + size * 0.7)
+            )
+            drop.addQuadCurve(
+                to: CGPoint(x: centre.x + size, y: centre.y),
+                control: CGPoint(x: centre.x, y: centre.y - size * 1.5)
+            )
+            drop.addQuadCurve(
+                to: CGPoint(x: centre.x, y: centre.y + size * 1.6),
+                control: CGPoint(x: centre.x + size * 0.9, y: centre.y + size * 0.7)
+            )
+            drop.closeSubpath()
+            fillStroke(context, path: drop, fill: palette.eye, stroke: palette.outline, width: outlineWidth * 0.6)
+        }
     }
 
     /// Grooming: a foreleg up to the muzzle, and a tongue behind it.

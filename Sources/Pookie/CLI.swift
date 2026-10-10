@@ -30,7 +30,21 @@ enum CLI {
       pookie face <direction>    left | right | cursor
       pookie state <name>        idle | sleep | work | alert | hidden | celebrate
       pookie hide | show         hide or show the pet
+      pookie events              print every event the pet emits, until interrupted
     """
+
+    /// The verbs that are not intents: they are things a *client* does with the
+    /// connection rather than things the pet does.
+    enum LocalVerb: String {
+        /// Subscribe to every event and print them, until interrupted. The debugging
+        /// tool for the event stream, and the only way to see a real click arrive.
+        case events
+    }
+
+    static func localVerb(for arguments: [String]) -> LocalVerb? {
+        guard arguments.count >= 2 else { return nil }
+        return LocalVerb(rawValue: arguments[1])
+    }
 
     /// Parse `pookie <verb> [args]`.
     ///

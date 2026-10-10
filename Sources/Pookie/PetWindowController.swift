@@ -120,6 +120,29 @@ final class PetWindowController {
         speech.enabled = config.chatty
 
         view.onTap = { [weak self] in self?.handleTap() }
+        view.onDragBegan = { [weak self] in
+            guard let self else { return }
+            cohort?.emit("dragged", pet: self, data: ["x": motion.origin.x, "y": motion.origin.y])
+        }
+        view.onDragged = { [weak self] point in
+            guard let self else { return }
+            // Coalesced to ~10 Hz, because the consumer of a drag event is usually a
+            // producer about to do something expensive (`PROTOCOL.md` §6).
+            let now = CACurrentMediaTime()
+            guard now - lastDragEvent >= 0.1 else { return }
+            lastDragEvent = now
+            cohort?.emit("dragged", pet: self, data: [
+                "x": point.x, "y": point.y,
+                "vx": motion.velocity.dx, "vy": motion.velocity.dy,
+            ])
+        }
+        view.onDragEnded = { [weak self] point in
+            guard let self else { return }
+            cohort?.emit("dropped", pet: self, data: [
+                "x": point.x, "y": point.y,
+                "vx": motion.velocity.dx, "vy": motion.velocity.dy,
+            ])
+        }
         view.makeContextMenu = { [weak self] in self?.contextMenu() }
 
         applyOpacity()
@@ -386,9 +409,15 @@ final class PetWindowController {
     }
 
     private func handleTap() {
+        // The event goes out whatever the chatty setting says: it is a fact about the
+        // interaction, not a remark about it.
+        cohort?.emit("clicked", pet: self, data: ["button": "left", "clickCount": 1])
         guard AppConfig.shared.chatty else { return }
         speech.say(PetChatter.tapped(), now: CACurrentMediaTime())
     }
+
+    /// When the last coalesced `dragged` event went out.
+    private var lastDragEvent: Double = 0
 
     /// A landing hard enough to be worth a remark, and the occasional word about
     /// a new perch. Everything goes through the same rate limiter, so she can

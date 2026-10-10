@@ -205,7 +205,12 @@ final class PetMotion {
             if emoteSeconds <= 0 {
                 emoteMood = nil
                 emoteBlush = false
+                emoteEffect = nil
             }
+        }
+        if gazeHoldSeconds > 0 {
+            gazeHoldSeconds -= dt
+            if gazeHoldSeconds <= 0 { gazeHoldPoint = nil }
         }
         if facingHold > 0 {
             facingHold -= dt
@@ -350,6 +355,11 @@ final class PetMotion {
     private var emoteMood: CatMood?
     private var emoteSeconds: Double = 0
     private var emoteBlush = false
+    /// The effect an emote draws, if it has one.
+    private var emoteEffect: IntentMapping.Emote.Effect?
+    /// A forced gaze, from the `lookAt` verb.
+    private var gazeHoldPoint: CGPoint?
+    private var gazeHoldSeconds: Double = 0
     /// A forced facing, from the `face` verb.
     private var facingHold: Double = 0
     private var forcedFacing: Double?
@@ -360,11 +370,17 @@ final class PetMotion {
     /// honestly do.
     @discardableResult
     func applyEmote(_ emote: IntentMapping.Emote, seconds: Double) -> Bool {
-        guard emote.isSupported else { return false }
         emoteMood = emote.mood
         emoteBlush = emote.blushes
+        emoteEffect = emote.effect
         emoteSeconds = max(0.1, seconds)
         return true
+    }
+
+    /// Aim the eyes at a screen point for a while — `lookAt`.
+    func holdGaze(at point: CGPoint?, seconds: Double) {
+        gazeHoldPoint = point
+        gazeHoldSeconds = max(0, seconds)
     }
 
     /// Hold a facing direction for a while. `nil` means "back to normal".
@@ -1492,6 +1508,8 @@ final class PetMotion {
         pose.groom = 0
         pose.spin = 0
         pose.impact = 0
+        pose.sparkle = 0
+        pose.sweat = 0
 
         let region = desktop.region(containing: origin)
         let ground = surface(at: origin.x + size.width / 2, region: region, from: origin.y)
@@ -1602,6 +1620,15 @@ final class PetMotion {
             pose.mouthOpen = max(pose.mouthOpen, 0.95 * fade)
             pose.tilt = pose.tilt + Double(hurtDirection) * 0.14 * Double(fade)
             pose.hopOffset = max(pose.hopOffset, 1.3 * fade)
+        }
+
+        // An emote's effect, fading in and out over its hold.
+        if let effect = emoteEffect, emoteSeconds > 0 {
+            let strength = min(1, max(0, sin((1 - emoteSeconds / 2.0) * .pi) * 1.4))
+            switch effect {
+            case .sparkle: pose.sparkle = max(pose.sparkle, strength)
+            case .sweat: pose.sweat = max(pose.sweat, strength)
+            }
         }
 
         // Grooming: a foreleg comes up to the muzzle and she washes behind it.
@@ -1742,6 +1769,23 @@ final class PetMotion {
     var gazeDirectionOnScreen: Double { pose.gazeX * facingDirection }
 
     private func updateGaze(_ dt: Double) {
+        // A `lookAt` intent aims the eyes at something specific, for as long as it
+        // asked. It is the same smoothing as the cursor, with a different target, so
+        // the eyes never snap.
+        if gazeHoldSeconds > 0, let target = gazeHoldPoint {
+            let headScreen = screenPoint(designX: 50, designY: pose.anatomy.eyeY)
+            let dx = target.x - headScreen.x
+            let dy = target.y - headScreen.y
+            let distance = max(1, hypot(dx, dy))
+            let reach = min(1.0, Double(distance / 240))
+            let relax = min(1, dt * 6)
+            gazeScreenX += (Double(dx / distance) * reach - gazeScreenX) * relax
+            gazeScreenY += (Double(dy / distance) * reach - gazeScreenY) * relax
+            pose.gazeX = gazeScreenX * facing
+            pose.gazeY = gazeScreenY
+            return
+        }
+
         guard followCursor, let cursor else {
             let relax = min(1, dt * 4)
             gazeScreenX += (0 - gazeScreenX) * relax

@@ -75,6 +75,17 @@ final class PetCohort {
 
     private(set) var pets: [PetWindowController] = []
     var count: Int { pets.count }
+    /// Where the pet's own events go: `PROTOCOL.md` §6's `clicked`, `dragged`,
+    /// `dropped` and `petted`. Set by the app shell, which owns the socket.
+    var onEvent: ((String, [String: Any]) -> Void)?
+
+    /// Emit one event, with the pet it happened to.
+    func emit(_ event: String, pet: PetWindowController? = nil, data: [String: Any] = [:]) {
+        var payload = data
+        payload["pet"] = pet?.pookie.name ?? spokespet?.pookie.name ?? "pookie"
+        onEvent?(event, payload)
+    }
+
     /// Builds one pet's right-click menu. Set by the app shell: the menu items
     /// live with the app's other menus, and this type is not the menu.
     var contextMenuBuilder: ((PetWindowController) -> NSMenu?)?

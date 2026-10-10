@@ -170,6 +170,28 @@ if let index = arguments.firstIndex(of: "--simulate-lock") {
 // `pookie <verb>` — the command line the protocol's M3 criterion names. It goes
 // through the control socket and prints the pet's ack, so a shell sees what happened
 // rather than hoping.
+// `pookie events`: subscribe to everything and print it. A debugging tool, and the
+// only way to watch a real click arrive.
+if CLI.localVerb(for: arguments) == .events {
+    guard let client = try? ControlClient() else {
+        FileHandle.standardError.write(Data("pookie: no pet is listening. Is Pookie running?\n".utf8))
+        exit(2)
+    }
+    client.send("{\"verb\":\"hello\",\"args\":{\"client\":\"pookie-cli/0.1\",\"protocol\":\"0.1\",\"events\":[\"*\"]}}")
+    guard let greeting = client.readLine(timeout: 2), greeting.contains("hello.ok") else {
+        client.close()
+        FileHandle.standardError.write(Data("pookie: the pet did not answer the handshake\n".utf8))
+        exit(2)
+    }
+    client.send("{\"id\":\"\(UUID().uuidString)\",\"ts\":\(Int(Date().timeIntervalSince1970 * 1000)),\"verb\":\"pet.on\",\"args\":{\"event\":[\"*\"],\"handler\":\"pookie-cli\"}}")
+    while let line = client.readLine(timeout: 3600) {
+        print(line)
+        fflush(stdout)
+    }
+    client.close()
+    exit(0)
+}
+
 if let command = CLI.command(for: arguments) {
 guard let client = try? ControlClient() else {
     FileHandle.standardError.write(Data("pookie: no pet is listening. Is Pookie running?\n".utf8))

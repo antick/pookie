@@ -30,14 +30,14 @@ the method matters more than the memory: **sweep the docs, do not recall them.**
 
 ## 2. The control plane, which unlocks three other milestones
 
-- [ ] **The verbs that answer `unsupported`.** M3 landed its criteria — the socket, the
-      envelope, the CLI and `pookie say "hi"` from a fresh terminal — with these
-      honestly refused rather than faked: `emote`'s `sparkle` and `sweat` (they need an
-      effect the renderer does not have), `lookAt`, `bubble.show`, `bubble.append`,
-      `bubble.hide`, `pet.on`, the `front-window-edge` anchor, and `face front-window`
-      (which needs the frontmost window's geometry). Each is understood and answers
-      `unsupported`, which is what that error code is for.
-      *Done when:* either the verb does something, or the protocol stops listing it.
+- [ ] **`bubbleClicked`, and the click-to-event path end to end.** The event stream
+      landed (`pet.on`, `clicked`, `dragged` coalesced to 10 Hz, `dropped`, `petted`,
+      `["*"]`, per-connection filtering, the handler label) and is tested against a real
+      socket. What is *not* done: the bubble is click-through by design, so
+      `bubbleClicked` cannot fire, and the path from a **real** mouse click to a
+      subscribed client has only been proven by construction and by the tests — nobody
+      has clicked the pet with `pookie events` running. `pookie events` exists to make
+      that a one-minute check.
 
 - [ ] **M4 — an MCP server**, one tool per verb, so Codex and Claude Code can
       animate the pet with no bespoke integration. The adapter must contain no
