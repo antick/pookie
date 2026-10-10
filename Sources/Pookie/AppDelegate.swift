@@ -81,7 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             (self?.cohort?.collection ?? []).filter(\.onDesk).map(\.name)
         }
         server.handler = { [weak self] intent in
-            self?.perform(intent) ?? .refused(intent.id, .unsupported)
+            self?.submit(intent) ?? .refused(intent.id, .unsupported)
         }
         do {
             try server.start()
@@ -95,6 +95,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var data = payload
             data.removeValue(forKey: "pet")
             server?.emit(event, pet: pet, data: data)
+        }
+    }
+
+    /// The preemption stack: what is running, what is waiting, and which of them a new
+    /// intent replaces (`PROTOCOL.md` §5).
+    ///
+    /// Until this existed, `priority` was parsed, clamped, stored and never read — a
+    /// producer asking for 90 was treated exactly like one asking for 0, which made
+    /// §5's whole table decorative.
+    private var actionStack = ActionStack()
+
+    /// Offer an intent to the stack, then do what the stack decided.
+    ///
+    /// Every decision is logged with a reason (M2 criterion 7), because "why did my
+    /// line not appear?" is the question a producer actually asks.
+    private func submit(_ intent: Intent) -> IntentAck {
+        let now = Date().timeIntervalSince1970 * 1000
+        var entry = ActionStack.Entry(
+            intent: intent,
+            priority: intent.priority,
+            verb: intent.verb,
+            at: now
+        )
+        // How long this action will hold the stack, if it holds one at all. A `say`
+        // holds it for the bubble's life; an `emote` for its own hold; everything else
+        // completes at once.
+        switch intent.verb {
+        case .say, .bubbleShow:
+            let duration = (intent.args["durationMs"] as? Double).map { $0 / 1000 } ?? 3.5
+            entry.deadline = now + duration * 1000
+        case .emote:
+            let hold = (intent.args["durationMs"] as? Double) ?? 2_000
+            entry.deadline = now + hold
+        case .lookAt, .face:
+            entry.deadline = now + ((intent.args["holdMs"] as? Double) ?? 2_000)
+        default:
+            entry.deadline = .infinity
+        }
+
+        switch actionStack.submit(entry, now: now) {
+        case .started(let preempted):
+            if let preempted {
+                Log.info("control: \(intent.verb.rawValue) (priority \(entry.priority)) preempted \(preempted.rawValue)")
+            }
+            return perform(intent)
+
+        case .queued(let behind):
+            Log.info("control: \(intent.verb.rawValue) (priority \(entry.priority)) queued behind \(behind.rawValue)")
+            // The protocol has a word for this, and the ack should use it.
+            return IntentAck(id: intent.id, ok: true, accepted: "queued", error: nil, etaMs: nil)
+
+        case .dropped(let reason):
+            Log.info("control: \(intent.verb.rawValue) dropped — \(reason)")
+            return reason == "expired"
+                ? .refused(intent.id, .expired)
+                : .refused(intent.id, .rateLimited)
         }
     }
 

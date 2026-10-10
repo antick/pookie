@@ -143,7 +143,8 @@ pookie face left              # left | right | cursor
 pookie hide                   # and pookie show
 ```
 
-Every verb answers with an ack, and a refusal is a **non-zero exit**, so a script can branch on it:
+Every verb answers with an ack — `started`, `queued` (parked behind something more important, per
+`PROTOCOL.md` §5) or a refusal — and a refusal is a **non-zero exit**, so a script can branch on it:
 
 ```
 $ pookie emote sparkle

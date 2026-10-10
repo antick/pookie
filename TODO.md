@@ -50,23 +50,7 @@ the method matters more than the memory: **sweep the docs, do not recall them.**
 - [ ] **M7 — reactive skill packs**: declarative documents binding triggers to
       intents (`on git commit → emote(sparkle)`). *Needs:* M3/M4.
 
-## 3. M2's remaining criteria — the preemption stack
-
-Criterion 3 (wire streaming) is **met**: `bubble.show` opens a streaming bubble and
-`bubble.append` grows it, over the socket. The other three are one piece of work, and
-they no longer need M3 — M3 landed:
-
-- [ ] Criterion 4 — **the preemption stack.** `priority` is parsed, clamped, stored and
-      then **never consulted**: a producer asking for 90 is treated exactly like one
-      asking for 0, which makes §5's whole table decorative. This is the gap.
-- [ ] Criterion 5 — TTL re-evaluated *at dispatch*, not only at arrival. Meaningless
-      without a queue, and the queue is the stack above: an intent that waited behind a
-      sentence and is now stale should be dropped, not played late.
-- [ ] Criterion 7 — every rate-limit and preemption decision logged with a reason, so
-      "why did my line not appear" has an answer. The per-producer refusals log; the
-      speech engine's do not.
-
-## 4. Voice (M6)
+## 3. Voice (M6)
 
 - [ ] STT via `whisper.cpp`, locally, with no audio leaving the machine.
 - [ ] TTS via `AVSpeechSynthesizer`, with a voice option and a mute.
@@ -76,7 +60,7 @@ they no longer need M3 — M3 landed:
       active; no always-on listening; the pet ducks its own idle behaviour while
       listening and does not talk over the user.
 
-## 5. Release (M8 criterion 4)
+## 4. Release (M8 criterion 4)
 
 - [ ] **A signed, notarized DMG.** `make bundle` produces an unsigned app;
       Gatekeeper warns on a clean machine until somebody with an Apple Developer
@@ -85,7 +69,7 @@ they no longer need M3 — M3 landed:
       notification bridge, and permission behaviour. M0's findings call the
       bridge the most likely casualty of sandboxing.
 
-## 6. Open questions from the uncertainty register
+## 5. Open questions from the uncertainty register
 
 `docs/MACOS-CONSTRAINTS.md` §11 is the register; these are its entries that are
 still open, and they are here because a register nobody reads is a register nobody
@@ -101,12 +85,12 @@ register itself, not here.
       to Codex and Claude Code is untested; assume a `pookie_poll_events` tool is
       required until it is tested. Belongs with M4.
 - [ ] **Item 4 — capture exclusion.** `sharingType = .none` has never met a real
-      screen-share client. Also listed in §7 as a check for a human.
+      screen-share client. Also listed in §6 as a check for a human.
 - [ ] **Item 5 — the hotkey in a notarized, sandboxed build.** Carbon
       `RegisterEventHotKey` works with zero prompts in a dev build; re-check after
-      notarization. Also listed in §5.
+      notarization. Also listed in §4.
 
-## 7. Verified by hand, not yet by a test
+## 6. Verified by hand, not yet by a test
 
 The suite is headless and this project takes no Accessibility permission, so
 these are honestly "reviewed and reasoned" rather than proven. Each one is a
@@ -127,7 +111,7 @@ five-minute check for a human:
       clicking every control. Same for the menu-bar items and the right-click
       menu.
 
-## 8. Not yet verified, from M0's findings
+## 7. Not yet verified, from M0's findings
 
 `docs/M0-FINDINGS.md` §5 is the list; these are its entries that are still open and
 not already covered above.
@@ -146,7 +130,7 @@ not already covered above.
       (`ignoresMouseEvents` from a cursor poll). Not a task — recorded so the file is
       complete, and so nobody "fixes" the poll back into a `hitTest` assumption.
 
-## 9. Implemented, waiting for a caller
+## 8. Implemented, waiting for a caller
 
 - [ ] **`PetWindowController.appendToBubble`** is the `bubble.append` verb, implemented
       in-process and reachable from `SpeechEngine.append` — and nothing calls the
@@ -154,7 +138,7 @@ not already covered above.
       not dead code: it is the seam the protocol will use. Listed so that a future
       dead-code pass does not delete it.
 
-## 10. Small and cosmetic
+## 9. Small and cosmetic
 
 - [ ] **A true peek.** `CatShape.peek` is a lean forward — head low and forward,
       body high behind — because the renderer has no way to clip a pookie at the

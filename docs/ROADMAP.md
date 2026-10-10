@@ -122,10 +122,12 @@ problem, not an art problem.
 
 ## M2 — Bubble window, streaming `say`, and preemption
 
-**Status: criteria 1, 2 and half of 3 have landed** (bubble window, `say`, `bubble.append`,
-`bubble.hide`, length-derived TTL, one bubble at a time, minimum gap, mute, plus the `Pookie --say`
-bridge). Criteria 3 (wire streaming), 4 (preemption stack), 5 (TTL at dispatch), 6 (per-producer
-attention budget) and 7 (log reasons) are outstanding — they need M3's transport to be meaningful.
+**Status: all seven criteria have landed.** The bubble window and `say`; length-derived TTL and one
+bubble at a time; streaming over the wire (`bubble.show` with `stream`, `bubble.append`, `final`); the
+**preemption stack** with the documented order, drag parking the queue, and the locomotion lock; TTL
+enforced at dispatch as well as at arrival; the per-producer attention budget; and every preemption and
+rate-limit decision logged with its reason. Verified live: `moveTo (priority 40) queued behind say`,
+`say (priority 60) queued behind say`, `hide (priority 90) preempted say`.
 
 ### Goal
 

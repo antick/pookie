@@ -294,6 +294,14 @@ to keep in sync with the body. This is also the piece of M1's "explicit animatio
 that the procedural cat can carry without SpriteKit: states, legal transitions, and a documented
 preemption order, all in pure logic.
 
+**The preemption stack is lazy, and that is the whole trick** (`ActionStack`). `priority` used to be
+parsed, clamped, stored and never read, which made §5's table decorative. The stack implements the four
+normative rules as a pure type: strictly higher preempts, equal queues, `drag` clears, a running `say`
+holds the locomotion lock. It finishes actions **when the next intent arrives** rather than on a timer —
+an entry carries its own `deadline`, so there is no second clock to keep in step with the pet's, and a
+sentence that ended two seconds ago is not still "running". TTL is re-checked at that dispatch point,
+which is what criterion 5 means. Every decision is logged with a reason.
+
 **The event stream is per connection, not per pet** (`ControlConnection.subscriptions`,
 `ControlServer.emit`). `pet.on` is the one verb the transport answers itself, because a subscription
 belongs to a socket and the behaviour layer has no business knowing which one asked. The pet emits

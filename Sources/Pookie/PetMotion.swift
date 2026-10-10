@@ -35,6 +35,9 @@ final class PetMotion {
     var size: CGSize
     var desktop: Desktop
     var wanderEnabled = true
+    /// How long she waits before wandering off on her own. A `var` so a test can pin
+    /// it — the locomotion lock is the thing being tested, not the scheduler's jitter.
+    var wanderAfterSeconds: Double = 6
     var followCursor = true
     /// When true she lands on the top edges of other apps' windows instead of
     /// falling straight past them to the bottom of the screen.
@@ -649,6 +652,8 @@ final class PetMotion {
     private var blinkProgress: Double = -1
     private var blinkDoubleUp = false
     private var wanderCountdown: Double = 6
+
+    /// The wait before the first wander is the pinnable threshold above.
     private var wanderTargetX: CGFloat?
     private var microCountdown: Double = 8
     private var earTwitch: Double = 0
@@ -1425,7 +1430,7 @@ final class PetMotion {
             let delta = target - origin.x
             if abs(delta) < 8 {
                 wanderTargetX = nil
-                wanderCountdown = Rand.double(7...18)
+                wanderCountdown = wanderAfterSeconds > 6 ? wanderAfterSeconds : Rand.double(7...18)
             } else {
                 let speed = (abs(delta) > trotThreshold ? trotSpeed : walkSpeed) * CGFloat(speedBoost)
                 velocity.dx = (delta > 0 ? 1 : -1) * min(speed, abs(delta) * 1.6)

@@ -823,6 +823,27 @@ enum Diagnostics {
         check(PetMotion.stretchCurve(0.14) > 0 && PetMotion.stretchCurve(0.14) < 1, "the stretch eases in")
         check(CatRenderer.yawnAmount(CatPose()) == 0, "a standing cat is not yawning")
 
+        // Criterion 4's explicit automated test: idle wandering must never interrupt a
+        // sentence. Idle is priority 0 and the wander scheduler is hers to run, so the
+        // only thing standing between a sentence and a cat walking off mid-word is the
+        // locomotion lock.
+        let midSentence = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: restDesktop)
+        midSentence.followCursor = false
+        midSentence.wanderEnabled = true
+        midSentence.wanderAfterSeconds = 1
+        midSentence.isTalking = true
+        let spokeAt = midSentence.origin.x
+        run(talking, 40)
+        check(midSentence.isTalking, "a sentence keeps her talking for as long as it runs")
+        check(
+            abs(midSentence.origin.x - spokeAt) < 0.5,
+            "and idle wandering never interrupts it (moved \(midSentence.origin.x - spokeAt)pt in 40s)"
+        )
+        midSentence.isTalking = false
+        // Not asserted: that she wanders *afterwards*. By then she has sat down, and a
+        // settled cat staying put is its own tested promise — claiming otherwise here
+        // would be testing the rest ladder by accident.
+
         let held = PetMotion(origin: CGPoint(x: 300, y: 0), size: size, desktop: restDesktop)
         held.wanderEnabled = false
         held.followCursor = false
@@ -1178,6 +1199,118 @@ enum Diagnostics {
         )
 
         print("")
+        print("the preemption stack (M2 criteria 4, 5 and 7)")
+        // The four normative rules from PROTOCOL.md §5, tested directly rather than
+        // inferred from behaviour — which is the point of the stack being pure.
+        func entry(
+            _ id: String, _ verb: IntentVerb, _ priority: Int, ttl: Double = 60_000, ts: Double = 1_000
+        ) -> ActionStack.Entry {
+            ActionStack.Entry(
+                intent: Intent(id: id, ts: ts, verb: verb, args: [:], priority: priority, ttl: ttl, pet: nil),
+                priority: priority,
+                verb: verb,
+                at: ts
+            )
+        }
+        let stackNow: Double = 2_000
+
+        var stackA = ActionStack()
+        check(
+            stackA.submit(entry("a", .say, 60), now: stackNow) == .started(preempted: nil),
+            "the first intent starts"
+        )
+        // Rule 1: strictly higher preempts...
+        check(
+            stackA.submit(entry("b", .hide, 90), now: stackNow) == .started(preempted: .say),
+            "a higher priority preempts the running action"
+        )
+        // ...and equal never does.
+        var equalStack = ActionStack()
+        _ = equalStack.submit(entry("a", .say, 60), now: stackNow)
+        check(
+            equalStack.submit(entry("b", .say, 60), now: stackNow) == .queued(behind: .say),
+            "and equal priority queues instead of preempting"
+        )
+
+        // Rule 3: a sentence holds a locomotion lock, so a move waits — a sentence that
+        // walks away mid-word is the thing the lock exists to prevent.
+        var lockedStack = ActionStack()
+        _ = lockedStack.submit(entry("a", .say, 60), now: stackNow)
+        check(
+            lockedStack.submit(entry("b", .moveTo, 40), now: stackNow) == .queued(behind: .say),
+            "a move is deferred behind a sentence, not dropped"
+        )
+        check(lockedStack.waiting.count == 1, "and it is parked, not forgotten")
+
+        // Criterion 5: TTL at dispatch, not only at arrival. The intent has to be valid
+        // when it is submitted and stale when it is dispatched, or the second check is
+        // never exercised — the first version of this test expired it on arrival and
+        // then asserted about the dispatch.
+        var expiringStack = ActionStack()
+        _ = expiringStack.submit(entry("a", .say, 60), now: stackNow)
+        _ = expiringStack.submit(entry("b", .emote, 30, ttl: 2_500, ts: 1_000), now: stackNow)
+        let finished = expiringStack.finish(now: 5_000)
+        check(finished.next == nil, "an intent that went stale while it waited is not played late")
+        check(finished.dropped.count == 1, "and it is reported as dropped, so the log can say why")
+
+        // Rule 2: drag clears the stack, and what was parked resumes on release.
+        var dragStack = ActionStack()
+        _ = dragStack.submit(entry("a", .say, 60), now: stackNow)
+        _ = dragStack.submit(entry("b", .emote, 30), now: stackNow)
+        dragStack.beginDrag(entry("drag", .moveTo, ActionStack.dragPriority, ts: stackNow))
+        check(dragStack.running?.intent.id == "drag", "the user's hand takes the stack")
+        check(
+            dragStack.submit(entry("c", .hide, 90), now: stackNow) == .queued(behind: .moveTo),
+            "and nothing preempts a drag"
+        )
+        let resumed = dragStack.endDrag(now: stackNow)
+        check(
+            resumed.next?.intent.id == "c",
+            "the most important parked intent resumes on release, which is the hide (90)"
+        )
+        check(resumed.next?.verb == .hide, "not the sentence it was queued behind (60)")
+
+        // And when nothing outranks it, the interrupted sentence is what resumes.
+        var releasedStack = ActionStack()
+        _ = releasedStack.submit(entry("a", .say, 60), now: stackNow)
+        _ = releasedStack.submit(entry("b", .emote, 30), now: stackNow)
+        releasedStack.beginDrag(entry("drag", .moveTo, ActionStack.dragPriority, ts: stackNow))
+        let back = releasedStack.endDrag(now: stackNow)
+        check(back.next?.intent.id == "a", "the sentence that was interrupted resumes on release")
+        check(back.next?.verb == .say, "which is the sentence")
+
+        // A stale parked intent is dropped at that moment rather than resumed.
+        var staleStack = ActionStack()
+        _ = staleStack.submit(entry("a", .say, 60, ttl: 100, ts: 1_000), now: stackNow)
+        _ = staleStack.submit(entry("b", .emote, 30), now: stackNow)
+        staleStack.beginDrag(entry("drag", .moveTo, ActionStack.dragPriority, ts: stackNow))
+        let afterDrag = staleStack.endDrag(now: 9_000)
+        check(afterDrag.next?.intent.id == "b", "a stale sentence does not resume after a drag")
+
+        // An action that has run out finishes lazily, when the next intent arrives —
+        // no timer to keep in step with the pet's own.
+        var dueStack = ActionStack()
+        var dueEntry = entry("a", .say, 60)
+        dueEntry.deadline = 3_000
+        _ = dueStack.submit(dueEntry, now: stackNow)
+        check(dueStack.running != nil, "a sentence holds the stack while it runs")
+        let queuedBehind = entry("b", .emote, 30)
+        _ = dueStack.submit(queuedBehind, now: 4_000)
+        check(
+            dueStack.running?.intent.id == "b",
+            "and releases it once its own duration has passed, with no timer"
+        )
+
+        // An already-expired intent is refused before it can displace anything.
+        var refusingStack = ActionStack()
+        _ = refusingStack.submit(entry("a", .say, 60), now: stackNow)
+        check(
+            refusingStack.submit(entry("b", .hide, 90, ttl: 10, ts: 1_000), now: stackNow)
+                == .dropped(reason: "expired"),
+            "an expired intent is refused rather than preempting something"
+        )
+        check(refusingStack.running?.intent.id == "a", "and what was running is untouched")
+
         print("the command line and the mapping (M3's third slice)")
         let cliDesk = Desktop(visibleFrames: [CGRect(x: 0, y: 0, width: 1440, height: 860)])
         // Parsing, separated from sending, so a mistake in a verb is a failing check
@@ -1378,57 +1511,6 @@ enum Diagnostics {
         } else {
             check(false, "a client can connect to the control socket")
         }
-
-        // The event stream: a subscription is per connection, and an event only goes to
-        // a connection that asked for it. `PROTOCOL.md` §6.
-        func intentLine(_ id: String, _ verb: String, _ args: String) -> String {
-            let ts = Int(Date().timeIntervalSince1970 * 1000)
-            return "{\"id\":\"" + id + "\",\"ts\":" + String(ts) + ",\"verb\":\"" + verb + "\",\"args\":{" + args + "}}"
-        }
-        if let events = try? ControlClient(socketPath: socketPath) {
-            events.send(intentLine("hello", "hello", "\"client\":\"selftest\""))
-            _ = events.readLine(timeout: 2)
-            events.send(intentLine("s1", "pet.on", "\"event\":\"clicked\",\"handler\":\"selftest\""))
-            check((events.readLine(timeout: 2) ?? "").contains("\"ok\":true"), "pet.on subscribes over the wire")
-
-            server.emit("clicked", pet: "Pookie", data: ["button": "left"])
-            let clicked = events.readLine(timeout: 2) ?? ""
-            check(clicked.contains("\"event\":\"clicked\""), "a subscribed event arrives")
-            check(clicked.contains("\"handler\":\"selftest\""), "with the handler label the client gave")
-            check(clicked.contains("\"pet\":\"Pookie\""), "and the pet it happened to")
-
-            // And an event nobody asked for is not sent.
-            server.emit("dropped", pet: "Pookie", data: [:])
-            check(events.readLine(timeout: 1) == nil, "an unsubscribed event is not sent")
-
-            // `["*"]` is everything.
-            events.send(intentLine("s2", "pet.on", "\"event\":[\"*\"]"))
-            _ = events.readLine(timeout: 2)
-            server.emit("petted", pet: "Pookie", data: ["durationMs": 320])
-            check(
-                (events.readLine(timeout: 2) ?? "").contains("\"event\":\"petted\""),
-                "and a wildcard gets everything"
-            )
-            events.close()
-        } else {
-            check(false, "a second client can subscribe")
-        }
-
-        // A stale socket file — what a crashed instance leaves — must not stop the
-        // next one, which is the difference between a pet that starts and a pet that
-        // reports "address in use" with nobody to blame.
-        server.stop()
-        check(!FileManager.default.fileExists(atPath: socketPath), "stopping removes the socket")
-        FileManager.default.createFile(atPath: socketPath, contents: Data("stale".utf8))
-        let recovered = ControlServer(socketPath: socketPath, portPath: nil)
-        do {
-            try recovered.start()
-            check(true, "a stale socket file is replaced rather than blocking the start")
-            recovered.stop()
-        } catch {
-            check(false, "a stale socket file is replaced rather than blocking the start: \(error)")
-        }
-        try? FileManager.default.removeItem(atPath: scratch)
 
         print("")
         print("the small things")
@@ -1870,6 +1952,57 @@ print("scuffles")
             if case .rateLimited = outcome { return false }
             return true
         }
+
+        // The event stream: a subscription is per connection, and an event only goes to
+        // a connection that asked for it. `PROTOCOL.md` §6.
+        func intentLine(_ id: String, _ verb: String, _ args: String) -> String {
+            let ts = Int(Date().timeIntervalSince1970 * 1000)
+            return "{\"id\":\"" + id + "\",\"ts\":" + String(ts) + ",\"verb\":\"" + verb + "\",\"args\":{" + args + "}}"
+        }
+        if let events = try? ControlClient(socketPath: socketPath) {
+            events.send(intentLine("hello", "hello", "\"client\":\"selftest\""))
+            _ = events.readLine(timeout: 2)
+            events.send(intentLine("s1", "pet.on", "\"event\":\"clicked\",\"handler\":\"selftest\""))
+            check((events.readLine(timeout: 2) ?? "").contains("\"ok\":true"), "pet.on subscribes over the wire")
+
+            server.emit("clicked", pet: "Pookie", data: ["button": "left"])
+            let clicked = events.readLine(timeout: 2) ?? ""
+            check(clicked.contains("\"event\":\"clicked\""), "a subscribed event arrives")
+            check(clicked.contains("\"handler\":\"selftest\""), "with the handler label the client gave")
+            check(clicked.contains("\"pet\":\"Pookie\""), "and the pet it happened to")
+
+            // And an event nobody asked for is not sent.
+            server.emit("dropped", pet: "Pookie", data: [:])
+            check(events.readLine(timeout: 1) == nil, "an unsubscribed event is not sent")
+
+            // `["*"]` is everything.
+            events.send(intentLine("s2", "pet.on", "\"event\":[\"*\"]"))
+            _ = events.readLine(timeout: 2)
+            server.emit("petted", pet: "Pookie", data: ["durationMs": 320])
+            check(
+                (events.readLine(timeout: 2) ?? "").contains("\"event\":\"petted\""),
+                "and a wildcard gets everything"
+            )
+            events.close()
+        } else {
+            check(false, "a second client can subscribe")
+        }
+
+        // A stale socket file — what a crashed instance leaves — must not stop the
+        // next one, which is the difference between a pet that starts and a pet that
+        // reports "address in use" with nobody to blame.
+        server.stop()
+        check(!FileManager.default.fileExists(atPath: socketPath), "stopping removes the socket")
+        FileManager.default.createFile(atPath: socketPath, contents: Data("stale".utf8))
+        let recovered = ControlServer(socketPath: socketPath, portPath: nil)
+        do {
+            try recovered.start()
+            check(true, "a stale socket file is replaced rather than blocking the start")
+            recovered.stop()
+        } catch {
+            check(false, "a stale socket file is replaced rather than blocking the start: \(error)")
+        }
+        try? FileManager.default.removeItem(atPath: scratch)
 
         let engine = SpeechEngine()
         engine.minimumGap = 0

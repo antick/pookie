@@ -365,6 +365,10 @@ to clear a handler.
 
 ## 5. Priority and preemption
 
+**Status: implemented.** `ActionStack` carries these four rules, and the acks use the vocabulary below:
+a queued intent answers `"accepted":"queued"`, a stale one `"error":"expired"`, and a preemption is
+logged with what it displaced.
+
 | Priority | Behaviour | Default source | Interruptible by | Resumable |
 |---:|---|---|---|---|
 | 100 | `drag` | user, direct manipulation | nothing | no |
