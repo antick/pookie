@@ -50,15 +50,21 @@ the method matters more than the memory: **sweep the docs, do not recall them.**
 - [ ] **M7 — reactive skill packs**: declarative documents binding triggers to
       intents (`on git commit → emote(sparkle)`). *Needs:* M3/M4.
 
-## 3. M2's remaining criteria
+## 3. M2's remaining criteria — the preemption stack
 
-All four need M3's transport to be meaningful:
+Criterion 3 (wire streaming) is **met**: `bubble.show` opens a streaming bubble and
+`bubble.append` grows it, over the socket. The other three are one piece of work, and
+they no longer need M3 — M3 landed:
 
-- [ ] Criterion 3 — wire streaming (`bubble.append` over the protocol).
-- [ ] Criterion 4 — the preemption stack (priority override).
-- [ ] Criterion 5 — TTL evaluated at dispatch, not at arrival.
-- [ ] Criterion 7 — every rate-limit and preemption decision logged with a
-      reason, so "why did my line not appear" has an answer.
+- [ ] Criterion 4 — **the preemption stack.** `priority` is parsed, clamped, stored and
+      then **never consulted**: a producer asking for 90 is treated exactly like one
+      asking for 0, which makes §5's whole table decorative. This is the gap.
+- [ ] Criterion 5 — TTL re-evaluated *at dispatch*, not only at arrival. Meaningless
+      without a queue, and the queue is the stack above: an intent that waited behind a
+      sentence and is now stale should be dropped, not played late.
+- [ ] Criterion 7 — every rate-limit and preemption decision logged with a reason, so
+      "why did my line not appear" has an answer. The per-producer refusals log; the
+      speech engine's do not.
 
 ## 4. Voice (M6)
 
