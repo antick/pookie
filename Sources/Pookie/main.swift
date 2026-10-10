@@ -170,6 +170,14 @@ if let index = arguments.firstIndex(of: "--simulate-lock") {
 // `pookie <verb>` — the command line the protocol's M3 criterion names. It goes
 // through the control socket and prints the pet's ack, so a shell sees what happened
 // rather than hoping.
+// `pookie help` — the usage line advertises it, so it has to exist. Without this it
+// fell through to the interactive path and started a pet, which is a memorable way to
+// answer "how do I use this?".
+if arguments.count >= 2, arguments[1] == "help" || arguments[1] == "--help" {
+    print(CLI.usage)
+    exit(0)
+}
+
 // `pookie events`: subscribe to everything and print it. A debugging tool, and the
 // only way to watch a real click arrive.
 if CLI.localVerb(for: arguments) == .events {
