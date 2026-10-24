@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Maintenance release to verify signed in-app updates from the first public release.
+- Retains the same pet behavior, saved collection and settings.
+
 ## 0.1.0
 
 - First public GPL-3.0-or-later release for Apple Silicon and macOS 14 or newer.

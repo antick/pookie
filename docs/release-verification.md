@@ -41,3 +41,14 @@ and multi-monitor/full-screen acceptance cannot be inferred from headless tests.
   with all six native binaries arm64 only. Final tagged artifacts are verified separately.
 - Repository is public, GPL recognized by GitHub, private vulnerability reports enabled.
 - GitHub Pages uses Actions and the `release` and `github-pages` environments allow `v*` tags.
+
+## Development UI and isolation
+
+- Launched Pookie Dev from its actual bundle with Settings.
+- General/Behaviour/Pookies tabs rendered and were inspected. Development login
+  registration is disabled; the checkbox was visibly disabled.
+- Toggled development Quiet mode on and back off, read both UI states, and compared
+  production preferences: every existing production key and the 12-entry roster
+  stayed unchanged.
+- User asked to keep working without foreground window control. Remaining acceptance
+  runs in the background; browser clicks and foreground updater dialogs are not used.

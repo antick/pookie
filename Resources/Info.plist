@@ -13,9 +13,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>0.1.1</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>PookieChannel</key>
 	<string>production</string>
 	<key>SUFeedURL</key>
@@ -34,8 +34,7 @@
 	<false/>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
-	<!-- No Dock icon and no app menu bar: Pookie is an accessory app whose only
-	     chrome is the menu-bar item. -->
+	<!-- Accessory app: the menu-bar item is the app chrome. -->
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>
