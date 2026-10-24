@@ -327,10 +327,11 @@ Criteria 2, 3, 5 and 8 are met; the first-run line (6) and the uninstall notes (
 last pass. **Per-producer rate limits** and **launch at login** have since landed too.
 The per-pet CPU budget landed too: it is now a
 **time** budget divided by each pet's measured draw cost rather than a flat frame count split evenly, so
-a sleeping pookie frees frames for a running one. The one criterion left is 4 — **a signed, notarized DMG** — which needs an Apple
-Developer certificate and a release process, not code: `make bundle` produces an unsigned app, and
-Gatekeeper will warn on a clean machine until somebody with a certificate signs it. Nothing else in M8
-is code-shaped.
+a sleeping pookie frees frames for a running one. Distribution now has a dedicated
+release path: isolated Pookie Dev, exact-pinned Sparkle updates, arm64-only nested
+signing, Apple notarization and a DMG/ZIP/source release workflow. Criterion 4's
+artifact and installed-upgrade acceptance is recorded in `release-verification.md`;
+it is complete only when the public download, installation and update are verified.
 
 ### Goal
 
@@ -346,8 +347,8 @@ Make it installable by a stranger and configurable without editing files. This i
    rate limits, skill pack toggles, launch at login, and quit.
 3. Settings persist and are editable without touching a JSON file by hand (a plain-text config file
    may still exist for power users).
-4. **Distribution is a signed, notarized DMG.** Gatekeeper opens it without a warning on a clean
-   machine.
+4. **Distribution is a signed, notarized DMG.** Gatekeeper accepts the notarized app; a normal first-download confirmation
+   may appear. Check a freshly downloaded installer and record the test environment.
 5. No Accessibility, Screen Recording, or Input Monitoring permission is requested for any core
    feature. Optional features that need one ask at the moment of use, with an explanation, and
    degrade gracefully when denied.

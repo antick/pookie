@@ -701,6 +701,30 @@ Tracked here so they are not rediscovered as bugs. Full detail in `MACOS-CONSTRA
 
 ---
 
+## Release and development identity
+
+`AppIdentity` is the shared source for channel identity, preference domains, support
+paths, control socket and port discovery, speech notification, login eligibility and
+hotkey modifiers. A production bundle explicitly sets `PookieChannel=production` and
+keeps `com.pookie.pet`; unknown or unbundled launches default to `com.pookie.pet.dev`.
+Development shortcuts add Shift. Both apps can run simultaneously without controlling
+or saving over each other. Settings tab selection uses the same channel preference store.
+
+`UpdateController` owns Sparkle and starts only for a production bundle with the
+expected HTTPS feed and a valid public signing key. The menu offers Check for Updates
+and automatic-check preference. Development never consumes production updates. Sparkle
+2.10.0 is the sole approved external dependency; pure pet behavior stays independent.
+
+The release scripts build arm64-only code and thin all nested framework/helper binaries
+before signing. Production requires Developer ID signatures, hardened runtime, secure
+timestamps, successful notarization, stapling and Gatekeeper assessment. A trusted tag
+workflow publishes complete DMG/ZIP/source/checksum assets before deploying the appcast.
+Hardened runtime does not enable App Sandbox or introduce privacy permissions.
+
+The pet artwork also supplies the app icon; development has a visible Dev marking.
+`Resources/Info.plist` owns public version and monotonic build metadata. See `releasing.md`
+for commands and `release-verification.md` for measured acceptance evidence.
+
 ## See also
 
 - `M0-FINDINGS.md` — what M0 measured, what it broke, and what is still unverified.

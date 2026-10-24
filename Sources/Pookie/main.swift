@@ -14,6 +14,8 @@ if arguments.contains("--help") || arguments.contains("-h") {
       Pookie --producer <name>     name the sender, for the per-producer budget
       Pookie --simulate-lock <on|off>  post the screen-lock notification, to test the pause path
       Pookie --launch-at-login <on|off>  add or remove Pookie from your login items
+      Pookie --render-icon <png>   export a 1024x1024 app icon and exit
+      Pookie --icon-channel <c>    production | development (icon export only)
       Pookie --render-png <path>   write a pose sheet to a PNG and exit
       Pookie --render-species <p>  write a species sheet to a PNG and exit
       Pookie --render-patterns <p> write a markings sheet to a PNG and exit
@@ -32,14 +34,25 @@ if arguments.contains("--help") || arguments.contains("-h") {
       Pookie --mute                do not react to being petted
 
     Global hotkeys (no Accessibility permission required):
-      control-option-H   show / hide Pookie
-      control-option-P   cycle mouse mode (click-through gaps / capture box / ignore)
-      control-option-R   bring Pookie home
-      control-option-D   describe current state to stderr
-      control-option-T   say hello (test the speech bubble)
-      control-option-M   mute / unmute reactions
+      \(AppIdentity.current.shortcutPrefix)-H   show / hide Pookie
+      \(AppIdentity.current.shortcutPrefix)-P   cycle mouse mode (click-through gaps / capture box / ignore)
+      \(AppIdentity.current.shortcutPrefix)-R   bring Pookie home
+      \(AppIdentity.current.shortcutPrefix)-D   describe current state to stderr
+      \(AppIdentity.current.shortcutPrefix)-T   say hello (test the speech bubble)
+      \(AppIdentity.current.shortcutPrefix)-M   mute / unmute reactions
     """)
     exit(0)
+}
+
+do {
+    if let icon = try IconExportRequest.parse(arguments: arguments) {
+        try AppIcon.export(to: icon.path, identity: icon.identity)
+        print("wrote 1024x1024 \(icon.identity.displayName) icon to \(icon.path)")
+        exit(0)
+    }
+} catch {
+    FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+    exit(2)
 }
 
 if arguments.contains("--verbose") {

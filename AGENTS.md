@@ -1,7 +1,8 @@
 # Working on Pookie
 
 A cat that lives on your screen: a transparent, always-on-top macOS window that never steals focus,
-drawn procedurally. Swift + AppKit, **no third-party dependencies**, and **no permission prompts** —
+drawn procedurally. Swift + AppKit, with **Sparkle 2.10.0 as the only third-party dependency** for signed updates,
+and **no privacy permission prompts** —
 Screen Recording, Accessibility and Input Monitoring are off the table by design, see
 `docs/MACOS-CONSTRAINTS.md`.
 
@@ -9,6 +10,9 @@ Screen Recording, Accessibility and Input Monitoring are off the table by design
 `docs/DESIGN.md` is the architecture.
 `docs/ROADMAP.md` is what is done, what is next, and the risk each milestone retires. Read the
 relevant one before changing behaviour in its area.
+
+For app identity, signing, installers, updates or publication, read `docs/releasing.md`.
+Production is Apple Silicon only; bare executables and local builds use the isolated development identity.
 
 ## The loop
 

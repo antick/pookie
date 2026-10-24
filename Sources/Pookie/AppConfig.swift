@@ -343,7 +343,7 @@ final class AppConfig {
         case onboarded = "hasOnboarded"
     }
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = AppIdentity.current.defaults) {
         self.defaults = defaults
 
         if let raw = defaults.string(forKey: Key.clickThrough.rawValue),

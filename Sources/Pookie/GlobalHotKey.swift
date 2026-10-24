@@ -15,10 +15,6 @@ final class GlobalHotKey {
     private var hotKeyRef: EventHotKeyRef?
     private let identifier: UInt32
 
-    /// Carbon modifiers. `controlKey | optionKey` is a deliberately obscure
-    /// combination that will not collide with anything you actually use.
-    static let controlOption: UInt32 = UInt32(controlKey | optionKey)
-
     init?(keyCode: UInt32, modifiers: UInt32, action: @escaping () -> Void) {
         Self.installHandlerIfNeeded()
 

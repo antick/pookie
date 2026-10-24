@@ -16,8 +16,8 @@ final class SettingsWindowController: NSWindowController {
     /// The tab you were last on. Landing back where you left off is the whole
     /// reason a settings window remembers anything.
     private var selectedTab: Int {
-        get { UserDefaults.standard.integer(forKey: "settingsTab") }
-        set { UserDefaults.standard.set(newValue, forKey: "settingsTab") }
+        get { AppIdentity.current.defaults.integer(forKey: AppIdentity.settingsTabKey) }
+        set { AppIdentity.current.defaults.set(newValue, forKey: AppIdentity.settingsTabKey) }
     }
 
     private var tabs: NSTabView?
@@ -36,7 +36,7 @@ final class SettingsWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Pookie Settings"
+        window.title = "\(AppIdentity.current.displayName) Settings"
         window.isReleasedWhenClosed = false
         // Above the pets, and it does not become the app's main window: the
         // pookies keep running while you are in here.
@@ -144,9 +144,10 @@ final class SettingsWindowController: NSWindowController {
         let login = checkbox(
             "Start Pookie when I log in",
             #selector(toggleLogin(_:)),
-            tooltip: "Adds Pookie to your login items. Needs the app bundle, so it does nothing when running the debug binary"
+            tooltip: AppIdentity.current.allowsLoginItem ? "Adds Pookie to your login items" : "Login items are disabled in Pookie Dev"
         )
-        login.state = config.launchAtLogin ? .on : .off
+        login.isEnabled = AppIdentity.current.allowsLoginItem
+        login.state = AppIdentity.current.allowsLoginItem && config.launchAtLogin ? .on : .off
 
         let teleport = checkbox(
             "Blink between displays",

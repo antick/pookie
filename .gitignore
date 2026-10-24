@@ -6,3 +6,11 @@ build/
 xcuserdata/
 *.log
 shots/*.log
+
+__pycache__/
+*.pyc
+.env*
+!.env.example
+*.p8
+*.p12
+*.keychain-db

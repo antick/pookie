@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+concurrency:
+  group: public-release
+  cancel-in-progress: false
+
+jobs:
+  macos:
+    name: Verify, notarize and publish
+    if: github.repository == 'antick/pookie' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-26 # arm64; also asserted before any credentials are imported
+    timeout-minutes: 90
+    environment: release # Root restricts this protected environment to trusted v* tags.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate immutable release source
+        run: |
+          test "$(uname -m)" = arm64
+          python3 scripts/release/policy.py source
+      - name: Run all tests and development bundle checks
+        run: |
+          make test
+          make verify-dev
+      - name: Import temporary signing material
+        env:
+          MAC_CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
+          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: python3 scripts/release/ci_signing.py prepare
+      - name: Build signed, notarized and verified production artifacts
+        run: make release
+      - name: Publish and verify every public download
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/release/publish.sh
+      - name: Stage feed after public download verification
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: build/release-artifacts/site
+      - name: Always remove signing material and restore the Keychain search list
+        if: always()
+        run: python3 scripts/release/ci_signing.py cleanup
+
+  feed:
+    name: Publish update feed
+    needs: macos
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy only after public assets match the verified build
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

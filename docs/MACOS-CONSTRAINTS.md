@@ -420,9 +420,11 @@ from any misbehaviour, and it is what makes the "not annoying" constraint credib
 the App Store incompatibility in the docs and in the README, so it is never re-litigated as a
 "growth" idea.
 
-**Consequence:** no App Store auto-update. An update mechanism is an M8 packaging concern; a
-third-party updater framework is an option, but it introduces its own signing and permission
-surface, so evaluate it then rather than assuming it.
+**Consequence:** direct-distribution updates use the exact-pinned Sparkle 2.10.0
+framework, the approved exception to the dependency rule. Production has a signed
+HTTPS appcast and signed update archives. Development never starts the updater.
+Hardened runtime and notarization are required; App Sandbox is a separate capability
+and is not enabled for this distribution. See `releasing.md`.
 
 ---
 

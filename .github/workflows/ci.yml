@@ -1,0 +1,23 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-26 # GitHub's standard Apple silicon runner
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check, test and assemble the development app
+        run: |
+          test "$(uname -m)" = arm64
+          make test
+          make verify-dev

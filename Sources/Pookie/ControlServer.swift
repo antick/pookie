@@ -13,143 +13,13 @@ import Foundation
 /// router, writes the ack back, and does nothing else. It is testable headlessly,
 /// which is why the tests connect to a real socket in a temporary directory.
 
-/// One connection's framing: bytes in, lines out.
-final class ControlConnection {
-    let fd: Int32
-    private let queue: DispatchQueue
-    private var buffer = Data()
-    private var source: DispatchSourceRead?
-    /// Whether the client asked for acks. A client that never sent `hello` gets
-    /// none: `PROTOCOL.md` §1.
-    var wantsAcks = false
-    var clientName: String?
-    /// Events this connection asked for (`pet.on`). `"*"` means all of them.
-    var subscriptions: Set<String> = []
-    /// The label the client gave, echoed on every event so a multiplexed client can
-    /// route (`PROTOCOL.md` §6).
-    var handlerLabel: String = "default"
-    private(set) var isClosed = false
-
-    /// One line received. The reply is written back if there is one.
-    var onLine: ((String, ControlConnection) -> String?)?
-
-    init(fd: Int32, queue: DispatchQueue) {
-        self.fd = fd
-        self.queue = queue
-    }
-
-    func start() {
-        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
-        source.setEventHandler { [weak self] in self?.readAvailable() }
-        source.setCancelHandler { [weak self] in
-            guard let self, !isClosed else { return }
-            isClosed = true
-            Darwin.close(fd)
-        }
-        self.source = source
-        source.resume()
-    }
-
-    /// Write one line, newline-terminated.
-    func send(_ line: String) {
-        guard !isClosed else { return }
-        let bytes = Array((line + "\n").utf8)
-        var offset = 0
-        while offset < bytes.count {
-            let written = bytes.withUnsafeBytes { raw -> Int in
-                guard let base = raw.baseAddress else { return -1 }
-                return write(fd, base.advanced(by: offset), bytes.count - offset)
-            }
-            if written > 0 {
-                offset += written
-            } else if errno == EAGAIN || errno == EWOULDBLOCK {
-                // The socket buffer is full. A pet's acks are tiny and rare, so
-                // rather than queueing, drop this one and say so in the log.
-                Log.info("control: a client is not reading its acks; dropping one")
-                return
-            } else {
-                closeConnection()
-                return
-            }
-        }
-    }
-
-    /// One event line, if this connection asked for that event.
-    ///
-    /// Events are at-most-once and never replayed: a reconnecting client loses what it
-    /// missed, and the protocol says so.
-    func sendEvent(_ event: String, pet: String, data: [String: Any]) {
-        guard !isClosed else { return }
-        guard subscriptions.contains(event) || subscriptions.contains("*") else { return }
-        let fields = data
-            .sorted { $0.key < $1.key }
-            .map { key, value in "\"\(key)\":\(CLI.json(value))" }
-            .joined(separator: ",")
-        let timestamp = Int(Date().timeIntervalSince1970 * 1000)
-        send("{\"event\":\"\(event)\",\"ts\":\(timestamp),\"pet\":\(CLI.json(pet)),\"handler\":\(CLI.json(handlerLabel)),\"data\":{\(fields)}}")
-    }
-
-    func closeConnection() {
-        guard !isClosed else { return }
-        isClosed = true
-        source?.cancel()
-    }
-
-    private func readAvailable() {
-        var chunk = [UInt8](repeating: 0, count: 4096)
-        let capacity = chunk.count
-        let read = chunk.withUnsafeMutableBytes { raw -> Int in
-            guard let base = raw.baseAddress else { return -1 }
-            return recv(fd, base, capacity, 0)
-        }
-        guard read > 0 else {
-            // A readable socket that has nothing to give is a spurious wake-up, not
-            // a disconnect: the read source only fires when it is readable, but
-            // treating EAGAIN as "closed" would drop a healthy connection.
-            if read < 0, errno == EAGAIN || errno == EWOULDBLOCK { return }
-            // Zero is a clean disconnect; anything else is a broken one. Either way
-            // the connection is done.
-            closeConnection()
-            return
-        }
-        buffer.append(contentsOf: chunk[0..<read])
-
-        while let newline = buffer.firstIndex(of: 0x0A) {
-            let lineData = buffer[buffer.startIndex..<newline]
-            buffer.removeSubrange(buffer.startIndex...newline)
-            guard let line = String(data: lineData, encoding: .utf8) else {
-                send("{\"id\":\"\",\"ok\":false,\"error\":\"malformed_json\"}")
-                continue
-            }
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty else { continue }
-            if let reply = onLine?(trimmed, self), wantsAcks || reply.hasPrefix("{\"verb\":\"hello.ok\"") {
-                send(reply)
-            }
-        }
-    }
-}
-
 /// The listening socket, the connections, and the routing between them.
 final class ControlServer {
     /// Where the socket lives. `PROTOCOL.md` §1 names it, and a client needs to
     /// find it without configuration.
-    static var defaultDirectory: String {
-        let base = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first?.path ?? NSHomeDirectory() + "/Library/Application Support"
-        return base + "/Pookie"
-    }
-    /// The protocol's path, unless the environment names another one. An override is
-    /// not decoration: a test, or a second instance for a demo, needs its own socket
-    /// without fighting the real one for it.
-    static var defaultSocketPath: String {
-        if let override = ProcessInfo.processInfo.environment["POOKIE_CONTROL_SOCKET"], !override.isEmpty {
-            return override
-        }
-        return defaultDirectory + "/control.sock"
-    }
-    static var defaultPortPath: String { defaultDirectory + "/port" }
+    static var defaultDirectory: String { AppIdentity.current.supportDirectory.path }
+    static var defaultSocketPath: String { AppIdentity.current.socketPath() }
+    static var defaultPortPath: String { AppIdentity.current.portPath() }
 
     private let socketPath: String
     private let portPath: String?
@@ -389,7 +259,7 @@ private func setNonBlocking(_ fd: Int32) {
 }
 
 /// Fill a `sockaddr_un` with `path`, then call `body` with it.
-private func withUnixAddress<T>(_ path: String, _ body: (UnsafePointer<sockaddr>, socklen_t) -> T) -> T? {
+func withUnixAddress<T>(_ path: String, _ body: (UnsafePointer<sockaddr>, socklen_t) -> T) -> T? {
     var address = sockaddr_un()
     address.sun_family = sa_family_t(AF_UNIX)
     let capacity = MemoryLayout.size(ofValue: address.sun_path)
@@ -417,7 +287,7 @@ private func bindUnix(path: String) throws -> Int32 {
     return fd
 }
 
-private func connectUnix(fd: Int32, path: String) -> Int32 {
+func connectUnix(fd: Int32, path: String) -> Int32 {
     withUnixAddress(path, { connect(fd, $0, $1) }) ?? -1
 }
 
@@ -453,79 +323,4 @@ private func bindLoopback() throws -> (fd: Int32, port: UInt16) {
         throw ControlError.cannotBind("127.0.0.1", errno)
     }
     return (fd, UInt16(bigEndian: actual.sin_port))
-}
-
-// MARK: - The client
-
-/// The other end: what the `pookie` CLI uses, and what the tests connect with.
-final class ControlClient {
-    private let fd: Int32
-    private var buffer = Data()
-
-    /// Connect to a running pet's control socket. Throws when there is nothing to
-    /// talk to, which is the CLI's most common failure and deserves a clear message.
-    init(socketPath: String = ControlServer.defaultSocketPath) throws {
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { throw ControlError.cannotBind(socketPath, errno) }
-        guard connectUnix(fd: fd, path: socketPath) == 0 else {
-            let code = errno
-            Darwin.close(fd)
-            throw ControlError.cannotBind(socketPath, code)
-        }
-        self.fd = fd
-    }
-
-    func send(_ line: String) {
-        let bytes = Array((line + "\n").utf8)
-        _ = bytes.withUnsafeBytes { raw -> Int in
-            guard let base = raw.baseAddress else { return -1 }
-            return write(fd, base, bytes.count)
-        }
-    }
-
-    /// Read one line, waiting at most `timeout` seconds. A `select` rather than a
-    /// blocking read, because a test that hangs is worse than one that fails.
-    func readLine(timeout: Double) -> String? {
-        let deadline = Date().addingTimeInterval(timeout)
-        while true {
-            if let newline = buffer.firstIndex(of: 0x0A) {
-                let lineData = buffer[buffer.startIndex..<newline]
-                buffer.removeSubrange(buffer.startIndex...newline)
-                return String(data: lineData, encoding: .utf8)
-            }
-            let remaining = deadline.timeIntervalSinceNow
-            guard remaining > 0 else { return nil }
-
-            var readSet = fd_set()
-            withUnsafeMutablePointer(to: &readSet) { pointer in
-                pointer.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<fd_set>.size) { bytes in
-                    memset(bytes, 0, MemoryLayout<fd_set>.size)
-                }
-            }
-            let width = fd + 1
-            withUnsafeMutablePointer(to: &readSet.fds_bits) { tuple in
-                tuple.withMemoryRebound(to: Int32.self, capacity: 32) { words in
-                    words[Int(fd) / 32] |= Int32(1 << (Int(fd) % 32))
-                }
-            }
-            var timeoutValue = timeval(tv_sec: Int(remaining), tv_usec: Int32((remaining - Double(Int(remaining))) * 1_000_000))
-            let ready = withUnsafeMutablePointer(to: &readSet) { pointer in
-                select(width, pointer, nil, nil, &timeoutValue)
-            }
-            guard ready > 0 else { continue }
-
-            var chunk = [UInt8](repeating: 0, count: 4096)
-            let capacity = chunk.count
-            let read = chunk.withUnsafeMutableBytes { raw -> Int in
-                guard let base = raw.baseAddress else { return -1 }
-                return recv(fd, base, capacity, 0)
-            }
-            guard read > 0 else { return nil }
-            buffer.append(contentsOf: chunk[0..<read])
-        }
-    }
-
-    func close() {
-        Darwin.close(fd)
-    }
 }

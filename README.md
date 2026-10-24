@@ -5,7 +5,7 @@ focus**. She breathes, blinks, watches your cursor, wanders, sits, tucks her paw
 dozes off, and stretches when she wakes — and she can be picked up and thrown, lands on the top edges
 of your windows, **jumps up onto them by herself**, climbs from one window to a higher one, rides them
 when you drag them, and talks in a speech bubble. Ask for more and you get a **menagerie of up to
-five** — a cat, a bunny, a puppy, a fox and a panda — running around, chasing each other, and having
+ten on the desk**, from a collection of 22 animals — running around, chasing each other, and having
 the occasional undignified scuffle.
 
 ![Pookie pose sheet](shots/poses.png)
@@ -38,28 +38,46 @@ its proportions and appendages — so all five perch, jump, loaf, stretch and bl
 [`TODO.md`](TODO.md) is the working list: what is left, why it is not done, and what
 "done" means for each one. The short version: a layer-backed renderer (the measured fix for the one
 thing that still stutters), the `pookie` control plane that unlocks the MCP server, the brain and skill
-packs, voice, a signed release, and a handful of checks that need a human rather than a test.
+packs, voice, and a handful of checks that need a human rather than a test.
+
+## Install the released app
+
+Download the Apple Silicon DMG from [GitHub Releases](https://github.com/antick/pookie/releases).
+Open it, drag **Pookie** into **Applications**, then open `/Applications/Pookie.app`.
+Requires an Apple Silicon Mac and macOS 14 or newer. The installer and app are
+Developer ID signed and Apple notarized; the normal first-download confirmation
+may appear. No Screen Recording, Accessibility or Input Monitoring permission is needed.
+
+Use **Pookies ▸ Check for Updates…** for signed in-app updates. Automatic checks
+can be changed from the menu. The updater is Sparkle 2.10.0, pinned exactly.
+Downloads are hosted on GitHub Releases and the update feed on GitHub Pages.
+See [releasing](docs/releasing.md) for the build and signing process.
+
+Pookie is free software under **GPL-3.0-or-later**. See [LICENSE](LICENSE),
+[third-party notices](THIRD_PARTY_NOTICES.md) and [contributing](CONTRIBUTING.md).
+Every release includes its corresponding source and build scripts.
 
 ## Try it
 
 ```bash
-make run          # build and launch with verbose logging
+make dev          # build and launch Pookie Dev alongside the installed app
+make run          # run the development binary with verbose logging
 make selftest     # headless checks: bitmap layout, art envelope, physics, postures, perching, speech
 make poses        # re-render shots/poses.png
-make open         # assemble and launch Pookie.app
+make open         # assemble and launch Pookie Dev.app
 ```
 
 With Pookie running, from any shell:
 
 ```bash
-./build/Pookie.app/Contents/MacOS/Pookie --say "hi"
+"/Applications/Pookie.app/Contents/MacOS/Pookie" --say "hi"
 ```
 
-Requires macOS 14+ and Xcode command line tools. No third-party dependencies.
+Building requires an Apple Silicon Mac, macOS 14+ and Xcode with Swift 6 support.
+Sparkle is the only third-party dependency; SwiftPM resolves its exact pinned version.
 
 > **Note:** `make` passes `--disable-sandbox` to SwiftPM. SwiftPM wraps manifest compilation in
-> `sandbox-exec`, which is unavailable in some restricted shells. There are no external packages, so
-> nothing untrusted is being compiled.
+> `sandbox-exec`, which is unavailable in some restricted shells. The sole external package is the exact-pinned Sparkle updater.
 
 ## Playing with her
 
@@ -126,9 +144,22 @@ marking are worth keeping even when the animal is not on screen. The desk holds 
 (`PetCohort.maximumPets`), because the desk is the part that costs; the collection holds all
 seventeen. `Pookie --settings` opens the window at launch.
 
+### Development beside the installed app
+
+`make dev` opens **Pookie Dev**, with a separate bundle identifier, saved preferences,
+pet collection, control socket, speech notification, and icon. Its shortcuts add
+**Shift**: `control-option-shift-H` hides development pets while `control-option-H`
+controls the installed app. Development never registers a login item or installs
+production updates. Bare executables also use development storage.
+
+The released app keeps the existing `com.pookie.pet` preferences and uses
+`~/Library/Application Support/Pookie`. Development uses `com.pookie.pet.dev` and
+`~/Library/Application Support/Pookie Dev`. A CLI talks to the channel its binary
+belongs to: use the binary inside `/Applications/Pookie.app` for production.
+
 ### Driving it from a shell
 
-A running pookie listens on a **Unix domain socket** at
+The installed Pookie listens on a **Unix domain socket** at
 `~/Library/Application Support/Pookie/control.sock` (mode 0600 — only you can talk to your cat), with a
 loopback TCP fallback whose port is written to `.../Pookie/port`. Lines in, acks out, one JSON object
 per line, per [`PROTOCOL.md`](docs/PROTOCOL.md).
@@ -182,13 +213,16 @@ thing that gets rate limited.
 
 ### Uninstalling
 
-1. Quit Pookie from the menu bar (the app has no daemons and no background helpers).
-2. If you ticked **Start Pookie when I log in**, untick it first — otherwise macOS keeps a login item
-   pointing at an app that is no longer there. (`Pookie --launch-at-login off` does the same thing.)
-3. Drag `Pookie.app` to the Trash.
-4. `defaults delete com.pookie.pet` removes the settings, and that is all of them — there is no
-   Application Support directory, no cache, no socket, and no database. Nothing else on disk knows
-   Pookie exists.
+1. Untick **Start Pookie when I log in**, if enabled, then quit from the menu bar.
+2. Drag `/Applications/Pookie.app` to the Trash.
+3. To remove saved preferences, run `defaults delete com.pookie.pet`.
+4. Remove `~/Library/Application Support/Pookie` and `~/Library/Caches/com.pookie.pet`
+   if present. The support directory contains local socket/port discovery; Sparkle
+   may keep downloaded updates in its cache. No separate permanent daemon is installed.
+
+Development is independent: remove `build/Pookie Dev.app`, the `com.pookie.pet.dev`
+preference domain, `~/Library/Application Support/Pookie Dev`, and the matching cache
+only if you also want to reset development.
 
 ### While you are away
 
@@ -204,8 +238,8 @@ In `~/Library/Preferences/com.pookie.pet.plist` — the standard macOS preferenc
 bundle identifier, written through `UserDefaults` (so `defaults read com.pookie.pet` shows you
 everything, and `defaults delete com.pookie.pet` is a factory reset). It holds the roster — kind,
 coat and name for each pookie — plus the pookie boss, the size, the teleport cadence and every
-switch in the menu. Nothing else is stored anywhere: there is no database, no cache directory and no
-file in `Application Support`. Positions, moods and everything else about the moment are deliberately
+switch in the menu. There is no database. Local control discovery lives in `Application Support/Pookie`;
+Sparkle may cache updates in the application cache directory. Positions, moods and everything else about the moment are deliberately
 not saved; the settings window is the store, and it covers everything worth keeping.
 
 **Right-click any pookie** for a menu about *that* one: bring it home, make it the one that answers for
