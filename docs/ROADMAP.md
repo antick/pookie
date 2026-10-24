@@ -312,7 +312,7 @@ the pet.
 
 ## M8 — Multi-pet, menu-bar settings, packaging
 
-**Status: nearly landed.** Criterion 1 is in for the in-process case — and then some: up to ten
+**Status: shipped for direct distribution.** Criterion 1 is in for the in-process case — and then some: up to ten
 pets coexist, one of each species (cat, bunny, puppy, fox, panda), each with its own coat, size and
 behaviour engine, spawned and removed from the menu-bar item or `Pookie --pets N`, under one shared
 frame budget, with a persisted roster. The menu-bar item already carries show/hide, **pet size**,
@@ -329,9 +329,9 @@ The per-pet CPU budget landed too: it is now a
 **time** budget divided by each pet's measured draw cost rather than a flat frame count split evenly, so
 a sleeping pookie frees frames for a running one. Distribution now has a dedicated
 release path: isolated Pookie Dev, exact-pinned Sparkle updates, arm64-only nested
-signing, Apple notarization and a DMG/ZIP/source release workflow. Criterion 4's
-artifact and installed-upgrade acceptance is recorded in `release-verification.md`;
-it is complete only when the public download, installation and update are verified.
+signing, Apple notarization and a DMG/ZIP/source release workflow. Criterion 4 is verified: public signed/notarized DMG, installation from the published
+artifact and an actual native 0.1.0 → 0.1.1 update preserving preferences and collection.
+Evidence and remaining device/UI limits are in `release-verification.md`.
 
 ### Goal
 

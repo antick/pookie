@@ -29,6 +29,13 @@ Status by milestone:
 - One JSON object per line, UTF-8, `\n` terminated. No embedded raw newlines inside strings.
 - The connection is **producer → pet**. The same connection carries acks and events back.
 
+These paths belong to the installed production app. Development uses
+`~/Library/Application Support/Pookie Dev/control.sock` and `.../Pookie Dev/port`.
+A client follows its executable's channel; an unbundled executable defaults to
+development. `POOKIE_CONTROL_SOCKET` overrides the socket and gives its fallback
+port discovery a sibling `.port` suffix; `POOKIE_CONTROL_PORT` explicitly overrides
+that discovery file. Production and development never share these paths by default.
+
 Handshake (first line on connect, optional but recommended):
 
 ```json
