@@ -1,0 +1,15 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Pookie
+Upstream-Contact: https://github.com/antick/pookie/issues
+Source: https://github.com/antick/pookie
+
+Files: Sources/* Tests/* scripts/* Resources/* Makefile Package.swift Package.resolved
+       README.md TODO.md AGENTS.md CONTRIBUTING.md SECURITY.md CHANGELOG.md
+       docs/* .github/* .gitignore shots/*
+Copyright: 2026 Pankaj Sanam
+License: GPL-3.0-or-later
+Comment: Pookie is free software: you can redistribute it and/or modify it under
+ the GNU General Public License as published by the Free Software Foundation,
+ either version 3 of the License, or (at your option) any later version.
+ Pookie is distributed without any warranty; see LICENSE for the full terms.
+ Third-party components retain their original licenses and notices.
