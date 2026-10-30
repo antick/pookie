@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Install pinned, repository-local OpenSpec tooling and workflow skills. Add current-behavior baseline specs, a source inventory and a workflow for planning, implementation and ongoing spec maintenance, with coverage gaps recorded explicitly.
+
 ## 0.1.1
 
 - Maintenance release to verify signed in-app updates from the first public release.

@@ -1,0 +1,36 @@
+schema: spec-driven
+
+context: |
+  Pookie is an existing macOS desktop pet, not a greenfield app.
+  Follow AGENTS.md and read openspec/README.md and openspec/baseline.md first.
+  Existing capability specs are a bounded baseline, not proof of exhaustive coverage.
+  Inspect implementation and `make selftest` before changing or extending a requirement.
+  Historical plans in docs/ROADMAP.md and TODO.md are intent, not evidence that a feature shipped.
+  Behaviour stays pure in PetMotion, SpeechEngine and Protocol; AppKit lives in the shell.
+  Never steal focus; never require Screen Recording, Accessibility or Input Monitoring.
+  Production is Apple Silicon only; Sparkle 2.10.0 is the only runtime SwiftPM dependency.
+  Keep plain punctuation in authored artifacts; do not use em dashes.
+
+rules:
+  proposal:
+    - Identify affected existing capability specs and consult their source references.
+    - Separate current behavior, requested behavior, non-goals and unresolved questions.
+  specs:
+    - Write observable SHALL requirements with WHEN/THEN scenarios.
+    - Ground each requirement in Sources/Pookie or docs/PROTOCOL.md; do not spec unbuilt milestones.
+    - If baseline coverage is missing, establish current behavior from code and selftest before proposing a delta.
+  design:
+    - Reference docs/DESIGN.md, docs/MACOS-CONSTRAINTS.md and docs/PROTOCOL.md when relevant.
+    - State verification implications (`make selftest`, targeted Swift tests) without skipping headless checks.
+  tasks:
+    - Include selftest or Swift tests for behaviour changes, documentation and CHANGELOG updates.
+    - Include spec synchronization and baseline inventory maintenance before archiving.
+
+operations:
+  apply:
+    guidance:
+      - Work within the user's authorized scope and follow AGENTS.md verification and commit rules.
+      - Do not treat a baseline spec or roadmap item as permission to implement unrelated work.
+  archive:
+    guidance:
+      - Sync accepted deltas into specs and report verification gaps honestly before archiving.
