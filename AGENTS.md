@@ -14,6 +14,10 @@ relevant one before changing behaviour in its area.
 For app identity, signing, installers, updates or publication, read `docs/releasing.md`.
 Production is Apple Silicon only; bare executables and local builds use the isolated development identity.
 
+## OpenSpec
+
+Product behaviour specs live under `openspec/specs/` (one folder per capability). Proposed work goes in `openspec/changes/` and merges on archive. Run `npm run specs` after spec edits; behaviour changes still require `make selftest`. See `openspec/README.md` and `openspec/baseline.md` for scope: baseline requirements describe shipped code only, not `TODO.md` or future roadmap milestones.
+
 ## The loop
 
 1. **Green.** `make selftest` builds and runs the headless checks. It passes before and after your

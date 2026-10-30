@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add OpenSpec spec-driven workflow: baseline specs under `openspec/specs/`, validation via `npm run specs`, and shared workflow skills under `.agents/skills/`.
+
 ## 0.1.1
 
 - Maintenance release to verify signed in-app updates from the first public release.

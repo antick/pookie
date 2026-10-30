@@ -1,0 +1,27 @@
+schema: spec-driven
+
+context: |
+  Pookie is a macOS desktop pet: Swift 6 + AppKit, Apple Silicon only, macOS 14+.
+  Behaviour lives in pure Swift types (PetMotion, SpeechEngine, Protocol); AppKit is the shell.
+  Acceptance for behaviour changes is `make selftest` plus targeted Swift tests (`make test` on macOS CI).
+  Read AGENTS.md for invariants (renderer contract, floor line, transient pose channels, cohort budget).
+  Wire behaviour is documented in docs/PROTOCOL.md; do not spec MCP (M4), LLM brain (M5), voice (M6), or skill packs (M7) until they ship.
+  ROADMAP.md and TODO.md are context only; baseline specs describe shipped code, not planned milestones.
+
+rules:
+  proposal:
+    - State which openspec/specs capability the change touches
+    - Call out whether the change stays out of AppKit in behaviour layers
+  specs:
+    - Every requirement MUST be traceable to Sources/Pookie or docs/PROTOCOL.md
+    - Use SHALL for normative behaviour; scenarios use WHEN/THEN bullets
+
+operations:
+  apply:
+    guidance:
+      - Run `make selftest` before and after behaviour edits
+      - Art or geometry changes need `make poses` review when poses move
+  archive:
+    guidance:
+      - Update docs/ROADMAP.md or TODO.md only when milestone status moves
+      - Remove finished items from TODO.md rather than ticking them
