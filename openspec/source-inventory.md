@@ -1,46 +1,98 @@
-# Source inventory
+# Baseline source inventory
 
-Traceability from baseline capabilities to repository sources. Counts are approximate; use paths to verify behaviour.
+Inventory at `fff0092a8df42e4437b45892dae45ca2d4752943`. Links are discovery
+aids, not claims of complete spec coverage or successful test execution.
+Read [baseline.md](baseline.md) for conflicts and gaps. Wire contracts also
+live in [docs/PROTOCOL.md](../docs/PROTOCOL.md).
 
-## Application and identity
+Maintain this index when adding or moving relevant sources. Keep historical
+plans distinguishable from implementation evidence.
 
-| Capability | Primary sources | Supporting docs |
-| --- | --- | --- |
-| `app-shell` | `Sources/Pookie/main.swift`, `AppDelegate.swift`, `AppDelegate+Actions.swift`, `AppDelegate+Release.swift`, `AppDelegate+Intents.swift` | `docs/DESIGN.md`, `docs/MACOS-CONSTRAINTS.md` |
-| `window-shell` | `PetWindow.swift`, `PetWindowController.swift`, `PetView.swift`, `BubbleWindow.swift`, `AppConfig.swift` | `docs/MACOS-CONSTRAINTS.md` |
-| `settings-menu` | `SettingsWindow.swift`, `AppDelegate+Menu.swift`, `AppDelegate+PetMenu.swift`, `GlobalHotKey.swift` | `README.md` (hotkeys) |
+## Product and agent guidance
 
-## Rendering and appearance
+- [README.md](../README.md)
+- [AGENTS.md](../AGENTS.md)
+- [CHANGELOG.md](../CHANGELOG.md)
+- [TODO.md](../TODO.md) (open work only, not baseline requirements)
+- [docs/ROADMAP.md](../docs/ROADMAP.md) (milestone context, not baseline requirements)
 
-| Capability | Primary sources | Supporting docs |
-| --- | --- | --- |
-| `pet-renderer` | `PetRenderer.swift`, `CatRenderer.swift`, `CatAnatomy.swift`, `PetPose.swift` | `README.md` (pose sheet) |
-| `species-roster` | `Species.swift`, `AppConfig.swift` (`PookieConfig`, coats, patterns) | `README.md` (species sheet) |
+## Architecture and constraints
 
-## Behaviour
+- [docs/DESIGN.md](../docs/DESIGN.md)
+- [docs/MACOS-CONSTRAINTS.md](../docs/MACOS-CONSTRAINTS.md)
+- [docs/PROTOCOL.md](../docs/PROTOCOL.md)
+- [docs/releasing.md](../docs/releasing.md)
+- [Package.swift](../Package.swift) (Sparkle pin)
 
-| Capability | Primary sources | Supporting docs |
-| --- | --- | --- |
-| `pet-motion` | `PetMotion.swift`, `PetPose.swift`, `ActionStack.swift` | `docs/DESIGN.md` § behaviour |
-| `window-perching` | `WindowScanner.swift`, `PetMotion.swift` (platforms, jump, ride) | `docs/ROADMAP.md` M0 notes |
-| `speech-bubbles` | `Speech.swift`, `BubbleWindow.swift`, `PetWindowController.swift` | `docs/PROTOCOL.md` § say / bubble |
+## Application shell and settings
 
-## Control plane and cohort
+- [Sources/Pookie/main.swift](../Sources/Pookie/main.swift) (launch flags, headless modes)
+- [Sources/Pookie/AppDelegate.swift](../Sources/Pookie/AppDelegate.swift)
+- [Sources/Pookie/AppDelegate+Actions.swift](../Sources/Pookie/AppDelegate+Actions.swift)
+- [Sources/Pookie/AppDelegate+Release.swift](../Sources/Pookie/AppDelegate+Release.swift)
+- [Sources/Pookie/AppDelegate+Intents.swift](../Sources/Pookie/AppDelegate+Intents.swift)
+- [Sources/Pookie/AppDelegate+Menu.swift](../Sources/Pookie/AppDelegate+Menu.swift)
+- [Sources/Pookie/AppDelegate+PetMenu.swift](../Sources/Pookie/AppDelegate+PetMenu.swift)
+- [Sources/Pookie/SettingsWindow.swift](../Sources/Pookie/SettingsWindow.swift)
+- [Sources/Pookie/GlobalHotKey.swift](../Sources/Pookie/GlobalHotKey.swift)
+- [Sources/Pookie/AppConfig.swift](../Sources/Pookie/AppConfig.swift)
+- [Sources/Pookie/AppIdentity.swift](../Sources/Pookie/AppIdentity.swift)
 
-| Capability | Primary sources | Supporting docs |
-| --- | --- | --- |
-| `intent-protocol` | `Protocol.swift`, `IntentMapping.swift`, `ActionStack.swift` | `docs/PROTOCOL.md` |
-| `control-plane` | `ControlServer.swift`, `ControlConnection.swift`, `ControlClient.swift`, `CLI.swift`, `main.swift` | `docs/PROTOCOL.md` § transport |
-| `pet-cohort` | `PetCohort.swift`, `AppDelegate+PetMenu.swift` | `AGENTS.md` (cohort cap, one-of-kind) |
+Baseline spec: [app-shell/spec.md](specs/app-shell/spec.md), [settings-menu/spec.md](specs/settings-menu/spec.md)
+
+## Window shell and rendering
+
+- [Sources/Pookie/PetWindow.swift](../Sources/Pookie/PetWindow.swift)
+- [Sources/Pookie/PetWindowController.swift](../Sources/Pookie/PetWindowController.swift)
+- [Sources/Pookie/PetView.swift](../Sources/Pookie/PetView.swift)
+- [Sources/Pookie/BubbleWindow.swift](../Sources/Pookie/BubbleWindow.swift)
+- [Sources/Pookie/PetRenderer.swift](../Sources/Pookie/PetRenderer.swift)
+- [Sources/Pookie/CatRenderer.swift](../Sources/Pookie/CatRenderer.swift)
+- [Sources/Pookie/CatAnatomy.swift](../Sources/Pookie/CatAnatomy.swift)
+- [Sources/Pookie/PetPose.swift](../Sources/Pookie/PetPose.swift)
+
+Baseline spec: [window-shell/spec.md](specs/window-shell/spec.md), [pet-renderer/spec.md](specs/pet-renderer/spec.md)
+
+## Species, cohort and appearance
+
+- [Sources/Pookie/Species.swift](../Sources/Pookie/Species.swift)
+- [Sources/Pookie/PetCohort.swift](../Sources/Pookie/PetCohort.swift)
+
+Baseline spec: [species-roster/spec.md](specs/species-roster/spec.md), [pet-cohort/spec.md](specs/pet-cohort/spec.md)
+
+## Motion, perching and speech
+
+- [Sources/Pookie/PetMotion.swift](../Sources/Pookie/PetMotion.swift)
+- [Sources/Pookie/ActionStack.swift](../Sources/Pookie/ActionStack.swift)
+- [Sources/Pookie/WindowScanner.swift](../Sources/Pookie/WindowScanner.swift)
+- [Sources/Pookie/Speech.swift](../Sources/Pookie/Speech.swift)
+
+Baseline spec: [pet-motion/spec.md](specs/pet-motion/spec.md), [window-perching/spec.md](specs/window-perching/spec.md), [speech-bubbles/spec.md](specs/speech-bubbles/spec.md)
+
+## Control plane and intents
+
+- [Sources/Pookie/Protocol.swift](../Sources/Pookie/Protocol.swift)
+- [Sources/Pookie/IntentMapping.swift](../Sources/Pookie/IntentMapping.swift)
+- [Sources/Pookie/ControlServer.swift](../Sources/Pookie/ControlServer.swift)
+- [Sources/Pookie/ControlConnection.swift](../Sources/Pookie/ControlConnection.swift)
+- [Sources/Pookie/ControlClient.swift](../Sources/Pookie/ControlClient.swift)
+- [Sources/Pookie/CLI.swift](../Sources/Pookie/CLI.swift)
+
+Baseline spec: [intent-protocol/spec.md](specs/intent-protocol/spec.md), [control-plane/spec.md](specs/control-plane/spec.md)
 
 ## Updates and verification
 
-| Capability | Primary sources | Supporting docs |
-| --- | --- | --- |
-| `updates-diagnostics` | `UpdateController.swift`, `Diagnostics.swift`, `Makefile`, `Tests/PookieTests/*` | `docs/releasing.md`, `Package.swift` (Sparkle pin) |
+- [Sources/Pookie/UpdateController.swift](../Sources/Pookie/UpdateController.swift)
+- [Sources/Pookie/Diagnostics.swift](../Sources/Pookie/Diagnostics.swift) (`Pookie --selftest`)
+- [Makefile](../Makefile) (`make selftest`, `make test`, `make poses`)
+- [Tests/PookieTests/](../Tests/PookieTests/)
+- [.github/workflows/ci.yml](../.github/workflows/ci.yml)
 
-## Tests and headless checks
+Baseline spec: [updates-diagnostics/spec.md](specs/updates-diagnostics/spec.md)
 
-- `Diagnostics.runSelfTest()` in `Diagnostics.swift` drives `Pookie --selftest` (`Makefile` target `selftest`).
-- Swift unit tests under `Tests/PookieTests/` cover identity, update policy, control socket lifecycle, and bundled defaults.
-- Release script tests under `scripts/release/` are packaging policy, not pet behaviour; they are out of baseline specs except where Sparkle policy is cited in `updates-diagnostics`.
+## Not indexed as baseline specs (unbuilt)
+
+- MCP server (M4): no `Sources/` implementation
+- LLM brain (M5): no out-of-process brain client
+- Voice (M6): no whisper or TTS pipeline in tree
+- Skill packs (M7): no loader in tree

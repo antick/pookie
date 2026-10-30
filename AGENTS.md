@@ -14,9 +14,35 @@ relevant one before changing behaviour in its area.
 For app identity, signing, installers, updates or publication, read `docs/releasing.md`.
 Production is Apple Silicon only; bare executables and local builds use the isolated development identity.
 
-## OpenSpec
+## OpenSpec workflow
 
-Product behaviour specs live under `openspec/specs/` (one folder per capability). Proposed work goes in `openspec/changes/` and merges on archive. Run `npm run specs` after spec edits; behaviour changes still require `make selftest`. See `openspec/README.md` and `openspec/baseline.md` for scope: baseline requirements describe shipped code only, not `TODO.md` or future roadmap milestones.
+Use the repository-local OpenSpec skills for future product planning and implementation.
+Start with `openspec/README.md`, `openspec/baseline.md` and the affected specs.
+Use `npm run specs:check` for the pinned CLI and read the relevant skill before using it.
+For features and behavior changes, follow this workflow:
+
+1. Read existing specs and active changes (`OPENSPEC_TELEMETRY=0 npx openspec list --specs` and
+   `OPENSPEC_TELEMETRY=0 npx openspec list`). Reuse the applicable change instead of duplicating it.
+2. Use `$openspec-explore` for investigation and `$openspec-propose` to capture the
+   proposal, design, requirement scenarios and implementation tasks before coding.
+3. Use `$openspec-apply-change` for authorized implementation. Keep task status
+   current and use `$openspec-update-change` when planning decisions change.
+4. Verify the real behavior, run `npm run specs:check`, update the changelog and
+   use `$openspec-sync-specs` to reconcile accepted deltas into current specs.
+5. Use `$openspec-archive-change` only when the change and verification are complete.
+   Report unresolved failures or coverage gaps rather than marking them complete.
+
+Routine merges, dependency refreshes and documentation corrections that do not
+change product behavior do not need an artificial product-change proposal. Preserve
+existing OpenSpec artifacts and update guidance or evidence affected by that work.
+Existing user authorization remains authoritative; setup does not introduce a new
+approval requirement for work already requested.
+
+Before changing an area with incomplete baseline coverage, inspect its current code,
+behavior tests and linked docs. Capture verified existing behavior separately from the
+proposed change. Historical plans are not proof of shipped functionality. Maintain
+spec evidence and the source inventory, run `npm run specs:check`, and report gaps.
+OpenSpec does not replace `make selftest`, the commit rules below, or macOS CI checks.
 
 ## The loop
 

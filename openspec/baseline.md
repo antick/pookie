@@ -1,23 +1,59 @@
 # Existing-product baseline
 
-This baseline records how Pookie behaves today, as implemented in the Swift tree and documented in `docs/PROTOCOL.md`. It is not a roadmap.
+## Provenance
 
-## Method
+Created from freshly fetched `origin/main` at
+`fff0092a8df42e4437b45892dae45ca2d4752943` on 2026-10-30.
+The adoption branch was created directly from that revision.
+This is a source-inspected baseline of core contracts. References to tests mean
+existing coverage was identified, not that every GUI workflow passed in this
+adoption. See the pull request validation report for commands actually run.
 
-1. Read `AGENTS.md`, `README.md`, `docs/DESIGN.md`, and `docs/PROTOCOL.md` for vocabulary and invariants.
-2. Walk `Sources/Pookie/` and `Tests/PookieTests/` to confirm each requirement against code.
-3. Split behaviour into capability specs under `openspec/specs/` (one folder per product area).
-4. Record traceability in `source-inventory.md`.
-5. Validate with `npm run specs` (`openspec validate --all --strict --no-interactive`).
+## Coverage
 
-## Out of scope for this baseline
+| Existing area | Baseline spec | Remaining depth to audit |
+| --- | --- | --- |
+| Accessory app lifecycle, lock pause, legacy say bridge | app-shell | Distributed notification edge cases across channels |
+| Non-key windows, mouse modes, occlusion, bubble window | window-shell | Screen-share hide and fullscreen float acceptance on notarized builds |
+| PetRenderer contract, stage envelope, floor line, facing | pet-renderer | Second renderer implementation (SpriteKit or layer-backed) when it ships |
+| Twenty-two species, coats, patterns, collection rules | species-roster | Every marking combination in art review exports |
+| Motion, drag, rest ladder, transient channels, overrides | pet-motion | Every species gait nuance and brawl edge timing |
+| Window scan, perch, ride, jump, teleport | window-perching | Fullscreen geometry heuristic in TODO.md |
+| Speech rate limits, bubble styles, streaming verbs | speech-bubbles | Live producer flood under many concurrent clients |
+| Envelope, dedupe, TTL, preemption, verbs and events | intent-protocol | Full wire spawn/despawn with petId, kind and at |
+| Unix/TCP control, hello, CLI and legacy flags | control-plane | `pookie env` status subcommand (not implemented) |
+| Desk cap, draw budget, spokespet, spawn stubs | pet-cohort | Wire-accurate spawn/despawn and skill-pack menu hooks |
+| Settings, menu bar, hotkeys, login item | settings-menu | Manual hotkey verification on production bundle |
+| Sparkle policy, selftest, PNG exports, CI entrypoints | updates-diagnostics | Hosted release acceptance beyond policy unit tests |
+| MCP server | No dedicated baseline yet | Entire M4 surface |
+| LLM brain | No dedicated baseline yet | Entire M5 surface |
+| Voice and push-to-talk | No dedicated baseline yet | Entire M6 surface |
+| Reactive skill packs | No dedicated baseline yet | Entire M7 surface |
 
-- MCP server (M4), LLM brain (M5), voice and push-to-talk (M6), reactive skill packs (M7)
-- Layer-backed or SpriteKit second renderer (M1 criterion still open)
-- Full wire semantics for `spawn` / `despawn` with `petId`, `kind`, and `at` (partial stubs only)
-- `pookie env` status subcommand (not implemented)
-- `bubbleClicked` events (bubble is click-through by design)
+Every shipped product area discovered at initial adoption has a baseline entry or
+an explicit "no dedicated baseline yet" row. Detailed architecture and the wire
+draft remain in place and are indexed in [source-inventory.md](source-inventory.md).
+Being indexed is not equivalent to being fully specified or behaviorally verified.
 
-## Maintenance
+## Known documentation conflicts
 
-When a change ships, archive its OpenSpec change so deltas merge into the matching `specs/<capability>/spec.md`. Keep baseline prose aligned with code; do not copy roadmap language into specs.
+- `docs/ROADMAP.md` describes milestones M4 through M7 and partial M1/M3 criteria.
+  Baseline specs intentionally omit those until code lands. Do not treat roadmap
+  acceptance criteria as current requirements.
+- `docs/PROTOCOL.md` documents full spawn/despawn semantics while the cohort
+  implements simplified helpers. The intent-protocol and pet-cohort specs record
+  the simplified behavior as current.
+- `TODO.md` lists manual GUI checks (throw feel, screen share, physical hotkeys).
+  Selftest and Swift tests do not replace those; do not infer they passed from specs.
+
+The adoption does not rewrite historical documents wholesale. When changing an
+affected area, reconcile live docs with verified code and update the spec and this
+gap record together.
+
+## Completing and maintaining the baseline
+
+For each row above, expand the named depth into observable requirements and
+WHEN/THEN scenarios. Attach implementation and test references in
+source-inventory.md. Add missing selftest or Swift coverage before claiming an
+area is fully audited. Keep proposed improvements in `changes/`, separate from
+what the current system actually does.

@@ -1,27 +1,36 @@
 schema: spec-driven
 
 context: |
-  Pookie is a macOS desktop pet: Swift 6 + AppKit, Apple Silicon only, macOS 14+.
-  Behaviour lives in pure Swift types (PetMotion, SpeechEngine, Protocol); AppKit is the shell.
-  Acceptance for behaviour changes is `make selftest` plus targeted Swift tests (`make test` on macOS CI).
-  Read AGENTS.md for invariants (renderer contract, floor line, transient pose channels, cohort budget).
-  Wire behaviour is documented in docs/PROTOCOL.md; do not spec MCP (M4), LLM brain (M5), voice (M6), or skill packs (M7) until they ship.
-  ROADMAP.md and TODO.md are context only; baseline specs describe shipped code, not planned milestones.
+  Pookie is an existing macOS desktop pet, not a greenfield app.
+  Follow AGENTS.md and read openspec/README.md and openspec/baseline.md first.
+  Existing capability specs are a bounded baseline, not proof of exhaustive coverage.
+  Inspect implementation and `make selftest` before changing or extending a requirement.
+  Historical plans in docs/ROADMAP.md and TODO.md are intent, not evidence that a feature shipped.
+  Behaviour stays pure in PetMotion, SpeechEngine and Protocol; AppKit lives in the shell.
+  Never steal focus; never require Screen Recording, Accessibility or Input Monitoring.
+  Production is Apple Silicon only; Sparkle 2.10.0 is the only runtime SwiftPM dependency.
+  Keep plain punctuation in authored artifacts; do not use em dashes.
 
 rules:
   proposal:
-    - State which openspec/specs capability the change touches
-    - Call out whether the change stays out of AppKit in behaviour layers
+    - Identify affected existing capability specs and consult their source references.
+    - Separate current behavior, requested behavior, non-goals and unresolved questions.
   specs:
-    - Every requirement MUST be traceable to Sources/Pookie or docs/PROTOCOL.md
-    - Use SHALL for normative behaviour; scenarios use WHEN/THEN bullets
+    - Write observable SHALL requirements with WHEN/THEN scenarios.
+    - Ground each requirement in Sources/Pookie or docs/PROTOCOL.md; do not spec unbuilt milestones.
+    - If baseline coverage is missing, establish current behavior from code and selftest before proposing a delta.
+  design:
+    - Reference docs/DESIGN.md, docs/MACOS-CONSTRAINTS.md and docs/PROTOCOL.md when relevant.
+    - State verification implications (`make selftest`, targeted Swift tests) without skipping headless checks.
+  tasks:
+    - Include selftest or Swift tests for behaviour changes, documentation and CHANGELOG updates.
+    - Include spec synchronization and baseline inventory maintenance before archiving.
 
 operations:
   apply:
     guidance:
-      - Run `make selftest` before and after behaviour edits
-      - Art or geometry changes need `make poses` review when poses move
+      - Work within the user's authorized scope and follow AGENTS.md verification and commit rules.
+      - Do not treat a baseline spec or roadmap item as permission to implement unrelated work.
   archive:
     guidance:
-      - Update docs/ROADMAP.md or TODO.md only when milestone status moves
-      - Remove finished items from TODO.md rather than ticking them
+      - Sync accepted deltas into specs and report verification gaps honestly before archiving.

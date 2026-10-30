@@ -75,11 +75,15 @@ With Pookie running, from any shell:
 
 Building requires an Apple Silicon Mac, macOS 14+ and Xcode with Swift 6 support.
 Sparkle is the only runtime SwiftPM dependency; SwiftPM resolves its exact pinned version.
-Node.js is used only for OpenSpec validation (`npm ci` then `npm run specs`).
 
-## Specs (OpenSpec)
+## Planning and specifications
 
-Baseline behaviour specs live in [`openspec/`](openspec/). Validate with `npm run specs`. Capability folders under `openspec/specs/` mirror shipped product areas (control plane, motion, speech, cohort, and others). `docs/ROADMAP.md` remains milestone context; specs do not track unbuilt work.
+Use the repo-local OpenSpec workflow for future changes. Start with
+[the workflow guide](openspec/README.md) and
+[existing-product baseline](openspec/baseline.md). Current specs capture core
+contracts; the linked source inventory preserves the existing docs and tests,
+including areas that still need deeper specification. Run `npm run specs:check`
+to validate specs and `OPENSPEC_TELEMETRY=0 npx openspec list --specs` to browse capabilities.
 
 > **Note:** `make` passes `--disable-sandbox` to SwiftPM. SwiftPM wraps manifest compilation in
 > `sandbox-exec`, which is unavailable in some restricted shells. The sole external package is the exact-pinned Sparkle updater.

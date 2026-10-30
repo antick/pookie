@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Add OpenSpec spec-driven workflow: baseline specs under `openspec/specs/`, validation via `npm run specs`, and shared workflow skills under `.agents/skills/`.
+- Install pinned, repository-local OpenSpec tooling and workflow skills. Add current-behavior baseline specs, a source inventory and a workflow for planning, implementation and ongoing spec maintenance, with coverage gaps recorded explicitly.
 
 ## 0.1.1
 
