@@ -3,7 +3,7 @@
   "private": true,
   "description": "OpenSpec tooling for the Pookie repository",
   "scripts": {
-    "specs": "OPENSPEC_TELEMETRY=0 openspec validate --all --strict --no-interactive",
+    "specs": "OPENSPEC_TELEMETRY=0 openspec",
     "specs:check": "OPENSPEC_TELEMETRY=0 openspec validate --all --strict --no-interactive"
   },
   "devDependencies": {

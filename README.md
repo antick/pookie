@@ -83,7 +83,7 @@ Use the repo-local OpenSpec workflow for future changes. Start with
 [existing-product baseline](openspec/baseline.md). Current specs capture core
 contracts; the linked source inventory preserves the existing docs and tests,
 including areas that still need deeper specification. Run `npm run specs:check`
-to validate specs and `OPENSPEC_TELEMETRY=0 npx openspec list --specs` to browse capabilities.
+to validate specs and `npm run specs -- list --specs` to browse capabilities.
 
 > **Note:** `make` passes `--disable-sandbox` to SwiftPM. SwiftPM wraps manifest compilation in
 > `sandbox-exec`, which is unavailable in some restricted shells. The sole external package is the exact-pinned Sparkle updater.

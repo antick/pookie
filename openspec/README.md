@@ -7,7 +7,7 @@ The pinned CLI and generated agent skills are committed with the project.
 
 ```bash
 npm ci
-OPENSPEC_TELEMETRY=0 npx openspec list --specs
+npm run specs -- list --specs
 npm run specs:check
 ```
 
@@ -26,7 +26,7 @@ if the client has not refreshed its skill list.
 
 The CLI is local. For an agent shell that expects the bare `openspec` command,
 use `npm run specs:check` for strict validation or
-`OPENSPEC_TELEMETRY=0 npx openspec <arguments>` for other subcommands.
+`npm run specs -- <arguments>` for other subcommands.
 Refresh every installed tool's skills after an intentional dependency upgrade with:
 
 ```bash

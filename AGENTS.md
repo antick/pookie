@@ -21,8 +21,8 @@ Start with `openspec/README.md`, `openspec/baseline.md` and the affected specs.
 Use `npm run specs:check` for the pinned CLI and read the relevant skill before using it.
 For features and behavior changes, follow this workflow:
 
-1. Read existing specs and active changes (`OPENSPEC_TELEMETRY=0 npx openspec list --specs` and
-   `OPENSPEC_TELEMETRY=0 npx openspec list`). Reuse the applicable change instead of duplicating it.
+1. Read existing specs and active changes (`npm run specs -- list --specs` and
+   `npm run specs -- list`). Reuse the applicable change instead of duplicating it.
 2. Use `$openspec-explore` for investigation and `$openspec-propose` to capture the
    proposal, design, requirement scenarios and implementation tasks before coding.
 3. Use `$openspec-apply-change` for authorized implementation. Keep task status
