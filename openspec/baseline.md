@@ -18,7 +18,7 @@ adoption. See the pull request validation report for commands actually run.
 | PetRenderer contract, stage envelope, floor line, facing | pet-renderer | Second renderer implementation (SpriteKit or layer-backed) when it ships |
 | Twenty-two species, coats, patterns, collection rules | species-roster | Every marking combination in art review exports |
 | Motion, drag, rest ladder, transient channels, overrides | pet-motion | Every species gait nuance and brawl edge timing |
-| Window scan, perch, ride, jump, teleport | window-perching | Fullscreen geometry heuristic in TODO.md |
+| Window scan, perch, ride, jump, teleport | window-perching | Fullscreen geometry heuristic tracked in GitHub issues |
 | Speech rate limits, bubble styles, streaming verbs | speech-bubbles | Live producer flood under many concurrent clients |
 | Envelope, dedupe, TTL, preemption, verbs and events | intent-protocol | Full wire spawn/despawn with petId, kind and at |
 | Unix/TCP control, hello, CLI and legacy flags | control-plane | `pookie env` status subcommand (not implemented) |
@@ -43,7 +43,7 @@ Being indexed is not equivalent to being fully specified or behaviorally verifie
 - `docs/PROTOCOL.md` documents full spawn/despawn semantics while the cohort
   implements simplified helpers. The intent-protocol and pet-cohort specs record
   the simplified behavior as current.
-- `TODO.md` lists manual GUI checks (throw feel, screen share, physical hotkeys).
+- [GitHub issues](https://github.com/antick/pookie/issues) list manual GUI checks (throw feel, screen share, physical hotkeys).
   Selftest and Swift tests do not replace those; do not infer they passed from specs.
 
 The adoption does not rewrite historical documents wholesale. When changing an

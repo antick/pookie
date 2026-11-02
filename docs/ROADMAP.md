@@ -1,7 +1,7 @@
 # Pookie — Roadmap
 
 > The working list of what is *not* done — what "done" means for each item, and the
-> things that need a human rather than a test — lives in [`TODO.md`](../TODO.md).
+> things that need a human rather than a test — lives in [GitHub issues](https://github.com/antick/pookie/issues).
 > This file keeps the milestone detail and the acceptance criteria.
 
 Milestones are ordered by **risk retired**, not by user-visible value. The parts that can invalidate
@@ -164,7 +164,7 @@ enforced behaviour with tests.
 **Status: criteria 1–4 met**, with a handful of verbs answering `unsupported` rather than
 being faked: the Unix socket and loopback fallback, the envelope with dedupe and TTL, the
 `pookie` CLI, and `pookie say "hi"` from a fresh terminal with an ack and a non-zero exit
-on refusal. See `TODO.md` for the verbs that remain.
+on refusal. See [GitHub issues](https://github.com/antick/pookie/issues) for the verbs that remain.
 
 ### Goal
 

@@ -103,7 +103,7 @@ keep working. The native automatic updater path was tested in the actual install
 app; its manual Check for Updates dialog, physical key presses, login reboot behavior,
 fresh-machine Gatekeeper confirmation, supported older macOS, real screen sharing,
 and multi-monitor/full-screen interaction remain manual checks. These are not inferred
-from selftests. The original unrelated pet/renderer backlog stays open in TODO.md.
+from selftests. The original unrelated pet/renderer backlog stays open in [GitHub issues](https://github.com/antick/pookie/issues).
 
 Sparkle logged a non-fatal stale-download-bookmark warning before continuing with valid
 archive verification, and its background-app gentle-reminder advisory. Neither prevented

@@ -74,4 +74,4 @@ Before finishing a change, run `npm run specs:check` and the applicable reposito
 checks (`make selftest`, `make test` on macOS), update the changelog, sync the
 accepted specs and archive the change. Spec validation checks document structure;
 selftest and Swift tests establish implementation coverage. Neither a valid spec
-nor a checked task proves every GUI workflow works without the manual checks in TODO.md.
+nor a checked task proves every GUI workflow works without the manual checks tracked in [GitHub issues](https://github.com/antick/pookie/issues).

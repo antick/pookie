@@ -13,7 +13,7 @@ plans distinguishable from implementation evidence.
 - [README.md](../README.md)
 - [AGENTS.md](../AGENTS.md)
 - [CHANGELOG.md](../CHANGELOG.md)
-- [TODO.md](../TODO.md) (open work only, not baseline requirements)
+- [GitHub issues](https://github.com/antick/pookie/issues) (open work only, not baseline requirements)
 - [docs/ROADMAP.md](../docs/ROADMAP.md) (milestone context, not baseline requirements)
 
 ## Architecture and constraints
