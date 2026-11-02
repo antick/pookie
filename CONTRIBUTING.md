@@ -14,7 +14,7 @@ formatting. Dependencies must be pinned exactly and released at least two days a
 
 For art or geometry changes, run `make poses` and inspect the generated sheets.
 Update README.md, docs/DESIGN.md and docs/ROADMAP.md when behavior changes, and
-remove completed work from TODO.md. Open a pull request explaining the problem,
+close related [GitHub issues](https://github.com/antick/pookie/issues) when work is done. Open a pull request explaining the problem,
 the resulting behavior and how you verified it. Ordinary contributions never
 need Apple signing credentials.
 

@@ -4,7 +4,7 @@ Upstream-Contact: https://github.com/antick/pookie/issues
 Source: https://github.com/antick/pookie
 
 Files: Sources/* Tests/* scripts/* Resources/* Makefile Package.swift Package.resolved
-       README.md TODO.md AGENTS.md CONTRIBUTING.md SECURITY.md CHANGELOG.md
+       README.md AGENTS.md CONTRIBUTING.md SECURITY.md CHANGELOG.md
        docs/* .github/* .gitignore shots/*
 Copyright: 2026 Pankaj Sanam
 License: GPL-3.0-or-later

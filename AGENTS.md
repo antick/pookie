@@ -6,7 +6,7 @@ and **no privacy permission prompts** —
 Screen Recording, Accessibility and Input Monitoring are off the table by design, see
 `docs/MACOS-CONSTRAINTS.md`.
 
-`TODO.md` is what is left and what "done" means for it. `README.md` is the tour and the file map.
+[GitHub issues](https://github.com/antick/pookie/issues) track what is left and what "done" means for each item. `README.md` is the tour and the file map.
 `docs/DESIGN.md` is the architecture.
 `docs/ROADMAP.md` is what is done, what is next, and the risk each milestone retires. Read the
 relevant one before changing behaviour in its area.
@@ -54,8 +54,7 @@ OpenSpec does not replace `make selftest`, the commit rules below, or macOS CI c
    frame tier, CPU and RSS every two seconds. `Pookie --help` is the source of truth for the launch
    flags, and they are how you set up a specific case by hand (`--at`, `--scale`, `--no-wander`).
 3. **Documented.** The same change updates `README.md`, `docs/DESIGN.md` and `docs/ROADMAP.md`
-   wherever behaviour or status moved — and **deletes** the finished item from `TODO.md`. That file
-   is open work only: a ticked box is a list you stop reading. The history is `git log` and the
+   wherever behaviour or status moved — and **closes** the related [GitHub issue](https://github.com/antick/pookie/issues) when the work is done. Open issues are the working list. The history is `git log` and the
    milestone statuses.
 4. **Committed.** One unit of work, one commit, as soon as it is green and documented — not batched
    to the end of the session. A unit is one thing the human asked for, or one coherent slice of it;
@@ -105,9 +104,8 @@ OpenSpec does not replace `make selftest`, the commit rules below, or macOS CI c
   with one leg out sideways for no reason, which was the last frame of a brawl she had finished ten
   minutes earlier. Clear them at the top of `updatePose`, and assert it in a test that ends the
   behaviour and checks the channel is back to zero.
-- **`TODO.md` is open work only.** Finish an item and it comes out of the file, with the reason it
-  is gone left to `git log` and the roadmap. Do not tick, do not strike through, do not keep a
-  "recently closed" section: anything in there is something still to do.
+- **Open work lives in GitHub issues.** Finish an item and close its issue, with the reason it
+  is done left to `git log` and the roadmap. Do not leave resolved issues open.
 - **A launch flag is not a settings edit.** `--no-wander` and friends are overrides for one run;
   `AppConfig.persistsChanges` is what keeps them out of the settings store.
 

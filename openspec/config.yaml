@@ -5,7 +5,7 @@ context: |
   Follow AGENTS.md and read openspec/README.md and openspec/baseline.md first.
   Existing capability specs are a bounded baseline, not proof of exhaustive coverage.
   Inspect implementation and `make selftest` before changing or extending a requirement.
-  Historical plans in docs/ROADMAP.md and TODO.md are intent, not evidence that a feature shipped.
+  Historical plans in docs/ROADMAP.md and open GitHub issues are intent, not evidence that a feature shipped.
   Behaviour stays pure in PetMotion, SpeechEngine and Protocol; AppKit lives in the shell.
   Never steal focus; never require Screen Recording, Accessibility or Input Monitoring.
   Production is Apple Silicon only; Sparkle 2.10.0 is the only runtime SwiftPM dependency.
