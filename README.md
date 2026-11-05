@@ -67,6 +67,32 @@ make poses        # re-render shots/poses.png
 make open         # assemble and launch Pookie Dev.app
 ```
 
+### mise
+
+Install [mise](https://mise.jdx.dev/) once, then run tasks from the repo root:
+
+```bash
+mise install          # pin Node and install npm dependencies
+mise run dev          # same as make dev
+mise run test         # same as make test
+mise run specs:check  # OpenSpec strict validation
+```
+
+| Task | What it runs |
+| --- | --- |
+| `install` | `npm ci` |
+| `dev` | `make dev` |
+| `build` | `make build` |
+| `test` | `make test` |
+| `check` | `npm run specs:check` (via `specs:check`) |
+| `specs:check` | `npm run specs:check` |
+| `verify-dev` | `make verify-dev` |
+| `verify` | `test`, then `verify-dev`, then `specs:check` |
+| `run` | `make run` |
+| `selftest` | `make selftest` |
+| `poses` | `make poses` |
+| `open` | `make open` |
+
 With Pookie running, from any shell:
 
 ```bash
