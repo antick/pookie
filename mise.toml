@@ -1,0 +1,53 @@
+# Toolchain and task runner for Pookie. `mise install` once, then `mise run <task>`.
+# Node tasks delegate to npm; Swift and app tasks delegate to the root Makefile.
+
+[tools]
+node = "20.19.0"
+
+[tasks.install]
+description = "Install OpenSpec and other npm devDependencies from the lockfile"
+run = "npm ci"
+
+[tasks.dev]
+description = "Build and open Pookie Dev.app"
+run = "make dev"
+
+[tasks.build]
+description = "Compile the Pookie binary (debug, arm64)"
+run = "make build"
+
+[tasks.test]
+description = "Selftests, Swift tests, and release script safety checks"
+run = "make test"
+
+[tasks."specs:check"]
+description = "Validate OpenSpec specs (strict, non-interactive)"
+run = "npm run specs:check"
+
+[tasks.check]
+description = "Strict OpenSpec validation"
+depends = ["specs:check"]
+
+[tasks."verify-dev"]
+description = "Bundle identity, icons, notices, and runtime checks for Pookie Dev.app"
+run = "make verify-dev"
+
+[tasks.verify]
+description = "CI-quality gate: tests, dev bundle checks, and OpenSpec validation"
+depends = ["test", "verify-dev", "specs:check"]
+
+[tasks.run]
+description = "Run Pookie Dev with verbose logging"
+run = "make run"
+
+[tasks.selftest]
+description = "Headless pet checks (bitmap, art envelope, physics, postures)"
+run = "make selftest"
+
+[tasks.poses]
+description = "Re-render artwork review sheets under shots/"
+run = "make poses"
+
+[tasks.open]
+description = "Assemble and launch Pookie Dev.app"
+run = "make open"
